@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # Database services
+  mongodb:
+    image: mongo:6.0
+    container_name: tennis-mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-password}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - tennis-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: tennis-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-password}
+    volumes:
+      - redis_data:/data
+    networks:
+      - tennis-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Application services
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.notification
+    container_name: tennis-notification
+    environment:
+      - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/tennis_booking?authSource=admin
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-password}
+      - GMAIL_EMAIL=${GMAIL_EMAIL}
+      - GMAIL_PASSWORD=${GMAIL_PASSWORD}
+      - DB_NAME=tennis_booking
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tennis-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ps", "aux", "|", "grep", "notification-service"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  scraper-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    container_name: tennis-scraper
+    environment:
+      - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/tennis_booking?authSource=admin
+      - DB_NAME=tennis_booking
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - tennis-network
+    restart: unless-stopped
+    # Run scraper every 5 minutes
+    command: >
+      sh -c "
+        while true; do
+          python src/playwright_scraper.py --all
+          echo 'Scraping cycle completed, waiting 5 minutes...'
+          sleep 300
+        done
+      "
+
+  # Seed services (run once)
+  seed-db:
+    build:
+      context: .
+      dockerfile: Dockerfile.notification
+    container_name: tennis-seed-db
+    environment:
+      - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/tennis_booking?authSource=admin
+      - DB_NAME=tennis_booking
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - tennis-network
+    command: ["./seed-db"]
+    restart: "no"
+
+  seed-user:
+    build:
+      context: .
+      dockerfile: Dockerfile.notification
+    container_name: tennis-seed-user
+    environment:
+      - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/tennis_booking?authSource=admin
+      - DB_NAME=tennis_booking
+      - USER_EMAIL=${USER_EMAIL:-mvgnum@gmail.com}
+    depends_on:
+      seed-db:
+        condition: service_completed_successfully
+    networks:
+      - tennis-network
+    command: ["./seed-user"]
+    restart: "no"
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  tennis-network:
+    driver: bridge 
