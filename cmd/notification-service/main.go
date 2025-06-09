@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/smtp"
 	"os"
 	"os/signal"
 	"syscall"
@@ -89,10 +90,42 @@ func NewGmailService(email, password, fromName string, logger *log.Logger) *Gmai
 
 // SendCourtAvailabilityAlert sends email notification via Gmail SMTP
 func (g *GmailService) SendCourtAvailabilityAlert(toEmail, courtDetails, bookingLink string) error {
-	// For now, we'll log the notification instead of actually sending it
-	g.logger.Printf("📧 [MOCK EMAIL] Court Alert Sent to %s", toEmail)
-	g.logger.Printf("📧 [MOCK EMAIL] Details: %s", courtDetails)
-	g.logger.Printf("📧 [MOCK EMAIL] Booking Link: %s", bookingLink)
+	// Compose email
+	subject := "🎾 Tennis Court Available!"
+	
+	body := fmt.Sprintf(`🎾 A tennis court just became available!
+
+%s
+
+🔗 Book now: %s
+
+This slot just became available - book quickly!
+
+---
+Tennis Court Booking Alert System
+`, courtDetails, bookingLink)
+
+	// Send email via Gmail SMTP
+	return g.sendEmail(toEmail, subject, body)
+}
+
+func (g *GmailService) sendEmail(toEmail, subject, body string) error {
+	// Gmail SMTP configuration
+	auth := smtp.PlainAuth("", g.fromEmail, g.fromPassword, g.smtpHost)
+	
+	// Compose message
+	msg := fmt.Sprintf("To: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", toEmail, subject, body)
+	
+	// Send email
+	addr := fmt.Sprintf("%s:%s", g.smtpHost, g.smtpPort)
+	err := smtp.SendMail(addr, auth, g.fromEmail, []string{toEmail}, []byte(msg))
+	
+	if err != nil {
+		g.logger.Printf("❌ Failed to send email to %s: %v", toEmail, err)
+		return err
+	}
+	
+	g.logger.Printf("✅ Email sent successfully to %s", toEmail)
 	return nil
 }
 
@@ -442,7 +475,7 @@ func (s *NotificationService) SendTestNotification(email string, gmailService *G
 // logServiceStatus logs the current status of services
 func (s *NotificationService) logServiceStatus() {
 	s.logger.Println("📊 Service Status:")
-	s.logger.Println("  ✅ Email Service: ENABLED (Gmail SMTP Mock)")
+	s.logger.Println("  ✅ Email Service: ENABLED (Gmail SMTP Real)")
 	s.logger.Println("  ✅ Redis Listener: ENABLED")
 	s.logger.Println("  ✅ MongoDB Connection: ENABLED")
 	s.logger.Println("  ✅ Duplicate Prevention: ENABLED")
