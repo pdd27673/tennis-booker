@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generatedAt": "2025-06-09T15:06:30.494Z",
+    "generatedAt": "2025-06-09T15:26:35.603Z",
     "tasksAnalyzed": 1,
     "totalTasks": 10,
     "analysisCount": 10,
@@ -9,14 +9,6 @@
     "usedResearch": false
   },
   "complexityAnalysis": [
-    {
-      "taskId": 2,
-      "taskTitle": "MongoDB Schema Implementation and Initial Data Seeding",
-      "complexityScore": 6,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down 'MongoDB Schema Implementation and Initial Data Seeding' into subtasks for: defining Go structs for all specified collections (Users, Venues, Bookings, ScrapingLogs) based on PRD 6.1, implementing MongoDB connection and collection/index creation logic, developing scripts/logic to seed initial venue data for LTA/Clubspark, and developing scripts/logic to seed initial venue data for courtsides.com/tennistowerhamlets.",
-      "reasoning": "Schema definition for multiple entities, implementing DB connection utilities, and data seeding (potentially per provider) are distinct activities. PRD clarity reduces complexity but multiple entities and seeding logic warrant moderate score."
-    },
     {
       "taskId": 3,
       "taskTitle": "HashiCorp Vault Integration for Credential Management",
@@ -88,6 +80,14 @@
       "recommendedSubtasks": 5,
       "expansionPrompt": "Generate subtasks for 'Project Setup and Core Infrastructure Initialization'. The subtasks should cover: 1. Initializing the Go project structure (PRD 5.1), Go module (`tennis-booking-bot`), and installing Go dependencies (PRD 5.2). 2. Initializing the Python project structure (PRD 5.1), Python virtual environment (`scraper-env`), and installing Python dependencies (PRD 5.3). 3. Setting up Docker Compose with MongoDB and Redis services, ensuring they are operational. 4. Setting up Docker Compose for HashiCorp Vault, including its operational initialization (docker part, `vault operator init`, `unseal`, basic auth) as per PRD 5.5. 5. Creating the `.env.example` file and performing initial verification of all components (Docker services start, Go build, Python env activation & dependencies, Vault accessibility and basic R/W test).",
       "reasoning": "The task involves multiple distinct setup areas: Go project initialization, Python project initialization, Docker Compose configuration for three services (MongoDB, Redis, Vault), and a multi-step Vault initialization process. Each of these requires specific configurations and verifications, contributing to a moderate-to-high complexity. Breaking it down allows focused effort on each component and simplifies verification."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "MongoDB Schema Implementation and Initial Data Seeding",
+      "complexityScore": 7,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the task 'MongoDB Schema Implementation and Initial Data Seeding'. Create separate subtasks for: 1. Defining Go structs (in `pkg/database` or similar) and implementing the MongoDB schema for the Users collection based on PRD section 6.1. 2. Defining Go structs and implementing the MongoDB schema for the Venues collection based on PRD section 6.1. 3. Defining Go structs and implementing the MongoDB schema for the Bookings collection based on PRD section 6.1. 4. Defining Go structs and implementing the MongoDB schema for the ScrapingLogs collection based on PRD section 6.1. 5. Defining and applying necessary indexes (e.g., on `user_id` for Bookings, `venue_id` for ScrapingLogs) to all collections. 6. Developing a script (Go or Python) to seed the `Venues` collection with initial data for LTA/Clubspark and courtsides.com/tennistowerhamlets, ensuring the script handles MongoDB connection and collection creation if they don't exist.",
+      "reasoning": "This task involves multiple distinct components: defining four separate data schemas and their Go struct representations, implementing these schemas in MongoDB, defining and applying database indexes, and developing a data seeding script. Each component requires focused effort and careful implementation. Separating these into subtasks improves clarity, allows for potentially parallel development of schemas, and makes progress tracking more granular, justifying a complexity of 7 and 6 subtasks."
     }
   ]
 }
