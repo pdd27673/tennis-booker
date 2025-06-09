@@ -1,141 +1,136 @@
-# Tennis Court Booking Application PRD
+# Tennis Court Availability Alert System PRD
 
 ## Overview
-The Tennis Court Booking Application is a web-based platform designed to streamline the process of reserving tennis courts at local clubs and facilities. It solves the problem of inefficient manual booking systems by providing users with a convenient way to view availability, make reservations, and manage their bookings online. The application serves tennis players of all levels who want to easily secure court time, as well as facility managers who need an efficient system to manage their courts.
+The Tennis Court Availability Alert System is a cloud-based monitoring platform that tracks tennis court availability at local clubs and facilities. It solves the problem of manually checking booking websites by automatically monitoring court availability and sending real-time email notifications when slots become available (new slots or cancellations). Users receive instant alerts with direct booking links, allowing them to quickly secure court time while the system handles the tedious monitoring task.
+
+## Core Value Proposition
+- **Real-time Monitoring**: Continuously monitors tennis court booking websites
+- **Instant Notifications**: Email alerts sent immediately when slots become available
+- **Direct Booking Links**: Email includes direct links to book the available slot
+- **Cloud-based**: Reliable, scalable monitoring that runs 24/7
+- **Manual Booking**: Users retain full control over their booking decisions
 
 ## Core Features
 
-### User Authentication
-- Allows users to register, log in, and manage their profiles
-- Stores user preferences, booking history, and payment information
-- Implements secure authentication with email verification
+### Real-time Court Monitoring
+- Monitors multiple tennis venues (LTA/Clubspark, Courtsides, etc.)
+- Detects new slot availability and cancellations
+- Tracks court type, date, time, and pricing information
+- Handles JavaScript-heavy booking sites with robust scraping
 
-### Court Availability & Booking
-- Displays available courts with real-time updates
-- Allows users to filter by date, time, court type, and location
-- Provides an intuitive booking interface with calendar integration
-- Sends confirmation emails and reminders
+### Intelligent Alert System
+- Email notifications with court details and direct booking links
+- Configurable notification preferences (venues, times, court types)
+- Immediate alerts when new slots match user preferences
+- Clean, mobile-friendly email templates
 
-### Payment Processing
-- Integrates with payment gateways to handle court fees
-- Supports various payment methods (credit card, PayPal)
-- Manages refunds for cancellations according to facility policies
+### User Preference Management
+- Configure preferred venues and court types
+- Set time preferences (morning, evening, weekends)
+- Maximum price thresholds
+- Notification frequency controls
 
-### Admin Dashboard
-- Gives facility managers tools to manage courts and schedules
-- Provides analytics on court usage and revenue
-- Allows configuration of pricing, operating hours, and booking rules
-
-## User Experience
-
-### User Personas
-1. **Casual Player**: Books occasionally, values simplicity and convenience
-2. **Club Member**: Regular player who books frequently, values member benefits
-3. **Facility Manager**: Administers the courts, values control and insights
-
-### Key User Flows
-1. **Booking a Court**:
-   - User logs in
-   - Selects date and time
-   - Views available courts
-   - Selects a court and confirms booking
-   - Completes payment
-   - Receives confirmation
-
-2. **Managing Bookings**:
-   - User views upcoming bookings
-   - Can cancel or reschedule within policy limits
-   - Receives notifications for upcoming bookings
-
-3. **Admin Court Management**:
-   - Admin logs in to dashboard
-   - Views court schedule and bookings
-   - Can block off maintenance times
-   - Adjusts pricing or availability as needed
+### Cloud Infrastructure
+- Designed for deployment on AWS, GCP, or similar
+- Docker-based for easy deployment and scaling
+- Reliable message queuing for alert processing
+- Secure credential management for venue access
 
 ## Technical Architecture
 
 ### System Components
-- **Frontend**: React.js with TypeScript for type safety
-- **Backend**: Node.js with Express
-- **Database**: MongoDB for flexible data modeling
-- **Authentication**: JWT-based authentication system
-- **Payment**: Integration with Stripe API
-- **Notifications**: Email service using SendGrid
+- **Monitoring Service**: Python scrapers with Firecrawl for JavaScript sites
+- **Scheduler**: Go-based cron service for periodic scraping
+- **Alert Engine**: Go service for processing availability and sending notifications
+- **Database**: MongoDB for venues, users, and scraping logs
+- **Message Queue**: Redis for reliable task distribution
+- **Email Service**: SendGrid integration for notifications
 
 ### Data Models
-- **User**: Profile information, preferences, booking history
-- **Court**: Details, type, location, hourly rates
-- **Booking**: Date, time, duration, user, court, payment status
-- **Facility**: Operating hours, location, contact information
-- **Payment**: Transaction records, refund status
+- **Venue**: Booking URL, venue type, location, scraping configuration
+- **User**: Email, notification preferences, venue subscriptions
+- **ScrapingLog**: Timestamp, venue, detected slots, availability changes
+- **AlertHistory**: Track sent notifications to avoid duplicates
 
-### APIs and Integrations
-- RESTful API for client-server communication
-- Calendar integration (Google Calendar, iCal)
-- Payment gateway (Stripe)
-- Email notification service (SendGrid)
+### Cloud Architecture Considerations
+- **Containerized Services**: Docker containers for easy deployment
+- **Environment Configuration**: Cloud-native config management
+- **Monitoring & Logging**: Structured logging for cloud monitoring
+- **Scalability**: Horizontal scaling for multiple venue monitoring
+- **Security**: Secure API keys and credentials management
 
-### Infrastructure Requirements
-- Cloud hosting (AWS or similar)
-- Database hosting
-- SSL certification for security
-- Automated backup system
+## User Experience
+
+### Key User Flow
+1. **Setup**: User provides email and selects venues to monitor
+2. **Configuration**: Sets preferences for court types, times, price limits
+3. **Monitoring**: System continuously monitors selected venues
+4. **Alert**: User receives email when matching slot becomes available
+5. **Booking**: User clicks link in email to book directly on venue site
+
+### Email Notification Format
+```
+🎾 Court Available at Stratford Park!
+
+Court 3 - Outdoor Hard Court
+📅 Tomorrow, March 15th
+⏰ 6:00 PM - 7:00 PM  
+💰 £15.00
+
+🔗 BOOK NOW: [Direct booking link]
+
+This slot just became available - book quickly!
+```
 
 ## Development Roadmap
 
-### MVP Requirements
-- User registration and authentication system
-- Basic court listing and availability view
-- Simple booking functionality with date/time selection
-- Admin panel with basic court management
-- Email notifications for bookings
-- Simple payment processing
+### Phase 1: Core Monitoring (Current - 70% Complete)
+- ✅ Venue scraping infrastructure
+- ✅ Database schemas and data storage
+- ✅ Scheduler for periodic monitoring
+- ✅ Basic preference management
 
-### Future Enhancements
-- Mobile application for iOS and Android
-- Advanced booking features (recurring bookings, waitlists)
-- Social features (find playing partners, organize matches)
-- Loyalty program and discounts
-- Weather integration to suggest indoor/outdoor courts
-- Court rating and review system
+### Phase 2: Alert System (Next - In Progress)
+- 🔄 Email notification integration (SendGrid)
+- 🔄 Alert processing logic
+- 🔄 Email template design
+- 🔄 Duplicate notification prevention
 
-## Logical Dependency Chain
-1. Setup project infrastructure and authentication system
-2. Implement court and facility data models
-3. Create court availability and booking system
-4. Develop payment processing integration
-5. Build admin dashboard and management tools
-6. Implement notification system
-7. Add user profile management
-8. Develop reporting and analytics
+### Phase 3: Cloud Deployment
+- ⏳ Docker containerization
+- ⏳ Cloud deployment configuration (AWS/GCP)
+- ⏳ Environment variable management
+- ⏳ Monitoring and logging setup
 
-## Risks and Mitigations
+### Phase 4: Enhancements
+- ⏳ Web dashboard for preference management
+- ⏳ SMS notifications (optional)
+- ⏳ Mobile app for notifications
+- ⏳ Analytics on venue availability patterns
 
-### Technical Challenges
-- **Real-time Availability**: Implement efficient caching and database design
-- **Payment Security**: Use established payment gateways with security compliance
-- **System Reliability**: Implement comprehensive error handling and logging
+## Deployment Architecture
 
-### MVP Considerations
-- Focus on core booking functionality before adding advanced features
-- Ensure the booking flow is intuitive and frictionless
-- Prioritize mobile responsiveness for on-the-go bookings
+### Cloud Services Required
+- **Compute**: Container hosting (AWS ECS, GCP Cloud Run, etc.)
+- **Database**: Managed MongoDB (Atlas) or cloud equivalent
+- **Cache/Queue**: Managed Redis (AWS ElastiCache, GCP Memorystore)
+- **Email**: SendGrid API integration
+- **Monitoring**: Cloud logging and metrics (CloudWatch, Stackdriver)
 
-### Resource Constraints
-- Use third-party libraries for non-core functionality
-- Implement feature flags for gradual rollout
-- Design with scalability in mind to avoid future refactoring
+### Estimated Monthly Costs
+- **Small Scale** (1-10 users): $20-50/month
+- **Medium Scale** (50-100 users): $100-200/month
+- **Large Scale** (500+ users): $500-1000/month
 
-## Appendix
+## Success Metrics
+- **Alert Accuracy**: >95% of notifications should lead to actually available slots
+- **Response Time**: Notifications sent within 2 minutes of slot availability
+- **Uptime**: >99% monitoring uptime
+- **User Satisfaction**: Users successfully book courts from 30%+ of notifications
 
-### Research Findings
-- 78% of tennis players prefer online booking over phone calls
-- Peak booking times are weekday evenings and weekend mornings
-- Most users book courts 2-5 days in advance
-
-### Technical Specifications
-- Browser support: Latest versions of Chrome, Firefox, Safari, Edge
-- Mobile responsiveness for all screen sizes
-- Maximum response time for API calls: 2 seconds
-- 99.9% uptime SLA target 
+## Technical Specifications
+- **Monitoring Frequency**: Every 2-5 minutes per venue
+- **Email Delivery**: <30 seconds from detection to email sent
+- **Browser Support**: Email compatible with all major email clients
+- **Mobile Responsiveness**: Email templates optimized for mobile viewing
+- **API Response Time**: <2 seconds for preference updates 

@@ -1,0 +1,21 @@
+# Web scraping
+requests==2.31.0
+beautifulsoup4==4.12.2
+
+# MongoDB
+pymongo==4.5.0
+
+# Redis
+redis==5.0.1
+
+# Utilities
+python-dotenv==1.0.0
+
+# HashiCorp Vault
+hvac==2.1.0
+
+# Testing
+pytest==7.4.3
+
+# Web Scraping
+firecrawl-py==1.1.0 

@@ -13,6 +13,7 @@ build:
 	@echo "Building application..."
 	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/api ./cmd/api
 	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/scheduler ./cmd/scheduler
+	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/notification-service ./cmd/notification-service
 	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/ensure-indexes $(ENSURE_INDEXES)
 
 # Database targets
@@ -51,10 +52,10 @@ seed-venues:
 # Help target
 .PHONY: help
 help:
-	@echo "Tennis Booking Bot Makefile"
+	@echo "Tennis Court Availability Alert System Makefile"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make build                 Build all binaries"
+	@echo "  make build                 Build all binaries (api, scheduler, notification-service)"
 	@echo "  make test                  Run all tests"
 	@echo "  make test-short            Run tests in short mode (skip MongoDB tests)"
 	@echo "  make db-ensure-indexes     Create all database indexes"

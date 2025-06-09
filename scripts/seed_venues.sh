@@ -5,9 +5,9 @@
 
 # Set variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON_DIR="${SCRIPT_DIR}/python"
-VENV_DIR="${SCRIPT_DIR}/../scraper-env"
-SEED_SCRIPT="${PYTHON_DIR}/seed_venues.py"
+PROJECT_ROOT="${SCRIPT_DIR}/.."
+VENV_DIR="${PROJECT_ROOT}/scraper-env"
+SEED_SCRIPT="${PROJECT_ROOT}/utils/seed_venues.py"
 
 # Check if virtual environment exists
 if [ ! -d "${VENV_DIR}" ]; then

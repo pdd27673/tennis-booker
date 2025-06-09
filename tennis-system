@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# 🎾 Tennis Court Booking System - Convenience Wrapper
+# 
+# This script provides easy access to the main control script
+# Usage: ./tennis-system [COMMAND] [OPTIONS]
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${SCRIPT_DIR}/scripts/run_tennis_system.sh" "$@" 
