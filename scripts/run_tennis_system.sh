@@ -14,7 +14,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DOCKER_COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.yml"
-API_PORT=8080
 REDIS_PORT=6379
 MONGO_PORT=27017
 VENV_PATH="${PROJECT_ROOT}/scraper-env"
@@ -90,7 +89,7 @@ OPTIONS:
                    (e.g., "Victoria Park", "Stratford Park", "Ropemakers Field")
     --debug         Enable debug logging
     --force         Force operations without confirmation
-    --port PORT     Override API port (default: 8080)
+
     --loop-interval SECONDS  Scraping loop interval (default: 600)
 
 EXAMPLES:
@@ -140,9 +139,9 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check Go binary
-    if [ ! -f "$PROJECT_ROOT/bin/api" ]; then
-        warn "API binary not found. Building..."
+    # Check notification service binary
+    if [ ! -f "$PROJECT_ROOT/bin/notification-service" ]; then
+        warn "Notification service binary not found. Building..."
         cd "$PROJECT_ROOT"
         make build
     fi
@@ -189,80 +188,39 @@ stop_docker() {
     success "Docker services stopped"
 }
 
-# Start API server
-start_api() {
-    info "Starting API server on port $API_PORT..."
+# Start notification service
+start_notification_service() {
+    info "Starting notification service..."
     
-    # Kill existing API if running
-    pkill -f "bin/api" || true
+    # Kill existing notification service if running
+    pkill -f "bin/notification-service" || true
     
-    # Start API in background
+    # Start notification service in background
     cd "$PROJECT_ROOT"
-    nohup ./bin/api > logs/api.log 2>&1 &
-    API_PID=$!
-    echo $API_PID > logs/api.pid
+    nohup ./bin/notification-service > logs/notification-service.log 2>&1 &
+    NOTIFICATION_PID=$!
+    echo $NOTIFICATION_PID > logs/notification-service.pid
     
-    # Wait for API to be ready
-    for i in {1..20}; do
-        if curl -s "http://localhost:$API_PORT/api/health" &>/dev/null; then
-            success "API server is ready (PID: $API_PID)"
-            return 0
-        fi
-        echo -n "."
-        sleep 2
-    done
-    
-    error "API server failed to start"
-    return 1
+    success "Notification service started (PID: $NOTIFICATION_PID)"
 }
 
-# Stop API server
-stop_api() {
-    info "Stopping API server..."
+# Stop notification service
+stop_notification_service() {
+    info "Stopping notification service..."
     
-    if [ -f logs/api.pid ]; then
-        PID=$(cat logs/api.pid)
+    if [ -f logs/notification-service.pid ]; then
+        PID=$(cat logs/notification-service.pid)
         if kill $PID 2>/dev/null; then
-            success "API server stopped (PID: $PID)"
+            success "Notification service stopped (PID: $PID)"
         fi
-        rm -f logs/api.pid
+        rm -f logs/notification-service.pid
     else
-        pkill -f "bin/api" || true
-        success "API server stopped"
+        pkill -f "bin/notification-service" || true
+        success "Notification service stopped"
     fi
 }
 
-# Start scheduler
-start_scheduler() {
-    info "Starting scheduler service..."
-    
-    # Kill existing scheduler if running
-    pkill -f "bin/scheduler" || true
-    
-    # Start scheduler in background
-    cd "$PROJECT_ROOT"
-    nohup ./bin/scheduler > logs/scheduler.log 2>&1 &
-    SCHEDULER_PID=$!
-    echo $SCHEDULER_PID > logs/scheduler.pid
-    
-    success "Scheduler started (PID: $SCHEDULER_PID)"
-}
 
-# Stop scheduler
-stop_scheduler() {
-    info "Stopping scheduler service..."
-    
-    if [ -f logs/scheduler.pid ]; then
-        PID=$(cat logs/scheduler.pid)
-        if kill $PID 2>/dev/null; then
-            success "Scheduler stopped (PID: $PID)"
-        fi
-        rm -f logs/scheduler.pid
-    else
-        pkill -f "bin/scheduler" || true
-        success "Scheduler stopped"
-    fi
-}
 
 # Seed venues into MongoDB
 seed_venues() {
@@ -518,22 +476,7 @@ check_status() {
         echo -e "  Docker:  ${RED}❌ Not running${NC}"
     fi
     
-    # API server
-    echo -e "\n${BLUE}API Server:${NC}"
-    if curl -s "http://localhost:$API_PORT/api/health" &>/dev/null; then
-        echo -e "  Status:  ${GREEN}✅ Healthy${NC}"
-        echo -e "  URL:     http://localhost:$API_PORT"
-    else
-        echo -e "  Status:  ${RED}❌ Not responding${NC}"
-    fi
-    
-    # Scheduler
-    echo -e "\n${BLUE}Scheduler:${NC}"
-    if pgrep -f "bin/scheduler" &>/dev/null; then
-        echo -e "  Status:  ${GREEN}✅ Running${NC}"
-    else
-        echo -e "  Status:  ${RED}❌ Not running${NC}"
-    fi
+
     
     # Notification service
     echo -e "\n${BLUE}Notification Service:${NC}"
@@ -657,14 +600,14 @@ monitor_system() {
 show_logs() {
     log "📜 Recent system logs"
     
-    echo -e "\n${BLUE}API Logs:${NC}"
-    tail -n 20 logs/api.log 2>/dev/null || echo "No API logs found"
-    
-    echo -e "\n${BLUE}Scheduler Logs:${NC}"
-    tail -n 20 logs/scheduler.log 2>/dev/null || echo "No scheduler logs found"
+    echo -e "\n${BLUE}Notification Service Logs:${NC}"
+    tail -n 20 logs/notification-service.log 2>/dev/null || echo "No notification service logs found"
     
     echo -e "\n${BLUE}Scraper Logs:${NC}"
-    tail -n 20 src/scrapers/scraper_orchestrator.log 2>/dev/null || echo "No scraper logs found"
+    tail -n 20 playwright_scraper.log 2>/dev/null || echo "No scraper logs found"
+    
+    echo -e "\n${BLUE}Docker Logs:${NC}"
+    docker-compose logs --tail=10 2>/dev/null || echo "No docker logs found"
 }
 
 # Main script logic
@@ -690,10 +633,7 @@ main() {
                 FORCE="true"
                 shift
                 ;;
-            --port)
-                API_PORT="$2"
-                shift 2
-                ;;
+
             --loop-interval)
                 LOOP_INTERVAL="$2"
                 shift 2
@@ -730,16 +670,14 @@ main() {
         start)
             check_prerequisites
             start_docker
-            start_api
-            start_scheduler
             success "🎾 Tennis Court Booking System started successfully!"
             echo -e "\nUse: $0 status          # to check system status"
             echo -e "Use: $0 scrape-now     # to scrape all venues immediately"
             echo -e "Use: $0 scrape-loop    # for continuous scraping with notifications"
+            echo -e "Use: $0 start-notifications # to start notification service"
             ;;
         stop)
-            stop_scheduler
-            stop_api
+            stop_notification_service
             stop_docker
             success "Tennis Court Booking System stopped"
             ;;

@@ -10,14 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-
-	"tennis-booking-bot/internal/email"
 )
 
 // User represents user preferences for notifications
@@ -61,11 +59,10 @@ type SlotData struct {
 
 // NotificationService handles the notification processing
 type NotificationService struct {
-	db           *mongo.Database
-	redisClient  *redis.Client
-	emailClient  *email.Client
-	logger       *log.Logger
-	users        []User
+	db          *mongo.Database
+	redisClient *redis.Client
+	logger      *log.Logger
+	users       []User
 }
 
 // GmailService handles Gmail SMTP email notifications
@@ -180,7 +177,6 @@ func main() {
 	service := &NotificationService{
 		db:          db,
 		redisClient: redisClient,
-		emailClient: nil, // We'll use gmailService directly
 		logger:      logger,
 	}
 
