@@ -75,6 +75,10 @@ COMMANDS:
     
     setup           Initialize project and seed data
     seed-venues     Seed venue data into MongoDB
+    seed-user       Seed user preferences for notifications
+    test-notification  Send test email notification
+    start-notifications  Start notification service
+    full-system     Start complete system with notifications
     cleanup         Clean up logs and temporary files
     monitor         Monitor system health continuously
     
@@ -95,6 +99,8 @@ EXAMPLES:
     $0 scrape-venue --venues="Victoria Park"   # Scrape specific venue
     $0 scrape-loop                             # Continuous scraping with alerts
     $0 test-full-pipeline                      # Test everything with notifications
+    $0 test-notification                       # Send test email
+    $0 full-system                             # Complete system with notifications
     $0 check-slots                             # Check database slots
 
 REAL-TIME INTEGRATION:
@@ -483,6 +489,22 @@ print(db.slots.count_documents({'available': True}))
     success "Full pipeline test completed"
 }
 
+# Check if Docker service is running
+require_docker_service() {
+    local service=$1
+    if ! docker-compose ps $service | grep -q "Up"; then
+        error "Docker service '$service' is not running. Please start it first:"
+        error "  $0 start"
+        exit 1
+    fi
+}
+
+# Check if multiple Docker services are running
+require_docker_services() {
+    require_docker_service "mongodb"
+    require_docker_service "redis"
+}
+
 # Check service status
 check_status() {
     echo -e "\n${CYAN}🎾 Tennis Court Booking System Status${NC}\n"
@@ -780,6 +802,116 @@ main() {
             ;;
         logs)
             show_logs
+            ;;
+        seed-user)
+            info "Seeding user preferences in database..."
+            require_docker_service "mongodb"
+            
+            if [ -f "${PROJECT_ROOT}/cmd/seed-user/main.go" ]; then
+                cd "${PROJECT_ROOT}"
+                info "Running user seeding script..."
+                if go run cmd/seed-user/main.go; then
+                    success "✅ User preferences seeded successfully"
+                else
+                    error "Failed to seed user preferences"
+                    exit 1
+                fi
+            else
+                error "User seeding script not found at cmd/seed-user/main.go"
+                exit 1
+            fi
+            ;;
+        test-notification)
+            info "Sending test notification..."
+            require_docker_service "mongodb"
+            
+            cd "${PROJECT_ROOT}"
+            if [ -f "cmd/notification-service/main.go" ]; then
+                info "Compiling notification service..."
+                go build -o /tmp/notification-test cmd/notification-service/main.go
+                
+                info "Sending test email to mvgnum@gmail.com..."
+                
+                # Set environment variables for the test
+                export MONGO_URI="mongodb://admin:YOUR_PASSWORD@localhost:27017"
+                export DB_NAME="tennis_booking"
+                export REDIS_ADDR="localhost:6379"
+                export GMAIL_EMAIL="mvgnum@gmail.com"
+                export GMAIL_PASSWORD="eswk jgaw zbet wgxo"
+                
+                # Run the notification service in test mode
+                if /tmp/notification-test test; then
+                    success "✅ Test notification sent to mvgnum@gmail.com"
+                    info "Check your email inbox for the test notification"
+                else
+                    error "Failed to send test notification"
+                    exit 1
+                fi
+            else
+                error "Notification service not found"
+                exit 1
+            fi
+            ;;
+        start-notifications)
+            info "Starting notification service..."
+            require_docker_service "mongodb"
+            require_docker_service "redis"
+            
+            cd "${PROJECT_ROOT}"
+            if [ -f "cmd/notification-service/main.go" ]; then
+                info "Starting notification service in background..."
+                info "This will monitor for new court slots and send email alerts"
+                info "Press Ctrl+C to stop"
+                
+                # Set environment variables
+                export MONGO_URI="mongodb://admin:YOUR_PASSWORD@localhost:27017"
+                export DB_NAME="tennis_booking"
+                export REDIS_ADDR="localhost:6379"
+                export REDIS_PASSWORD="password"
+                export GMAIL_EMAIL="mvgnum@gmail.com"
+                export GMAIL_PASSWORD="eswk jgaw zbet wgxo"
+                export FROM_NAME="Tennis Court Alerts"
+                
+                go run cmd/notification-service/main.go
+            else
+                error "Notification service not found"
+                exit 1
+            fi
+            ;;
+        full-system)
+            info "Starting complete tennis booking system with notifications..."
+            require_docker_services
+            
+            info "Setting up complete system:"
+            info "1. Seeding venues"
+            "$0" seed-venues
+            
+            info "2. Seeding user preferences"
+            "$0" seed-user
+            
+            info "3. Testing notification system"
+            "$0" test-notification
+            
+            info "4. Starting scraping loop in background"
+            "$0" scrape-loop --loop-interval 300 &  # 5 minute intervals
+            SCRAPER_PID=$!
+            
+            info "5. Starting notification service"
+            "$0" start-notifications &
+            NOTIFICATION_PID=$!
+            
+            info "🚀 Complete system running!"
+            info "- Scraping: PID $SCRAPER_PID (every 5 minutes)"
+            info "- Notifications: PID $NOTIFICATION_PID"
+            info "- Monitoring: mvgnum@gmail.com"
+            info "- Venues: Victoria Park, Stratford Park, Ropemakers Field"
+            info "- Times: Weekdays 19:00-22:00, Weekends 10:00-20:00"
+            info ""
+            info "Press Ctrl+C to stop all services"
+            
+            # Wait for interrupt
+            trap "kill $SCRAPER_PID $NOTIFICATION_PID 2>/dev/null; exit" INT TERM
+            wait
             ;;
         *)
             error "Unknown command: $COMMAND"

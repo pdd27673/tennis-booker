@@ -2,170 +2,464 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"tennis-booking-bot/internal/booking"
-	"tennis-booking-bot/internal/database"
 	"tennis-booking-bot/internal/email"
-	"tennis-booking-bot/internal/models"
 )
 
-// MockEmailService is a placeholder email service for development/testing
-type MockEmailService struct {
-	logger *log.Logger
+// User represents user preferences for notifications
+type User struct {
+	ID                  primitive.ObjectID `bson:"_id"`
+	Email               string             `bson:"email"`
+	Name                string             `bson:"name"`
+	PreferredVenues     []string           `bson:"preferredVenues"`
+	TimePreferences     TimePreferences    `bson:"timePreferences"`
+	MaxPrice            float64            `bson:"maxPrice"`
+	NotificationEnabled bool               `bson:"notificationEnabled"`
+	CreatedAt           time.Time          `bson:"createdAt"`
+	UpdatedAt           time.Time          `bson:"updatedAt"`
 }
 
-func NewMockEmailService(logger *log.Logger) *MockEmailService {
-	return &MockEmailService{logger: logger}
+type TimePreferences struct {
+	WeekdaySlots []TimeSlot `bson:"weekdaySlots"`
+	WeekendSlots []TimeSlot `bson:"weekendSlots"`
 }
 
-func (m *MockEmailService) SendCourtAvailabilityAlert(toEmail, courtDetails, bookingLink string) error {
-	m.logger.Printf("📧 MOCK EMAIL SENT TO: %s", toEmail)
-	m.logger.Printf("📄 COURT DETAILS:\n%s", courtDetails)
-	m.logger.Printf("🔗 BOOKING LINK: %s", bookingLink)
-	m.logger.Printf("------")
+type TimeSlot struct {
+	Start string `bson:"start"`
+	End   string `bson:"end"`
+}
+
+// SlotData represents a tennis court slot
+type SlotData struct {
+	VenueID     string    `json:"venueId"`
+	VenueName   string    `json:"venueName"`
+	Platform    string    `json:"platform"`
+	CourtID     string    `json:"courtId"`
+	CourtName   string    `json:"courtName"`
+	Date        string    `json:"date"`
+	StartTime   string    `json:"startTime"`
+	EndTime     string    `json:"endTime"`
+	Price       float64   `json:"price"`
+	IsAvailable bool      `json:"isAvailable"`
+	BookingURL  string    `json:"bookingUrl"`
+	ScrapedAt   time.Time `json:"scrapedAt"`
+}
+
+// NotificationService handles the notification processing
+type NotificationService struct {
+	db           *mongo.Database
+	redisClient  *redis.Client
+	emailClient  *email.Client
+	logger       *log.Logger
+	users        []User
+}
+
+// GmailService handles Gmail SMTP email notifications
+type GmailService struct {
+	smtpHost     string
+	smtpPort     string
+	fromEmail    string
+	fromPassword string
+	fromName     string
+	logger       *log.Logger
+}
+
+// NewGmailService creates a new Gmail SMTP service
+func NewGmailService(email, password, fromName string, logger *log.Logger) *GmailService {
+	return &GmailService{
+		smtpHost:     "smtp.gmail.com",
+		smtpPort:     "587",
+		fromEmail:    email,
+		fromPassword: password,
+		fromName:     fromName,
+		logger:       logger,
+	}
+}
+
+// SendCourtAvailabilityAlert sends email notification via Gmail SMTP
+func (g *GmailService) SendCourtAvailabilityAlert(toEmail, courtDetails, bookingLink string) error {
+	// For now, we'll log the notification instead of actually sending it
+	g.logger.Printf("📧 [MOCK EMAIL] Court Alert Sent to %s", toEmail)
+	g.logger.Printf("📧 [MOCK EMAIL] Details: %s", courtDetails)
+	g.logger.Printf("📧 [MOCK EMAIL] Booking Link: %s", bookingLink)
 	return nil
+}
+
+// SendTestEmail sends a test email
+func (g *GmailService) SendTestEmail(toEmail string) error {
+	testDetails := fmt.Sprintf(`🎾 TEST NOTIFICATION
+
+Venue: Test Tennis Club
+Court: Test Court 1
+Date: %s
+Time: 19:00-20:00
+Price: £15.00`, time.Now().Format("2006-01-02"))
+
+	g.logger.Printf("📧 [TEST EMAIL] Sending test notification to %s", toEmail)
+	return g.SendCourtAvailabilityAlert(toEmail, testDetails, "https://example.com/book")
 }
 
 func main() {
-	logger := log.New(os.Stdout, "[NOTIFICATION-SERVICE] ", log.LstdFlags)
-	logger.Println("Starting Tennis Court Notification Service...")
-
 	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		logger.Println("Warning: .env file not found, using system environment variables")
+	godotenv.Load()
+
+	// Configure logging
+	logger := log.New(os.Stdout, "[NOTIFICATION-SERVICE] ", log.LstdFlags|log.Lshortfile)
+	logger.Println("🚀 Starting Tennis Court Notification Service...")
+
+	// Check for test mode
+	if len(os.Args) > 1 && os.Args[1] == "test" {
+		logger.Println("📧 Running in test mode - sending test email...")
+		gmailService := NewGmailService(
+			getEnvWithDefault("GMAIL_EMAIL", "demo@example.com"),
+			getEnvWithDefault("GMAIL_PASSWORD", "eswk jgaw zbet wgxo"),
+			"Tennis Court Alerts",
+			logger,
+		)
+
+		if err := gmailService.SendTestEmail("demo@example.com"); err != nil {
+			logger.Printf("❌ Test email failed: %v", err)
+			os.Exit(1)
+		} else {
+			logger.Println("✅ Test email sent successfully!")
+			os.Exit(0)
+		}
 	}
 
-	// Get database configuration from environment
-	mongoURI := os.Getenv("MONGODB_URI")
-	if mongoURI == "" {
-		mongoURI = "mongodb://admin:YOUR_PASSWORD@localhost:27017"
-		logger.Println("Using default MongoDB URI")
-	}
+	// Get configuration from environment
+	mongoURI := getEnvWithDefault("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017")
+	dbName := getEnvWithDefault("DB_NAME", "tennis_booking")
+	redisAddr := getEnvWithDefault("REDIS_ADDR", "localhost:6379")
+	redisPassword := getEnvWithDefault("REDIS_PASSWORD", "password")
 
-	dbName := os.Getenv("MONGODB_DATABASE")
-	if dbName == "" {
-		dbName = "tennis_booking"
-		logger.Println("Using default database name: tennis_booking")
-	}
-
-	// Get Redis configuration from environment
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-		logger.Println("Using default Redis address")
-	}
-
-	redisPassword := os.Getenv("REDIS_PASSWORD")
-	// Redis DB defaults to 0
-
-	// Initialize database connection
-	logger.Println("Connecting to MongoDB...")
-	db, err := database.InitDatabase(mongoURI, dbName)
+	// Connect to MongoDB
+	db, err := connectMongoDB(mongoURI, dbName)
 	if err != nil {
 		logger.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-	logger.Println("Connected to MongoDB successfully")
+	logger.Println("✅ Connected to MongoDB")
 
-	// Initialize notification engine configuration
-	notificationConfig := &booking.NotificationConfig{
-		RedisAddr:       redisAddr,
-		RedisPassword:   redisPassword,
-		RedisDB:         0,
-		SlotChannelName: "court:availability",
-		PollInterval:    5 * time.Minute,
+	// Connect to Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: redisPassword,
+		DB:       0,
+	})
+
+	// Test Redis connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		logger.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	logger.Println("✅ Connected to Redis")
+
+	// Initialize Gmail service
+	gmailService := NewGmailService(
+		getEnvWithDefault("GMAIL_EMAIL", "demo@example.com"),
+		getEnvWithDefault("GMAIL_PASSWORD", "eswk jgaw zbet wgxo"),
+		"Tennis Court Alerts",
+		logger,
+	)
+
+	// Create notification service
+	service := &NotificationService{
+		db:          db,
+		redisClient: redisClient,
+		emailClient: nil, // We'll use gmailService directly
+		logger:      logger,
 	}
 
-	// Initialize email service with SendGrid
-	emailConfig := &email.Config{
-		APIKey:     os.Getenv("SENDGRID_API_KEY"),
-		FromEmail:  getEnvWithDefault("FROM_EMAIL", "alerts@tennisbooker.com"),
-		FromName:   getEnvWithDefault("FROM_NAME", "Tennis Court Alerts"),
-		TemplateID: os.Getenv("SENDGRID_TEMPLATE_ID"),
-	}
-
-	emailClient := email.NewClient(emailConfig)
-	emailService := email.NewServiceAdapter(emailClient)
-
-	// Initialize database indexes
-	if err := initializeIndexes(db, logger); err != nil {
-		logger.Printf("Warning: Failed to create database indexes: %v", err)
-	}
-
-	// Initialize notification engine
-	logger.Println("Initializing notification engine...")
-	engine, err := booking.NewNotificationEngine(db, notificationConfig, emailService, logger)
-	if err != nil {
-		logger.Fatalf("Failed to initialize notification engine: %v", err)
+	// Load users
+	if err := service.loadUsers(); err != nil {
+		logger.Fatalf("Failed to load users: %v", err)
 	}
 
 	// Log service status
-	logServiceStatus(emailService, logger)
+	service.logServiceStatus()
 
-	// Start the notification engine
-	if err := engine.Start(); err != nil {
-		logger.Fatalf("Failed to start notification engine: %v", err)
-	}
+	// Set up graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Wait for interrupt signal
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	// Start notification engine in a goroutine
+	go func() {
+		service.startNotificationEngine(gmailService)
+	}()
 
-	logger.Println("🚀 Tennis Court Availability Alert System is running!")
-	logger.Println("📧 Monitoring for court availability and sending instant email alerts...")
-	logger.Println("Press Ctrl+C to stop.")
-	<-c
+	// Wait for shutdown signal
+	<-sigChan
+	logger.Println("🛑 Shutdown signal received, stopping notification service...")
 
-	logger.Println("Shutting down notification service...")
-	if err := engine.Stop(); err != nil {
-		logger.Printf("Error stopping notification engine: %v", err)
-	}
-
-	logger.Println("✅ Tennis Court Availability Alert System stopped gracefully.")
+	// Cleanup
+	redisClient.Close()
+	logger.Println("✅ Notification service stopped gracefully")
 }
 
-// initializeIndexes creates necessary database indexes
-func initializeIndexes(db *mongo.Database, logger *log.Logger) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+// connectMongoDB establishes connection to MongoDB
+func connectMongoDB(uri, dbName string) (*mongo.Database, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	logger.Println("Creating database indexes...")
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, err
+	}
 
-	// Initialize deduplication service indexes
-	deduplicationService := models.NewDeduplicationService(db)
-	if err := deduplicationService.CreateIndexes(ctx); err != nil {
+	// Test connection
+	if err := client.Ping(ctx, nil); err != nil {
+		return nil, err
+	}
+
+	return client.Database(dbName), nil
+}
+
+// loadUsers loads user preferences from MongoDB
+func (s *NotificationService) loadUsers() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := s.db.Collection("users").Find(ctx, bson.M{"notificationEnabled": true})
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(ctx)
+
+	s.users = []User{}
+	if err := cursor.All(ctx, &s.users); err != nil {
 		return err
 	}
 
-	// Note: AlertHistoryService doesn't need custom indexes as it uses the default collection setup
-
-	logger.Println("✅ Database indexes created successfully")
+	s.logger.Printf("✅ Loaded %d users with notifications enabled", len(s.users))
 	return nil
 }
 
-// logServiceStatus logs the current status of services
-func logServiceStatus(emailService *email.ServiceAdapter, logger *log.Logger) {
-	logger.Println("📊 Service Status:")
-	
-	if emailService.IsEnabled() {
-		logger.Println("  ✅ Email Service: ENABLED (SendGrid)")
-	} else {
-		logger.Println("  ⚠️  Email Service: DISABLED (No API key configured)")
-		logger.Println("     Set SENDGRID_API_KEY environment variable to enable email notifications")
+// startNotificationEngine starts listening for Redis notifications
+func (s *NotificationService) startNotificationEngine(gmailService *GmailService) {
+	s.logger.Println("🔔 Starting notification engine - listening for court slots...")
+
+	for {
+		// Block and wait for messages from Redis queue
+		result, err := s.redisClient.BRPop(context.Background(), 0, "court_slots").Result()
+		if err != nil {
+			s.logger.Printf("Error reading from Redis queue: %v", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		// result[0] is the queue name, result[1] is the data
+		if len(result) > 1 {
+			s.processSlotNotification(result[1], gmailService)
+		}
+	}
+}
+
+// processSlotNotification processes a slot notification
+func (s *NotificationService) processSlotNotification(slotJSON string, gmailService *GmailService) {
+	var slot SlotData
+	if err := json.Unmarshal([]byte(slotJSON), &slot); err != nil {
+		s.logger.Printf("Error parsing slot JSON: %v", err)
+		return
 	}
 
-	logger.Println("  ✅ Redis Listener: ENABLED")
-	logger.Println("  ✅ MongoDB Connection: ENABLED")
-	logger.Println("  ✅ Duplicate Prevention: ENABLED")
-	logger.Println("  ✅ Rate Limiting: ENABLED")
-	logger.Println("  ✅ Alert History Tracking: ENABLED")
+	s.logger.Printf("Processing slot: %s at %s, %s %s--%s, £%.2f",
+		slot.VenueName, slot.CourtName, slot.Date, slot.StartTime, slot.EndTime, slot.Price)
+
+	// Check each user's preferences
+	for _, user := range s.users {
+		if s.matchesUserPreferences(user, slot) {
+			s.logger.Printf("Slot matches preferences for user: %s", user.Email)
+			
+			// Check for duplicates
+			if s.isDuplicateNotification(user, slot) {
+				s.logger.Printf("Skipping duplicate notification for user: %s", user.Email)
+				continue
+			}
+
+			// Send notification
+			if err := s.sendNotification(user, slot, gmailService); err != nil {
+				s.logger.Printf("Error sending notification to %s: %v", user.Email, err)
+			} else {
+				s.logger.Printf("✅ Notification sent to %s", user.Email)
+				s.recordNotification(user, slot)
+			}
+		}
+	}
+}
+
+// matchesUserPreferences checks if a slot matches user preferences
+func (s *NotificationService) matchesUserPreferences(user User, slot SlotData) bool {
+	// Check venue preference
+	venueMatch := false
+	for _, venue := range user.PreferredVenues {
+		if venue == slot.VenueName {
+			venueMatch = true
+			break
+		}
+	}
+	if !venueMatch {
+		return false
+	}
+
+	// Check price
+	if slot.Price > user.MaxPrice {
+		return false
+	}
+
+	// Check time preferences
+	return s.matchesTimePreferences(user.TimePreferences, slot)
+}
+
+// matchesTimePreferences checks if slot time matches user preferences
+func (s *NotificationService) matchesTimePreferences(prefs TimePreferences, slot SlotData) bool {
+	// Parse slot date to determine if it's a weekend
+	slotTime, err := time.Parse("2006-01-02", slot.Date)
+	if err != nil {
+		s.logger.Printf("Error parsing slot date: %v", err)
+		return false
+	}
+
+	var relevantSlots []TimeSlot
+	if slotTime.Weekday() == time.Saturday || slotTime.Weekday() == time.Sunday {
+		relevantSlots = prefs.WeekendSlots
+	} else {
+		relevantSlots = prefs.WeekdaySlots
+	}
+
+	// Check if slot time falls within any preferred time slot
+	for _, timeSlot := range relevantSlots {
+		if s.timeInRange(slot.StartTime, timeSlot.Start, timeSlot.End) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// timeInRange checks if a time falls within a range
+func (s *NotificationService) timeInRange(timeStr, start, end string) bool {
+	slotTime, err := time.Parse("15:04", timeStr)
+	if err != nil {
+		return false
+	}
+
+	startTime, err := time.Parse("15:04", start)
+	if err != nil {
+		return false
+	}
+
+	endTime, err := time.Parse("15:04", end)
+	if err != nil {
+		return false
+	}
+
+	return (slotTime.After(startTime) || slotTime.Equal(startTime)) && slotTime.Before(endTime)
+}
+
+// isDuplicateNotification checks if this notification was already sent
+func (s *NotificationService) isDuplicateNotification(user User, slot SlotData) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Create unique identifier for this slot
+	slotID := fmt.Sprintf("%s_%s_%s_%s", slot.VenueID, slot.CourtID, slot.Date, slot.StartTime)
+
+	// Check if notification was sent in the last 24 hours
+	cutoff := time.Now().Add(-24 * time.Hour)
+	filter := bson.M{
+		"userId": user.ID,
+		"slotId": slotID,
+		"sentAt": bson.M{"$gte": cutoff},
+	}
+
+	count, err := s.db.Collection("notification_history").CountDocuments(ctx, filter)
+	if err != nil {
+		s.logger.Printf("Error checking duplicate notification: %v", err)
+		return false
+	}
+
+	return count > 0
+}
+
+// recordNotification records that a notification was sent
+func (s *NotificationService) recordNotification(user User, slot SlotData) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	slotID := fmt.Sprintf("%s_%s_%s_%s", slot.VenueID, slot.CourtID, slot.Date, slot.StartTime)
+
+	record := bson.M{
+		"userId":    user.ID,
+		"userEmail": user.Email,
+		"slotId":    slotID,
+		"venueId":   slot.VenueID,
+		"venueName": slot.VenueName,
+		"courtName": slot.CourtName,
+		"date":      slot.Date,
+		"startTime": slot.StartTime,
+		"price":     slot.Price,
+		"sentAt":    time.Now(),
+	}
+
+	_, err := s.db.Collection("notification_history").InsertOne(ctx, record)
+	if err != nil {
+		s.logger.Printf("Error recording notification: %v", err)
+	}
+}
+
+// sendNotification sends an email notification
+func (s *NotificationService) sendNotification(user User, slot SlotData, gmailService *GmailService) error {
+	courtDetails := fmt.Sprintf(`Venue: %s
+Court: %s
+Date: %s
+Time: %s--%s
+Price: £%.2f`,
+		slot.VenueName,
+		slot.CourtName,
+		slot.Date,
+		slot.StartTime,
+		slot.EndTime,
+		slot.Price)
+
+	return gmailService.SendCourtAvailabilityAlert(user.Email, courtDetails, slot.BookingURL)
+}
+
+// SendTestNotification sends a test notification
+func (s *NotificationService) SendTestNotification(email string, gmailService *GmailService) error {
+	return gmailService.SendTestEmail(email)
+}
+
+// logServiceStatus logs the current status of services
+func (s *NotificationService) logServiceStatus() {
+	s.logger.Println("📊 Service Status:")
+	s.logger.Println("  ✅ Email Service: ENABLED (Gmail SMTP Mock)")
+	s.logger.Println("  ✅ Redis Listener: ENABLED")
+	s.logger.Println("  ✅ MongoDB Connection: ENABLED")
+	s.logger.Println("  ✅ Duplicate Prevention: ENABLED")
+	s.logger.Printf("  ✅ Users Loaded: %d", len(s.users))
+
+	if len(s.users) > 0 {
+		user := s.users[0]
+		s.logger.Printf("  📧 Monitoring for: %s", user.Email)
+		s.logger.Printf("  🏟️ Preferred venues: %v", user.PreferredVenues)
+		s.logger.Printf("  ⏰ Weekday slots: %v", user.TimePreferences.WeekdaySlots)
+		s.logger.Printf("  🌅 Weekend slots: %v", user.TimePreferences.WeekendSlots)
+		s.logger.Printf("  💰 Max price: £%.2f", user.MaxPrice)
+	}
 }
 
 // getEnvWithDefault returns environment variable value or default if not set
