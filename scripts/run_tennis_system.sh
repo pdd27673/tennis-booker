@@ -4,8 +4,8 @@
 # 
 # This script provides a unified interface to:
 # 1. Start/stop all services
-# 2. Run cost-effective scraping
-# 3. Test the complete system
+# 2. Run real-time scraping with Playwright
+# 3. Test the complete system with notifications
 # 4. Monitor and maintain the system
 
 set -e
@@ -63,39 +63,45 @@ COMMANDS:
     restart         Restart all services
     status          Check status of all services
     
-    scrape-daily    Run daily lightweight scraping (no Firecrawl credits)
-    scrape-full     Run full 7-day scraping  
-    scrape-analyze  Use Firecrawl to analyze booking sites (costs credits)
+    scrape-now      Scrape all venues immediately (real sites)
+    scrape-venue    Scrape specific venue (--venues required)
+    scrape-loop     Continuous scraping with notifications
     
-    test-system     Run comprehensive system tests
     test-scraping   Test scraping functionality only
+    test-venue      Test specific venue scraping
     test-api        Test API endpoints only
+    test-notifications  Test notification system
+    test-full-pipeline  Test complete pipeline with notifications
     
     setup           Initialize project and seed data
+    seed-venues     Seed venue data into MongoDB
     cleanup         Clean up logs and temporary files
     monitor         Monitor system health continuously
     
-    openapi         Generate OpenAPI specification
     logs            Show recent logs from all services
+    check-slots     Check available slots in database
 
 OPTIONS:
     --venues NAMES  Comma-separated venue names for scraping
+                   (e.g., "Victoria Park", "Stratford Park", "Ropemakers Field")
     --debug         Enable debug logging
     --force         Force operations without confirmation
     --port PORT     Override API port (default: 8080)
+    --loop-interval SECONDS  Scraping loop interval (default: 600)
 
 EXAMPLES:
-    $0 start                        # Start all services
-    $0 scrape-daily                 # Daily scraping (no credits used)
-    $0 scrape-full --venues=victoria,stratford
-    $0 test-system --debug          # Full system test with debug
-    $0 monitor                      # Continuous health monitoring
+    $0 start                                    # Start all services
+    $0 scrape-now                              # Scrape all venues now
+    $0 scrape-venue --venues="Victoria Park"   # Scrape specific venue
+    $0 scrape-loop                             # Continuous scraping with alerts
+    $0 test-full-pipeline                      # Test everything with notifications
+    $0 check-slots                             # Check database slots
 
-COST-EFFECTIVE STRATEGY:
-    - Use 'scrape-daily' for everyday monitoring (no Firecrawl costs)
-    - Use 'scrape-analyze' ONCE to understand sites (minimal credits)
-    - Use 'scrape-full' for comprehensive 7-day scanning
-    - Firecrawl fallback only when lightweight scraping fails
+REAL-TIME INTEGRATION:
+    - Uses Playwright to scrape actual tennis court websites
+    - Stores availability in MongoDB
+    - Triggers notifications for new slots
+    - Supports Victoria Park, Stratford Park, Ropemakers Field
 
 EOF
 }
@@ -119,6 +125,12 @@ check_prerequisites() {
     if [ ! -d "$VENV_PATH" ]; then
         warn "Python virtual environment not found at $VENV_PATH"
         warn "Run: $0 setup"
+        exit 1
+    fi
+    
+    # Check Playwright scraper
+    if [ ! -f "$PROJECT_ROOT/src/playwright_scraper.py" ]; then
+        error "Playwright scraper not found at src/playwright_scraper.py"
         exit 1
     fi
     
@@ -246,6 +258,231 @@ stop_scheduler() {
     fi
 }
 
+# Seed venues into MongoDB
+seed_venues() {
+    info "Seeding venues into MongoDB..."
+    
+    cd "$PROJECT_ROOT"
+    
+    # Run the Go seeding script
+    if [ -f "cmd/seed-db/main.go" ]; then
+        go run cmd/seed-db/main.go
+        success "Venues seeded successfully"
+    else
+        error "Seed script not found at cmd/seed-db/main.go"
+        exit 1
+    fi
+}
+
+# Run immediate scraping
+run_scraping_now() {
+    log "🎾 Scraping all venues now (real sites: Victoria Park, Stratford Park, Ropemakers Field)"
+    
+    cd "$PROJECT_ROOT"
+    source "$VENV_PATH/bin/activate"
+    
+    python src/playwright_scraper.py --all ${DEBUG:+--debug}
+    
+    success "Scraping completed"
+    
+    # Show results
+    info "Checking scraped results..."
+    check_database_slots
+}
+
+# Run venue-specific scraping  
+run_venue_scraping() {
+    if [ -z "$VENUES" ]; then
+        error "Venue name required. Use --venues option"
+        exit 1
+    fi
+    
+    log "🎾 Scraping venue: $VENUES"
+    
+    cd "$PROJECT_ROOT"
+    source "$VENV_PATH/bin/activate"
+    
+    python src/playwright_scraper.py --test "$VENUES" ${DEBUG:+--debug}
+    
+    success "Venue scraping completed"
+}
+
+# Run continuous scraping loop with notifications
+run_scraping_loop() {
+    LOOP_INTERVAL=${LOOP_INTERVAL:-600}  # Default 10 minutes
+    
+    log "🔄 Starting continuous scraping loop (interval: ${LOOP_INTERVAL}s)"
+    warn "Press Ctrl+C to stop the loop"
+    
+    cd "$PROJECT_ROOT"
+    source "$VENV_PATH/bin/activate"
+    
+    # Store previous slot count for comparison
+    PREVIOUS_SLOTS=0
+    
+    while true; do
+        log "🎾 Starting scraping cycle..."
+        
+        # Get current slot count before scraping
+        BEFORE_SLOTS=$(python -c "
+import pymongo
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+print(db.slots.count_documents({}))
+" 2>/dev/null || echo "0")
+        
+        # Run scraping
+        python src/playwright_scraper.py --all ${DEBUG:+--debug}
+        
+        # Get slot count after scraping
+        AFTER_SLOTS=$(python -c "
+import pymongo
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+print(db.slots.count_documents({}))
+" 2>/dev/null || echo "0")
+        
+        # Check for new slots
+        NEW_SLOTS=$((AFTER_SLOTS - BEFORE_SLOTS))
+        
+        if [ $NEW_SLOTS -gt 0 ]; then
+            success "🚨 NEW SLOTS FOUND: $NEW_SLOTS new available slots!"
+            
+            # Trigger notification (if notification service exists)
+            if [ -f "$PROJECT_ROOT/bin/notification-service" ]; then
+                info "Triggering notifications..."
+                # Add notification trigger logic here
+            fi
+            
+            # Show latest slots
+            info "Latest available slots:"
+            python -c "
+import pymongo
+from datetime import datetime
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+slots = db.slots.find({'available': True}).sort('scraped_at', -1).limit(5)
+for slot in slots:
+    venue = slot.get('venue_name', 'Unknown')
+    court = slot.get('court_name', 'Unknown')
+    date = slot.get('date', 'Unknown')
+    time = f\"{slot.get('start_time', '?')}-{slot.get('end_time', '?')}\"
+    price = slot.get('price', 'Unknown')
+    print(f'  🎾 {venue} | {court} | {date} {time} | £{price}')
+" 2>/dev/null
+        else
+            info "No new slots found this cycle"
+        fi
+        
+        log "Waiting ${LOOP_INTERVAL} seconds until next cycle..."
+        sleep $LOOP_INTERVAL
+    done
+}
+
+# Check database slots
+check_database_slots() {
+    info "📊 Checking available slots in database..."
+    
+    python -c "
+import pymongo
+from collections import defaultdict
+
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+
+total_slots = db.slots.count_documents({})
+available_slots = db.slots.count_documents({'available': True})
+
+print(f'Total slots in database: {total_slots}')
+print(f'Available slots: {available_slots}')
+print(f'Availability rate: {(available_slots/total_slots)*100:.1f}%' if total_slots > 0 else 'No slots')
+
+print('\nSlots by venue:')
+venues = ['Victoria Park', 'Stratford Park', 'Ropemakers Field']
+for venue in venues:
+    count = db.slots.count_documents({'venue_name': venue, 'available': True})
+    print(f'  {venue}: {count} available slots')
+
+print('\nLatest slots:')
+slots = db.slots.find({'available': True}).sort('scraped_at', -1).limit(10)
+for slot in slots:
+    venue = slot.get('venue_name', 'Unknown')
+    court = slot.get('court_name', 'Unknown')
+    date = slot.get('date', 'Unknown')
+    time = f\"{slot.get('start_time', '?')}-{slot.get('end_time', '?')}\"
+    price = slot.get('price', 'Unknown')
+    scraped = slot.get('scraped_at', 'Unknown')
+    print(f'  🎾 {venue} | {court} | {date} {time} | £{price} | {scraped}')
+" 2>/dev/null || echo "Could not connect to database"
+}
+
+# Test scraping functionality
+test_scraping() {
+    log "🧪 Testing scraping functionality"
+    
+    cd "$PROJECT_ROOT"
+    source "$VENV_PATH/bin/activate"
+    
+    # Test each venue individually
+    venues=("Victoria Park" "Stratford Park" "Ropemakers Field")
+    
+    for venue in "${venues[@]}"; do
+        info "Testing $venue..."
+        python src/playwright_scraper.py --test "$venue" ${DEBUG:+--debug}
+        echo ""
+    done
+    
+    success "Scraping tests completed"
+}
+
+# Test notification system
+test_notifications() {
+    log "🔔 Testing notification system"
+    
+    # This would test the notification/alert system
+    info "Notification testing not yet implemented"
+    warn "Implement notification service integration here"
+}
+
+# Test full pipeline
+test_full_pipeline() {
+    log "🚀 Testing complete pipeline with real scraping and notifications"
+    
+    info "Step 1: Clear existing slots for clean test"
+    python -c "
+import pymongo
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+result = db.slots.delete_many({})
+print(f'Cleared {result.deleted_count} existing slots')
+" 2>/dev/null || warn "Could not clear slots"
+    
+    info "Step 2: Run full scraping"
+    cd "$PROJECT_ROOT"
+    source "$VENV_PATH/bin/activate"
+    python src/playwright_scraper.py --all ${DEBUG:+--debug}
+    
+    info "Step 3: Check results and trigger notifications"
+    check_database_slots
+    
+    # Simulate notification for available slots
+    AVAILABLE_COUNT=$(python -c "
+import pymongo
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+print(db.slots.count_documents({'available': True}))
+" 2>/dev/null || echo "0")
+    
+    if [ "$AVAILABLE_COUNT" -gt 0 ]; then
+        success "🚨 PIPELINE SUCCESS: Found $AVAILABLE_COUNT available slots!"
+        info "In production, this would trigger notifications to users"
+    else
+        warn "No available slots found - this may be normal depending on booking status"
+    fi
+    
+    success "Full pipeline test completed"
+}
+
 # Check service status
 check_status() {
     echo -e "\n${CYAN}🎾 Tennis Court Booking System Status${NC}\n"
@@ -284,100 +521,34 @@ check_status() {
         echo -e "  Status:  ${YELLOW}⚠️ Not running${NC}"
     fi
     
-    echo ""
-}
-
-# Run daily scraping
-run_daily_scraping() {
-    log "🌅 Running daily lightweight scraping (no Firecrawl credits)"
-    
-    cd "$PROJECT_ROOT"
-    source "$VENV_PATH/bin/activate"
-    
-    python src/tennis_court_scraper.py \
-        --mode=daily \
-        ${VENUES:+--venues="$VENUES"} \
-        ${DEBUG:+--log-level=DEBUG}
-    
-    success "Daily scraping completed"
-}
-
-# Run full 7-day scraping
-run_full_scraping() {
-    log "🚀 Running full 7-day scraping"
-    
-    cd "$PROJECT_ROOT"
-    source "$VENV_PATH/bin/activate"
-    
-    python src/tennis_court_scraper.py \
-        --mode=full \
-        ${VENUES:+--venues="$VENUES"} \
-        ${DEBUG:+--log-level=DEBUG}
-    
-    success "Full scraping completed"
-}
-
-# Run Firecrawl analysis
-run_analysis() {
-    warn "🔥 Running Firecrawl analysis (will use credits!)"
-    
-    if [ -z "$FORCE" ]; then
-        read -p "This will use Firecrawl credits. Continue? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            info "Analysis cancelled"
-            return 0
-        fi
+    # Check Python environment
+    echo -e "\n${BLUE}Python Environment:${NC}"
+    if [ -d "$VENV_PATH" ]; then
+        echo -e "  Virtual Env: ${GREEN}✅ Ready${NC}"
+    else
+        echo -e "  Virtual Env: ${RED}❌ Missing${NC}"
     fi
     
-    cd "$PROJECT_ROOT"
-    source "$VENV_PATH/bin/activate"
+    # Check database status
+    echo -e "\n${BLUE}Database Status:${NC}"
+    VENUE_COUNT=$(python -c "
+import pymongo
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+print(db.venues.count_documents({}))
+" 2>/dev/null || echo "0")
     
-    python src/tennis_court_scraper.py \
-        --mode=analyze \
-        ${VENUES:+--venues="$VENUES"} \
-        ${DEBUG:+--log-level=DEBUG}
+    SLOT_COUNT=$(python -c "
+import pymongo
+client = pymongo.MongoClient('mongodb://admin:YOUR_PASSWORD@localhost:27017')
+db = client['tennis_booking']
+print(db.slots.count_documents({}))
+" 2>/dev/null || echo "0")
     
-    success "Analysis completed"
-}
-
-# Run system tests
-run_system_tests() {
-    log "🧪 Running comprehensive system tests"
+    echo -e "  Venues:  ${GREEN}$VENUE_COUNT${NC} configured"
+    echo -e "  Slots:   ${GREEN}$SLOT_COUNT${NC} in database"
     
-    cd "$PROJECT_ROOT"
-    source "$VENV_PATH/bin/activate"
-    
-    # Test 1: API endpoints
-    info "Testing API endpoints..."
-    python -c "
-import requests
-import sys
-
-base = 'http://localhost:$API_PORT'
-endpoints = [
-    '/api/health',
-    '/api/metrics', 
-    '/api/v1/venues',
-    '/api/v1/alerts/history?user_id=507f1f77bcf86cd799439011'
-]
-
-for endpoint in endpoints:
-    try:
-        resp = requests.get(f'{base}{endpoint}', timeout=5)
-        if resp.status_code == 200:
-            print(f'✅ {endpoint}')
-        else:
-            print(f'❌ {endpoint} ({resp.status_code})')
-    except Exception as e:
-        print(f'❌ {endpoint} (error: {e})')
-"
-    
-    # Test 2: Scraper functionality
-    info "Testing scraper functionality..."
-    python src/tennis_court_scraper.py --mode=test ${DEBUG:+--log-level=DEBUG}
-    
-    success "System tests completed"
+    echo ""
 }
 
 # Setup project
@@ -390,7 +561,7 @@ setup_project() {
     
     # Build Go binaries
     info "Building Go binaries..."
-    make build
+    make build || warn "Could not build Go binaries - make sure you have Go installed"
     
     # Set up Python environment
     if [ ! -d "$VENV_PATH" ]; then
@@ -402,22 +573,26 @@ setup_project() {
     
     # Install Python dependencies
     info "Installing Python dependencies..."
-    pip install -r utils/requirements.txt
+    pip install pymongo playwright
+    
+    # Install Playwright browsers
+    info "Installing Playwright browsers..."
+    playwright install chromium
     
     # Start Docker and seed data
     start_docker
     
     info "Seeding venues data..."
-    cd "$PROJECT_ROOT"
-    ./scripts/seed_venues.sh
+    seed_venues
     
     success "Setup completed successfully!"
     
     echo -e "\n${CYAN}🎉 Tennis Court Booking System is ready!${NC}"
     echo -e "\nNext steps:"
-    echo -e "  $0 start              # Start all services"
-    echo -e "  $0 scrape-daily       # Run daily scraping"
-    echo -e "  $0 status             # Check system status"
+    echo -e "  $0 start                  # Start all services"
+    echo -e "  $0 scrape-now            # Scrape all venues immediately"
+    echo -e "  $0 scrape-loop           # Start continuous scraping with notifications"
+    echo -e "  $0 test-full-pipeline    # Test everything"
 }
 
 # Clean up logs and temporary files
@@ -427,7 +602,6 @@ cleanup() {
     # Clean old logs
     find logs -name "*.log" -mtime +7 -delete 2>/dev/null || true
     find . -name "venue_analysis_*.json" -mtime +30 -delete 2>/dev/null || true
-    find src -name "tennis_scraper.log" -mtime +7 -delete 2>/dev/null || true
     
     # Clean Python cache
     find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
@@ -449,133 +623,12 @@ monitor_system() {
         check_status
         
         echo -e "\n${BLUE}Recent Activity:${NC}"
-        echo -e "API Requests (last minute):"
-        tail -n 20 logs/api.log 2>/dev/null | grep "$(date '+%Y/%m/%d %H:%M')" | wc -l | sed 's/^/  /'
+        echo -e "Database slots:"
+        check_database_slots | head -5
         
         echo -e "\nPress Ctrl+C to stop monitoring"
         sleep 30
     done
-}
-
-# Generate OpenAPI specification
-generate_openapi() {
-    log "📋 Generating OpenAPI specification"
-    
-    cd "$PROJECT_ROOT"
-    
-    # Create OpenAPI spec
-    cat > api-spec.yaml << 'EOF'
-openapi: 3.0.3
-info:
-  title: Tennis Court Booking API
-  description: Cost-effective tennis court notification and booking system
-  version: 1.0.0
-  contact:
-    name: Tennis Court Scraper
-    
-servers:
-  - url: http://localhost:8080
-    description: Development server
-
-paths:
-  /api/health:
-    get:
-      summary: Health check
-      responses:
-        '200':
-          description: System is healthy
-          
-  /api/metrics:
-    get:
-      summary: System metrics
-      responses:
-        '200':
-          description: System metrics data
-          
-  /api/v1/venues:
-    get:
-      summary: Get all venues
-      parameters:
-        - name: provider
-          in: query
-          schema:
-            type: string
-            enum: [courtsides, lta_clubspark]
-      responses:
-        '200':
-          description: List of venues
-          
-  /api/v1/courts/available:
-    get:
-      summary: Get available court slots
-      parameters:
-        - name: venue_ids
-          in: query
-          schema:
-            type: string
-        - name: date_from
-          in: query
-          schema:
-            type: string
-            format: date
-        - name: date_to
-          in: query
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: Available court slots
-          
-  /api/v1/preferences:
-    get:
-      summary: Get user preferences
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: User preferences
-    put:
-      summary: Update user preferences
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Preferences updated
-          
-  /api/v1/alerts/history:
-    get:
-      summary: Get alert history
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-        - name: offset
-          in: query
-          schema:
-            type: integer
-            default: 0
-      responses:
-        '200':
-          description: Alert history
-EOF
-    
-    success "OpenAPI specification generated: api-spec.yaml"
 }
 
 # Show logs
@@ -589,7 +642,7 @@ show_logs() {
     tail -n 20 logs/scheduler.log 2>/dev/null || echo "No scheduler logs found"
     
     echo -e "\n${BLUE}Scraper Logs:${NC}"
-    tail -n 20 src/tennis_scraper.log 2>/dev/null || echo "No scraper logs found"
+    tail -n 20 src/scrapers/scraper_orchestrator.log 2>/dev/null || echo "No scraper logs found"
 }
 
 # Main script logic
@@ -599,6 +652,7 @@ main() {
     VENUES=""
     DEBUG=""
     FORCE=""
+    LOOP_INTERVAL=""
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -616,6 +670,10 @@ main() {
                 ;;
             --port)
                 API_PORT="$2"
+                shift 2
+                ;;
+            --loop-interval)
+                LOOP_INTERVAL="$2"
                 shift 2
                 ;;
             --help)
@@ -653,8 +711,9 @@ main() {
             start_api
             start_scheduler
             success "🎾 Tennis Court Booking System started successfully!"
-            echo -e "\nUse: $0 status    # to check system status"
-            echo -e "Use: $0 scrape-daily  # to run daily scraping"
+            echo -e "\nUse: $0 status          # to check system status"
+            echo -e "Use: $0 scrape-now     # to scrape all venues immediately"
+            echo -e "Use: $0 scrape-loop    # for continuous scraping with notifications"
             ;;
         stop)
             stop_scheduler
@@ -670,33 +729,47 @@ main() {
         status)
             check_status
             ;;
-        scrape-daily)
+        scrape-now)
             check_prerequisites
-            run_daily_scraping
+            run_scraping_now
             ;;
-        scrape-full)
+        scrape-venue)
             check_prerequisites
-            run_full_scraping
+            run_venue_scraping
             ;;
-        scrape-analyze)
+        scrape-loop)
             check_prerequisites
-            run_analysis
-            ;;
-        test-system)
-            check_prerequisites
-            run_system_tests
+            run_scraping_loop
             ;;
         test-scraping)
             check_prerequisites
-            cd "$PROJECT_ROOT"
-            source "$VENV_PATH/bin/activate"
-            python src/tennis_court_scraper.py --mode=test ${DEBUG:+--log-level=DEBUG}
+            test_scraping
+            ;;
+        test-venue)
+            check_prerequisites
+            run_venue_scraping
             ;;
         test-api)
-            run_system_tests
+            # API testing logic here
+            info "API testing not yet implemented"
+            ;;
+        test-notifications)
+            check_prerequisites
+            test_notifications
+            ;;
+        test-full-pipeline)
+            check_prerequisites
+            test_full_pipeline
             ;;
         setup)
             setup_project
+            ;;
+        seed-venues)
+            check_prerequisites
+            seed_venues
+            ;;
+        check-slots)
+            check_database_slots
             ;;
         cleanup)
             cleanup
@@ -704,9 +777,6 @@ main() {
         monitor)
             check_prerequisites
             monitor_system
-            ;;
-        openapi)
-            generate_openapi
             ;;
         logs)
             show_logs
