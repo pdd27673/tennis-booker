@@ -79,4 +79,14 @@ Thumbs.db
 .cursor/
 .roo/
 .roomodes
-.windsurfrules 
+.windsurfrules
+
+# Additional cleanup patterns
+debug_*
+temp_*
+test_temp*
+*.bak
+*.orig
+*~
+coverage.out
+*.prof 

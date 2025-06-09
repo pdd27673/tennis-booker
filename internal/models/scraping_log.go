@@ -17,7 +17,7 @@ type ScrapingLog struct {
 	Success          bool               `bson:"success" json:"success"`
 	VenueName        string             `bson:"venue_name" json:"venue_name"` // Denormalized for easier querying
 	Provider         string             `bson:"provider" json:"provider"`     // Denormalized from venue
-	RawResponse      string             `bson:"raw_response,omitempty" json:"raw_response,omitempty"` // Optional raw response for debugging
+	RawResponse      string             `bson:"raw_response,omitempty" json:"raw_response,omitempty"` // Optional raw response data
 	ScraperVersion   string             `bson:"scraper_version,omitempty" json:"scraper_version,omitempty"`
 	UserAgent        string             `bson:"user_agent,omitempty" json:"user_agent,omitempty"`
 	IPAddress        string             `bson:"ip_address,omitempty" json:"ip_address,omitempty"`
