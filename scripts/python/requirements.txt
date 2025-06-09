@@ -12,4 +12,7 @@ python-dotenv==1.0.0
 hvac==2.1.0
 
 # Testing
-pytest==7.4.3 
+pytest==7.4.3
+
+# Web Scraping
+firecrawl-py==1.1.0 
