@@ -10,11 +10,17 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pymongo import MongoClient
 from bson import ObjectId
-from redis_publisher import RedisPublisher
-import copy
+try:
+    from ..redis_publisher import RedisPublisher
+except ImportError:
+    # Fallback for when running as script
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from redis_publisher import RedisPublisher
 
 from .base_scraper import ScrapedSlot, ScrapingResult
 from .courtside_scraper import CourtsideScraper
@@ -135,7 +141,7 @@ class ScraperOrchestrator:
         
         # Use default dates if none provided
         if not target_dates:
-            target_dates = scraper.get_target_dates(days_ahead=7)
+            target_dates = scraper.get_target_dates(days_ahead=8)
             
         self.logger.info(f"Starting scrape for {venue_name} ({platform_type}) - {len(target_dates)} dates")
         
@@ -194,8 +200,10 @@ class ScraperOrchestrator:
         return results
         
     async def store_scraping_result(self, result: ScrapingResult):
-        """Store scraping result and slots in MongoDB"""
+        """Store scraping result and slots in MongoDB, and publish new slots to Redis for notifications"""
         try:
+            new_slots_for_notification = []
+            
             # Store slots in slots collection
             if result.slots_found:
                 slots_data = []
@@ -217,7 +225,7 @@ class ScraperOrchestrator:
                     }
                     slots_data.append(slot_doc)
                     
-                # Upsert slots (replace existing slots for same venue/date)
+                # Upsert slots and track new ones for notifications
                 slots_collection = self.db.slots
                 for slot_doc in slots_data:
                     filter_query = {
@@ -226,9 +234,49 @@ class ScraperOrchestrator:
                         "date": slot_doc["date"],
                         "start_time": slot_doc["start_time"]
                     }
+                    
+                    # Check if this slot already exists
+                    existing_slot = slots_collection.find_one(filter_query)
+                    is_new_slot = existing_slot is None
+                    
+                    # Upsert the slot
                     slots_collection.replace_one(filter_query, slot_doc, upsert=True)
                     
+                    # If it's a new available slot, add to notification queue
+                    if is_new_slot and slot_doc["available"]:
+                        notification_slot = {
+                            'venueId': str(slot_doc["venue_id"]),
+                            'venueName': slot_doc["venue_name"],
+                            'platform': slot_doc["platform"],
+                            'courtId': slot_doc["court_id"],
+                            'courtName': slot_doc["court_name"],
+                            'date': slot_doc["date"],
+                            'startTime': slot_doc["start_time"],
+                            'endTime': slot_doc["end_time"],
+                            'price': float(slot_doc["price"]),
+                            'isAvailable': slot_doc["available"],
+                            'bookingUrl': slot_doc["booking_url"],
+                            'scrapedAt': slot_doc["scraped_at"].strftime('%Y-%m-%dT%H:%M:%SZ')
+                        }
+                        new_slots_for_notification.append(notification_slot)
+                        self.logger.info(f"🆕 New slot detected: {result.venue_name} - {slot_doc['court_name']} on {slot_doc['date']} at {slot_doc['start_time']}")
+                    
                 self.logger.info(f"Stored {len(slots_data)} slots for {result.venue_name}")
+                
+            # Publish new slots to Redis for immediate notifications
+            if new_slots_for_notification:
+                self.logger.info(f"🔔 Found {len(new_slots_for_notification)} new slots to publish for {result.venue_name}")
+                try:
+                    if not self.redis_publisher.client:
+                        self.logger.info("🔗 Connecting to Redis for notifications...")
+                        self.connect_to_redis()
+                        
+                    published_count = self.redis_publisher.publish_new_slots(new_slots_for_notification)
+                    self.logger.info(f"📧 Published {published_count} new slot notifications for {result.venue_name}")
+                except Exception as e:
+                    self.logger.error(f"Failed to publish notifications: {e}")
+            else:
+                self.logger.info(f"ℹ️ No new slots detected for {result.venue_name} - all slots already exist")
                 
             # Store scraping log
             log_doc = {
@@ -316,163 +364,4 @@ class ScraperOrchestrator:
         finally:
             self.disconnect_mongodb()
 
-    def store_slots(self, venue_id, venue_name, platform, slots_data):
-        """Store slots in MongoDB and send notifications for new slots"""
-        if not slots_data:
-            self.logger.info(f"No slots to store for {venue_name}")
-            return
-        
-        collection = self.db.slots
-        stored_count = 0
-        new_slots = []  # Track new slots for notifications
-        
-        for slot in slots_data:
-            try:
-                # Create slot document
-                slot_doc = {
-                    'venueId': ObjectId(venue_id),
-                    'venueName': venue_name,
-                    'platform': platform,
-                    'courtId': slot.get('courtId', ''),
-                    'courtName': slot.get('courtName', ''),
-                    'date': slot.get('date', ''),
-                    'startTime': slot.get('startTime', ''),
-                    'endTime': slot.get('endTime', ''),
-                    'price': float(slot.get('price', 0)),
-                    'isAvailable': slot.get('isAvailable', True),
-                    'bookingUrl': slot.get('bookingUrl', ''),
-                    'sourceUrl': slot.get('sourceUrl', ''),
-                    'scrapedAt': datetime.utcnow()
-                }
-                
-                # Create unique identifier for upsert
-                unique_filter = {
-                    'venueId': ObjectId(venue_id),
-                    'courtId': slot.get('courtId', ''),
-                    'date': slot.get('date', ''),
-                    'startTime': slot.get('startTime', '')
-                }
-                
-                # Check if this is a new slot
-                existing_slot = collection.find_one(unique_filter)
-                is_new_slot = existing_slot is None
-                
-                # Upsert the slot
-                result = collection.update_one(
-                    unique_filter,
-                    {'$set': slot_doc},
-                    upsert=True
-                )
-                
-                if result.upserted_id or result.modified_count > 0:
-                    stored_count += 1
-                    
-                    # If this is a new available slot, add to notifications
-                    if is_new_slot and slot.get('isAvailable', True):
-                        notification_slot = {
-                            'venueId': str(venue_id),
-                            'venueName': venue_name,
-                            'platform': platform,
-                            'courtId': slot.get('courtId', ''),
-                            'courtName': slot.get('courtName', ''),
-                            'date': slot.get('date', ''),
-                            'startTime': slot.get('startTime', ''),
-                            'endTime': slot.get('endTime', ''),
-                            'price': float(slot.get('price', 0)),
-                            'isAvailable': slot.get('isAvailable', True),
-                            'bookingUrl': slot.get('bookingUrl', ''),
-                            'scrapedAt': datetime.utcnow().isoformat()
-                        }
-                        new_slots.append(notification_slot)
-                        self.logger.info(f"New slot detected: {venue_name} - {slot.get('courtName', '')} on {slot.get('date', '')} at {slot.get('startTime', '')}")
-                        
-            except Exception as e:
-                self.logger.error(f"Error storing slot {slot}: {e}")
-                
-        self.logger.info(f"Stored {stored_count} slots for {venue_name}")
-        
-        # Send notifications for new slots
-        if new_slots:
-            try:
-                if not self.redis_publisher.client:
-                    self.connect_to_redis()
-                    
-                published_count = self.redis_publisher.publish_new_slots(new_slots)
-                self.logger.info(f"Published {published_count} new slot notifications for {venue_name}")
-            except Exception as e:
-                self.logger.error(f"Failed to publish notifications: {e}")
-
-    def publish_new_slots_for_notifications(self, venue_id, venue_name, slots, platform):
-        """Publish new slots to Redis for notification processing"""
-        try:
-            for slot in slots:
-                # Only publish available slots
-                if slot.get('isAvailable', False):
-                    notification_data = {
-                        'venueId': venue_id,
-                        'venueName': venue_name,
-                        'platform': platform,
-                        'courtId': slot.get('courtId', ''),
-                        'courtName': slot.get('courtName', ''),
-                        'date': slot.get('date', ''),
-                        'startTime': slot.get('startTime', ''),
-                        'endTime': slot.get('endTime', ''),
-                        'price': slot.get('price', 0.0),
-                        'isAvailable': True,
-                        'bookingUrl': slot.get('bookingUrl', ''),
-                        'scrapedAt': slot.get('scrapedAt', datetime.utcnow()).isoformat() if isinstance(slot.get('scrapedAt'), datetime) else slot.get('scrapedAt', datetime.utcnow().isoformat())
-                    }
-                    
-                    # Publish to Redis queue
-                    success = self.redis_publisher.publish_slot(notification_data)
-                    if success:
-                        self.logger.info(f"📧 Published slot notification: {venue_name} - {slot.get('courtName')} at {slot.get('startTime')}")
-                    else:
-                        self.logger.warning(f"⚠️ Failed to publish slot notification for {venue_name}")
-                        
-        except Exception as e:
-            self.logger.error(f"Error publishing notifications for {venue_name}: {e}")
-
-    def store_venue_slots(self, venue_id, venue_name, slots):
-        """Store scraped slots in MongoDB and return count of new slots"""
-        if not slots:
-            return 0
-        
-        try:
-            slots_collection = self.db.slots
-            new_slots_count = 0
-            
-            for slot in slots:
-                # Add venue information to slot
-                slot_doc = copy.deepcopy(slot)
-                slot_doc['venueId'] = venue_id
-                slot_doc['venueName'] = venue_name
-                
-                # Create unique identifier for upsert
-                query = {
-                    'venueId': venue_id,
-                    'courtId': slot.get('courtId'),
-                    'date': slot.get('date'),
-                    'startTime': slot.get('startTime')
-                }
-                
-                # Check if this is a new slot
-                existing_slot = slots_collection.find_one(query)
-                is_new_slot = existing_slot is None
-                
-                # Upsert the slot
-                slots_collection.update_one(
-                    query,
-                    {'$set': slot_doc},
-                    upsert=True
-                )
-                
-                if is_new_slot:
-                    new_slots_count += 1
-            
-            self.logger.info(f"📊 Stored {len(slots)} slots for {venue_name} ({new_slots_count} new)")
-            return new_slots_count
-            
-        except Exception as e:
-            self.logger.error(f"Error storing slots for {venue_name}: {e}")
-            return 0 
+ 

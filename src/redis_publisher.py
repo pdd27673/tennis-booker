@@ -19,22 +19,38 @@ class RedisPublisher:
     def connect(self):
         """Connect to Redis"""
         try:
+            # First try without password
             self.client = redis.Redis(
                 host=self.redis_host,
                 port=self.redis_port,
-                password=self.redis_password,
                 db=self.redis_db,
                 decode_responses=True
             )
             
             # Test connection
             self.client.ping()
-            self.logger.info(f"✅ Connected to Redis at {self.redis_host}:{self.redis_port}")
+            self.logger.info(f"✅ Connected to Redis at {self.redis_host}:{self.redis_port} (no auth)")
             return True
             
         except Exception as e:
-            self.logger.error(f"❌ Failed to connect to Redis: {e}")
-            return False
+            # If no-auth fails, try with password
+            try:
+                self.client = redis.Redis(
+                    host=self.redis_host,
+                    port=self.redis_port,
+                    password=self.redis_password,
+                    db=self.redis_db,
+                    decode_responses=True
+                )
+                
+                # Test connection
+                self.client.ping()
+                self.logger.info(f"✅ Connected to Redis at {self.redis_host}:{self.redis_port} (with auth)")
+                return True
+                
+            except Exception as e2:
+                self.logger.error(f"❌ Failed to connect to Redis: {e2}")
+                return False
     
     def publish_slot(self, slot_data: Dict[str, Any]) -> bool:
         """

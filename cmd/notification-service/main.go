@@ -8,6 +8,8 @@ import (
 	"net/smtp"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -64,6 +66,9 @@ type NotificationService struct {
 	redisClient *redis.Client
 	logger      *log.Logger
 	users       []User
+	slotBatch   map[string][]SlotData // User email -> list of slots
+	batchMutex  sync.RWMutex
+	batchTimer  *time.Timer
 }
 
 // GmailService handles Gmail SMTP email notifications
@@ -90,16 +95,17 @@ func NewGmailService(email, password, fromName string, logger *log.Logger) *Gmai
 
 // SendCourtAvailabilityAlert sends email notification via Gmail SMTP
 func (g *GmailService) SendCourtAvailabilityAlert(toEmail, courtDetails, bookingLink string) error {
-	// Compose email
-	subject := "🎾 Tennis Court Available!"
+	// Detect if this is a batched notification (multiple courts)
+	var subject string
+	if strings.Contains(courtDetails, " courts just became available") {
+		subject = "🎾 Multiple Tennis Courts Available!"
+	} else {
+		subject = "🎾 Tennis Court Available!"
+	}
 	
-	body := fmt.Sprintf(`🎾 A tennis court just became available!
+	body := fmt.Sprintf(`%s
 
-%s
-
-🔗 Book now: %s
-
-This slot just became available - book quickly!
+🔗 Primary booking link: %s
 
 ---
 Tennis Court Booking Alert System
@@ -277,9 +283,10 @@ func (s *NotificationService) loadUsers() error {
 	return nil
 }
 
-// startNotificationEngine starts listening for Redis notifications
+// startNotificationEngine starts listening for Redis notifications with batching
 func (s *NotificationService) startNotificationEngine(gmailService *GmailService) {
 	s.logger.Println("🔔 Starting notification engine - listening for court slots...")
+	s.slotBatch = make(map[string][]SlotData)
 
 	for {
 		// Block and wait for messages from Redis queue
@@ -292,12 +299,87 @@ func (s *NotificationService) startNotificationEngine(gmailService *GmailService
 
 		// result[0] is the queue name, result[1] is the data
 		if len(result) > 1 {
-			s.processSlotNotification(result[1], gmailService)
+			s.addSlotToBatch(result[1], gmailService)
 		}
 	}
 }
 
-// processSlotNotification processes a slot notification
+// addSlotToBatch adds a slot to the batching system
+func (s *NotificationService) addSlotToBatch(slotJSON string, gmailService *GmailService) {
+	var slot SlotData
+	if err := json.Unmarshal([]byte(slotJSON), &slot); err != nil {
+		s.logger.Printf("Error parsing slot JSON: %v", err)
+		return
+	}
+
+	s.logger.Printf("Processing slot: %s at %s, %s %s--%s, £%.2f",
+		slot.VenueName, slot.CourtName, slot.Date, slot.StartTime, slot.EndTime, slot.Price)
+
+	s.batchMutex.Lock()
+	defer s.batchMutex.Unlock()
+
+	// Check each user's preferences and add to their batch if matches
+	for _, user := range s.users {
+		if s.matchesUserPreferences(user, slot) {
+			// Check for duplicates
+			if s.isDuplicateNotification(user, slot) {
+				s.logger.Printf("Skipping duplicate notification for user: %s", user.Email)
+				continue
+			}
+
+			s.logger.Printf("Slot matches preferences for user: %s", user.Email)
+			
+			// Add to batch
+			if s.slotBatch[user.Email] == nil {
+				s.slotBatch[user.Email] = make([]SlotData, 0)
+			}
+			s.slotBatch[user.Email] = append(s.slotBatch[user.Email], slot)
+			
+			// Reset/start the batch timer (10 seconds)
+			if s.batchTimer != nil {
+				s.batchTimer.Stop()
+			}
+			s.batchTimer = time.AfterFunc(10*time.Second, func() {
+				s.sendBatchedNotifications(gmailService)
+			})
+		}
+	}
+}
+
+// sendBatchedNotifications sends all batched slots as consolidated emails
+func (s *NotificationService) sendBatchedNotifications(gmailService *GmailService) {
+	s.batchMutex.Lock()
+	currentBatch := s.slotBatch
+	s.slotBatch = make(map[string][]SlotData) // Reset batch
+	s.batchMutex.Unlock()
+
+	for email, slots := range currentBatch {
+		if len(slots) > 0 {
+			// Find user by email
+			var user User
+			for _, u := range s.users {
+				if u.Email == email {
+					user = u
+					break
+				}
+			}
+
+			// Send consolidated notification
+			if err := s.sendBatchedNotification(user, slots, gmailService); err != nil {
+				s.logger.Printf("Error sending batched notification to %s: %v", email, err)
+			} else {
+				s.logger.Printf("✅ Batched notification sent to %s (%d slots)", email, len(slots))
+				
+				// Record all notifications
+				for _, slot := range slots {
+					s.recordNotification(user, slot)
+				}
+			}
+		}
+	}
+}
+
+// processSlotNotification processes a slot notification (kept for compatibility)
 func (s *NotificationService) processSlotNotification(slotJSON string, gmailService *GmailService) {
 	var slot SlotData
 	if err := json.Unmarshal([]byte(slotJSON), &slot); err != nil {
@@ -465,6 +547,64 @@ Price: £%.2f`,
 		slot.Price)
 
 	return gmailService.SendCourtAvailabilityAlert(user.Email, courtDetails, slot.BookingURL)
+}
+
+// sendBatchedNotification sends a consolidated email for multiple slots
+func (s *NotificationService) sendBatchedNotification(user User, slots []SlotData, gmailService *GmailService) error {
+	if len(slots) == 0 {
+		return nil
+	}
+
+	// Group slots by venue and date for better organization
+	venueGroups := make(map[string]map[string][]SlotData)
+	for _, slot := range slots {
+		if venueGroups[slot.VenueName] == nil {
+			venueGroups[slot.VenueName] = make(map[string][]SlotData)
+		}
+		if venueGroups[slot.VenueName][slot.Date] == nil {
+			venueGroups[slot.VenueName][slot.Date] = make([]SlotData, 0)
+		}
+		venueGroups[slot.VenueName][slot.Date] = append(venueGroups[slot.VenueName][slot.Date], slot)
+	}
+
+	// Build consolidated details
+	var courtDetails strings.Builder
+	slotCount := len(slots)
+	
+	if slotCount == 1 {
+		courtDetails.WriteString("🎾 A tennis court just became available!\n\n")
+	} else {
+		courtDetails.WriteString(fmt.Sprintf("🎾 %d tennis courts just became available!\n\n", slotCount))
+	}
+
+	// Add booking links section at the top for quick access
+	courtDetails.WriteString("🔗 QUICK BOOKING LINKS:\n")
+	for i, slot := range slots {
+		courtDetails.WriteString(fmt.Sprintf("  %d. %s %s %s-%s: %s\n", 
+			i+1, slot.VenueName, slot.CourtName, slot.StartTime, slot.EndTime, slot.BookingURL))
+	}
+	courtDetails.WriteString("\n📋 COURT DETAILS:\n")
+
+	// Organize by venue and date
+	for venueName, dates := range venueGroups {
+		courtDetails.WriteString(fmt.Sprintf("\n🏟️ %s:\n", venueName))
+		
+		for date, venueSlots := range dates {
+			courtDetails.WriteString(fmt.Sprintf("  📅 %s:\n", date))
+			
+			for _, slot := range venueSlots {
+				courtDetails.WriteString(fmt.Sprintf("    • %s: %s-%s (£%.2f)\n", 
+					slot.CourtName, slot.StartTime, slot.EndTime, slot.Price))
+			}
+		}
+	}
+
+	courtDetails.WriteString("\n⚡ These slots just became available - book quickly!")
+
+	// Use the first slot's booking URL as the primary link (they should all be for the same venue group anyway)
+	primaryBookingURL := slots[0].BookingURL
+
+	return gmailService.SendCourtAvailabilityAlert(user.Email, courtDetails.String(), primaryBookingURL)
 }
 
 // SendTestNotification sends a test notification
