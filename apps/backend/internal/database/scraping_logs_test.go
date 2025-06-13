@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -15,13 +16,37 @@ import (
 )
 
 func setupScrapingLogTest(t *testing.T) (*mongo.Database, *ScrapingLogRepository, func()) {
+	// Skip integration tests if MongoDB is not available
+	if os.Getenv("SKIP_MONGODB_TESTS") == "true" {
+		t.Skip("Skipping MongoDB integration tests - SKIP_MONGODB_TESTS=true")
+	}
+
+	mongoURI := os.Getenv("MONGODB_TEST_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+
 	// Use a unique database name for each test to ensure isolation
 	dbName := "test_db_" + primitive.NewObjectID().Hex()
 	
-	// Connect to MongoDB
-	ctx := context.Background()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	require.NoError(t, err)
+	// Connect to MongoDB with short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		t.Skipf("Skipping MongoDB integration tests - failed to connect: %v", err)
+	}
+
+	// Ping the database with short timeout
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer pingCancel()
+
+	err = client.Ping(pingCtx, nil)
+	if err != nil {
+		client.Disconnect(context.Background())
+		t.Skipf("Skipping MongoDB integration tests - failed to ping: %v", err)
+	}
 
 	// Create a new database for testing
 	db := client.Database(dbName)
@@ -31,9 +56,9 @@ func setupScrapingLogTest(t *testing.T) (*mongo.Database, *ScrapingLogRepository
 	
 	// Return cleanup function
 	cleanup := func() {
-		err := db.Drop(ctx)
+		err := db.Drop(context.Background())
 		assert.NoError(t, err)
-		err = client.Disconnect(ctx)
+		err = client.Disconnect(context.Background())
 		assert.NoError(t, err)
 	}
 

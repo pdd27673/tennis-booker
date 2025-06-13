@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,13 +28,72 @@ func TestPlatformCredentials(t *testing.T) {
 }
 
 func TestNewCredentialsManager(t *testing.T) {
-	// Test without environment variables
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
+	// Save original environment variables
+	originalVaultAddr := os.Getenv("VAULT_ADDR")
+	originalVaultToken := os.Getenv("VAULT_TOKEN")
+	originalRoleID := os.Getenv("VAULT_ROLE_ID")
+	originalSecretID := os.Getenv("VAULT_SECRET_ID")
 
-	_, err := NewCredentialsManager()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "vault token is required")
+	// Clean up after test
+	defer func() {
+		if originalVaultAddr != "" {
+			os.Setenv("VAULT_ADDR", originalVaultAddr)
+		} else {
+			os.Unsetenv("VAULT_ADDR")
+		}
+		if originalVaultToken != "" {
+			os.Setenv("VAULT_TOKEN", originalVaultToken)
+		} else {
+			os.Unsetenv("VAULT_TOKEN")
+		}
+		if originalRoleID != "" {
+			os.Setenv("VAULT_ROLE_ID", originalRoleID)
+		} else {
+			os.Unsetenv("VAULT_ROLE_ID")
+		}
+		if originalSecretID != "" {
+			os.Setenv("VAULT_SECRET_ID", originalSecretID)
+		} else {
+			os.Unsetenv("VAULT_SECRET_ID")
+		}
+	}()
+
+	t.Run("MissingVaultAddr", func(t *testing.T) {
+		// Test without VAULT_ADDR
+		os.Unsetenv("VAULT_ADDR")
+		os.Unsetenv("VAULT_TOKEN")
+		os.Unsetenv("VAULT_ROLE_ID")
+		os.Unsetenv("VAULT_SECRET_ID")
+
+		_, err := NewCredentialsManager()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "VAULT_ADDR environment variable is required")
+	})
+
+	t.Run("MissingAuthCredentials", func(t *testing.T) {
+		// Test with VAULT_ADDR but no auth credentials
+		os.Setenv("VAULT_ADDR", "http://localhost:8200")
+		os.Unsetenv("VAULT_TOKEN")
+		os.Unsetenv("VAULT_ROLE_ID")
+		os.Unsetenv("VAULT_SECRET_ID")
+
+		// Use a channel to implement timeout
+		done := make(chan bool, 1)
+		var err error
+
+		go func() {
+			_, err = NewCredentialsManager()
+			done <- true
+		}()
+
+		select {
+		case <-done:
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "vault token is required")
+		case <-time.After(5 * time.Second):
+			t.Fatal("Test timed out - this indicates the vault client is trying to connect")
+		}
+	})
 }
 
 // Integration tests - require running Vault instance

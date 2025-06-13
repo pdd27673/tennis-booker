@@ -2,7 +2,9 @@ package database
 
 import (
 	"context"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,13 +13,38 @@ import (
 )
 
 func TestInitDatabase(t *testing.T) {
-	// Skip this test if MongoDB is not available
-	if testing.Short() {
-		t.Skip("Skipping MongoDB test in short mode")
+	// Skip integration tests if MongoDB is not available
+	if os.Getenv("SKIP_MONGODB_TESTS") == "true" {
+		t.Skip("Skipping MongoDB integration tests - SKIP_MONGODB_TESTS=true")
 	}
 
-	// Test with valid URI
-	db, err := InitDatabase("mongodb://localhost:27017", "test_db")
+	mongoURI := os.Getenv("MONGODB_TEST_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+
+	// Test with valid URI - use short timeout to fail fast
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Try to connect first to see if MongoDB is available
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		t.Skipf("Skipping MongoDB integration tests - failed to connect: %v", err)
+	}
+
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer pingCancel()
+
+	err = client.Ping(pingCtx, nil)
+	if err != nil {
+		client.Disconnect(context.Background())
+		t.Skipf("Skipping MongoDB integration tests - failed to ping: %v", err)
+	}
+	client.Disconnect(context.Background())
+
+	// Now test the actual InitDatabase function
+	db, err := InitDatabase(mongoURI, "test_db")
 	assert.NoError(t, err)
 	assert.NotNil(t, db)
 
@@ -28,16 +55,33 @@ func TestInitDatabase(t *testing.T) {
 }
 
 func TestCreateAllIndexes(t *testing.T) {
-	// Skip this test if MongoDB is not available
-	if testing.Short() {
-		t.Skip("Skipping MongoDB test in short mode")
+	// Skip integration tests if MongoDB is not available
+	if os.Getenv("SKIP_MONGODB_TESTS") == "true" {
+		t.Skip("Skipping MongoDB integration tests - SKIP_MONGODB_TESTS=true")
 	}
 
-	// Connect to MongoDB
-	ctx := context.Background()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	require.NoError(t, err)
-	defer client.Disconnect(ctx)
+	mongoURI := os.Getenv("MONGODB_TEST_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+
+	// Connect to MongoDB with short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		t.Skipf("Skipping MongoDB integration tests - failed to connect: %v", err)
+	}
+	defer client.Disconnect(context.Background())
+
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer pingCancel()
+
+	err = client.Ping(pingCtx, nil)
+	if err != nil {
+		t.Skipf("Skipping MongoDB integration tests - failed to ping: %v", err)
+	}
 
 	// Create a unique database name for this test
 	dbName := "test_db_indexes"
@@ -71,21 +115,38 @@ func TestCreateAllIndexes(t *testing.T) {
 	}
 
 	// Clean up - drop the test database
-	err = client.Database(dbName).Drop(ctx)
+	err = client.Database(dbName).Drop(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestGetIndexSummary(t *testing.T) {
-	// Skip this test if MongoDB is not available
-	if testing.Short() {
-		t.Skip("Skipping MongoDB test in short mode")
+	// Skip integration tests if MongoDB is not available
+	if os.Getenv("SKIP_MONGODB_TESTS") == "true" {
+		t.Skip("Skipping MongoDB integration tests - SKIP_MONGODB_TESTS=true")
 	}
 
-	// Connect to MongoDB
-	ctx := context.Background()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	require.NoError(t, err)
-	defer client.Disconnect(ctx)
+	mongoURI := os.Getenv("MONGODB_TEST_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+
+	// Connect to MongoDB with short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		t.Skipf("Skipping MongoDB integration tests - failed to connect: %v", err)
+	}
+	defer client.Disconnect(context.Background())
+
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer pingCancel()
+
+	err = client.Ping(pingCtx, nil)
+	if err != nil {
+		t.Skipf("Skipping MongoDB integration tests - failed to ping: %v", err)
+	}
 
 	// Create a unique database name for this test
 	dbName := "test_db_summary"
@@ -99,7 +160,7 @@ func TestGetIndexSummary(t *testing.T) {
 		},
 		Options: options.Index().SetUnique(true),
 	}
-	_, err = coll.Indexes().CreateOne(ctx, indexModel)
+	_, err = coll.Indexes().CreateOne(context.Background(), indexModel)
 	require.NoError(t, err)
 
 	// Get index summary
@@ -121,6 +182,6 @@ func TestGetIndexSummary(t *testing.T) {
 	assert.True(t, found, "Index on test_field should be found")
 
 	// Clean up - drop the test database
-	err = client.Database(dbName).Drop(ctx)
+	err = client.Database(dbName).Drop(context.Background())
 	assert.NoError(t, err)
 } 
