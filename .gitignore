@@ -98,6 +98,7 @@ Thumbs.db
 *.p12
 *.pfx
 *.crt
+/apps/backend/scripts/setup-vault-secrets.sh
 
 # Vault Setup Scripts (contain sensitive credentials)
 apps/backend/scripts/setup-vault-secrets.sh
@@ -160,3 +161,4 @@ yarn-error.log*
 
 # Keep directories
 !.gitkeep 
+apps/backend/scripts/setup-vault-secrets.sh
