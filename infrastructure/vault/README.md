@@ -55,7 +55,9 @@ The following secret paths are defined:
 
 ## Access Policies
 
-The following policies are defined:
+All access policies are defined in a single comprehensive file: `infrastructure/vault/policies/tennis-app-policies.hcl`
+
+The following individual policies are created for granular access control:
 
 ### Service-specific Policies
 - `db-policy`: Read-only access to database credentials
@@ -86,6 +88,15 @@ export VAULT_ADDR=http://localhost:8200
 export VAULT_TOKEN=<your-root-token>
 ./infrastructure/vault/init-vault.sh
 ```
+
+## Policy Management
+
+All policies are maintained in a single file (`tennis-app-policies.hcl`) for easier management and version control. The initialization script creates individual policies by extracting relevant sections, allowing for:
+
+- **Centralized policy management**: All policies in one file
+- **Granular access control**: Individual policies for specific services
+- **Easy maintenance**: Single file to update when policies change
+- **Version control**: Clear history of policy changes
 
 ## Accessing Secrets
 
