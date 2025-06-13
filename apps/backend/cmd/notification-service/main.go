@@ -193,15 +193,19 @@ func main() {
 			logger.Printf("⚠️ Failed to connect to Vault for test: %v", err)
 			logger.Println("🔄 Using fallback credentials for test...")
 			
-			// Fallback to hardcoded test credentials
-			gmailService := NewGmailService(
-				getEnvWithDefault("GMAIL_EMAIL", "demo@example.com"),
-				getEnvWithDefault("GMAIL_PASSWORD", "eswk jgaw zbet wgxo"),
-				"Tennis Court Alerts",
-				logger,
-			)
+			// Fallback to environment variables (no hardcoded credentials)
+			email := os.Getenv("GMAIL_EMAIL")
+			password := os.Getenv("GMAIL_PASSWORD")
 			
-			if err := gmailService.SendTestEmail("demo@example.com"); err != nil {
+			if email == "" || password == "" {
+				logger.Printf("❌ Test mode requires either Vault or GMAIL_EMAIL/GMAIL_PASSWORD environment variables")
+				os.Exit(1)
+			}
+			
+			gmailService := NewGmailService(email, password, "Tennis Court Alerts", logger)
+			
+			// Use the configured email for testing
+			if err := gmailService.SendTestEmail(email); err != nil {
 				logger.Printf("❌ Test email failed: %v", err)
 				os.Exit(1)
 			} else {
@@ -217,7 +221,8 @@ func main() {
 				os.Exit(1)
 			}
 			
-			if err := gmailService.SendTestEmail("demo@example.com"); err != nil {
+			// Use the same email that's configured in Vault for testing
+			if err := gmailService.SendTestEmail(gmailService.fromEmail); err != nil {
 				logger.Printf("❌ Test email failed: %v", err)
 				os.Exit(1)
 			} else {
@@ -284,17 +289,23 @@ func main() {
 	logger.Println("✅ Connected to Redis")
 
 	// Initialize Gmail service using Vault
+	logger.Println("🔐 Attempting to get email credentials from Vault...")
 	gmailService, err := NewGmailServiceFromVault(secretsManager, logger)
 	if err != nil {
 		logger.Printf("⚠️ Failed to create Gmail service from Vault: %v", err)
-		logger.Println("🔄 Using fallback email credentials...")
+		logger.Println("🔄 Attempting to use environment variables for email credentials...")
 		
-		gmailService = NewGmailService(
-			getEnvWithDefault("GMAIL_EMAIL", "demo@example.com"),
-			getEnvWithDefault("GMAIL_PASSWORD", "eswk jgaw zbet wgxo"),
-			"Tennis Court Alerts",
-			logger,
-		)
+		email := os.Getenv("GMAIL_EMAIL")
+		password := os.Getenv("GMAIL_PASSWORD")
+		
+		if email == "" || password == "" {
+			logger.Fatalf("❌ Failed to get email credentials from Vault and no GMAIL_EMAIL/GMAIL_PASSWORD environment variables set")
+		}
+		
+		gmailService = NewGmailService(email, password, "Tennis Court Alerts", logger)
+		logger.Println("✅ Using email credentials from environment variables")
+	} else {
+		logger.Println("✅ Successfully retrieved email credentials from Vault")
 	}
 
 	// Create notification service
@@ -351,13 +362,16 @@ func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	}
 	logger.Println("✅ Connected to Redis")
 
-	// Initialize Gmail service
-	gmailService := NewGmailService(
-		getEnvWithDefault("GMAIL_EMAIL", "demo@example.com"),
-		getEnvWithDefault("GMAIL_PASSWORD", "eswk jgaw zbet wgxo"),
-		"Tennis Court Alerts",
-		logger,
-	)
+	// Initialize Gmail service from environment variables
+	email := os.Getenv("GMAIL_EMAIL")
+	password := os.Getenv("GMAIL_PASSWORD")
+	
+	if email == "" || password == "" {
+		logger.Fatalf("❌ GMAIL_EMAIL and GMAIL_PASSWORD environment variables are required for fallback mode")
+	}
+	
+	gmailService := NewGmailService(email, password, "Tennis Court Alerts", logger)
+	logger.Println("✅ Using email credentials from environment variables")
 
 	// Create notification service
 	service := &NotificationService{

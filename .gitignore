@@ -99,6 +99,12 @@ Thumbs.db
 *.pfx
 *.crt
 
+# Vault Seeding Scripts (contain sensitive credentials)
+scripts/vault/seed-vault-dev.sh
+scripts/vault/*-real.sh
+scripts/vault/*-production-*.sh
+!scripts/vault/seed-vault-production.sh
+
 # Docker
 .docker/data/
 docker-compose.override.yml

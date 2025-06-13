@@ -212,7 +212,7 @@
         1,
         2
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -220,7 +220,7 @@
           "description": "Add the appropriate Vault client library (e.g., `hvac` for Python, `github.com/hashicorp/vault/api` for Go) to the notification service's dependencies. Initialize basic Vault client configuration, primarily setting the Vault server address.",
           "dependencies": [],
           "details": "For Go: Run `go get github.com/hashicorp/vault/api` and import `github.com/hashicorp/vault/api`. For Python: Run `pip install hvac` and import `hvac`. Configure the Vault client by setting the `VAULT_ADDR` environment variable or by explicitly passing the Vault server address during client initialization. Instantiate the Vault client object.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify the project compiles/builds successfully with the new dependency. Add a simple log statement after client instantiation to confirm it doesn't immediately error (this doesn't test connection yet, just instantiation)."
         },
         {
@@ -231,7 +231,7 @@
             1
           ],
           "details": "If using AppRole (recommended for services): Securely provide `ROLE_ID` and `SECRET_ID` to the service (e.g., via environment variables or injected secrets, not hardcoded). Use the Vault client library to perform an AppRole login, obtaining a client token. Store this token for use by the client instance. If using another method like Kubernetes Auth or a direct token (for local dev), implement that specific login flow. Ensure the client is configured to use the obtained token.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Write a test function or add temporary logging to attempt authentication against a Vault instance (dev/test environment). Verify that a client token is successfully obtained and the client's token is set."
         },
         {
@@ -242,7 +242,7 @@
             2
           ],
           "details": "The function should take the initialized and authenticated Vault client as input. Use the client's 'read' method for the KVv2 path `secret/data/tennisapp/prod/email`. Extract `username` and `password` from the `response['data']['data']` field (for KVv2). Implement error handling for scenarios like path not found, permission issues, or unexpected data structure. The function should return the fetched credentials.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Unit test this function by mocking the Vault client's `read` method to return various responses (success, secret not found, permission error). If possible, test against a live (dev) Vault instance with a pre-populated secret at the specified path."
         },
         {
@@ -253,7 +253,7 @@
             3
           ],
           "details": "At service startup, or before the first email dispatch, call the function created in subtask 3 to retrieve credentials. Pass these credentials to the SMTP client/library used by the service. Conduct a thorough search (e.g., using `grep` or IDE search) for any hardcoded email usernames or passwords related to Gmail SMTP and delete them. Ensure configuration templates are also updated.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Perform a code review specifically focused on identifying and confirming the removal of hardcoded credentials. Test sending a notification through the service; it should now use the Vault-sourced credentials. Verify this by checking logs or by temporarily changing the credentials in Vault to see if sending fails/succeeds accordingly."
         },
         {
@@ -264,7 +264,7 @@
             4
           ],
           "details": "Wrap Vault client calls (authentication, secret fetching) in try-catch blocks. Log critical errors related to Vault interaction (e.g., 'Failed to authenticate with Vault', 'Failed to read secret from Vault path X'). Decide on service behavior if Vault is unavailable at startup (e.g., fail fast, retry with backoff). Ensure logs clearly indicate whether credentials were loaded from Vault successfully. Update any service health checks to include Vault connectivity if critical.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Simulate Vault being unavailable during service startup to test error handling and startup behavior. Test with an invalid Vault path or permissions to ensure errors are caught and logged. Conduct a full end-to-end test by triggering an event that sends a notification, then verify the email is received and service logs show successful credential retrieval from Vault."
         }
       ]
