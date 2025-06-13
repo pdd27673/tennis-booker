@@ -99,11 +99,11 @@ Thumbs.db
 *.pfx
 *.crt
 
-# Vault Seeding Scripts (contain sensitive credentials)
-scripts/vault/seed-vault-dev.sh
-scripts/vault/*-real.sh
-scripts/vault/*-production-*.sh
-!scripts/vault/seed-vault-production.sh
+# Vault Setup Scripts (contain sensitive credentials)
+apps/backend/scripts/setup-vault-secrets.sh
+apps/backend/scripts/*-real.sh
+apps/backend/scripts/*-production-*.sh
+!apps/backend/scripts/setup-vault-secrets-template.sh
 
 # Docker
 .docker/data/
