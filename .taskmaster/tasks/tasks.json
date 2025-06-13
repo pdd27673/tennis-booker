@@ -77,7 +77,7 @@
       "dependencies": [
         1
       ],
-      "status": "in-progress",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -85,7 +85,7 @@
           "description": "Install HashiCorp Vault and configure a development server instance for initial setup, testing, and familiarization with basic operations.",
           "dependencies": [],
           "details": "Includes downloading the appropriate Vault binary, initializing the server (e.g., `vault server -dev`), understanding unseal keys and root token generation. Ensure the dev server is accessible for subsequent configuration steps.",
-          "status": "in-progress"
+          "status": "done"
         },
         {
           "id": 2,
@@ -95,7 +95,7 @@
             1
           ],
           "details": "This involves using the Vault CLI or UI to enable the KV v2 engine at a chosen path (e.g., 'secret/'). Confirm that versioning is active, a key feature of KV v2.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
@@ -105,7 +105,7 @@
             2
           ],
           "details": "Example paths: 'secret/data/app/database', 'secret/data/app/jwt_config', 'secret/data/app/email_service'. Consider a clear hierarchy and naming convention for maintainability.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,
@@ -115,7 +115,7 @@
             3
           ],
           "details": "Policies should grant least privilege. For instance, an application service role might only have 'read' access to 'secret/data/app/database' and 'secret/data/app/jwt_config'. Create policies for both human operators and application entities.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 5,
@@ -128,7 +128,7 @@
             4
           ],
           "details": "Documentation should cover: how to start/stop the dev server, unsealing process (for dev), example policy files, commands for writing/reading secrets to the defined paths, and best practices for managing the root token and unseal keys in a development context.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },

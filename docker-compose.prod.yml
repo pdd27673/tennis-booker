@@ -34,6 +34,30 @@ services:
       timeout: 10s
       retries: 3
 
+  # Vault service for secrets management
+  vault:
+    image: hashicorp/vault:1.16
+    container_name: tennis-vault
+    volumes:
+      - vault_data:/vault/data
+      - ./infrastructure/vault/config:/vault/config
+      - vault_logs:/vault/logs
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    networks:
+      - tennis-network
+    restart: unless-stopped
+    command: server -config=/vault/config/vault.hcl
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Application services
   notification-service:
     build:
@@ -47,10 +71,13 @@ services:
       - GMAIL_EMAIL=${GMAIL_EMAIL}
       - GMAIL_PASSWORD=${GMAIL_PASSWORD}
       - DB_NAME=tennis_booking
+      - VAULT_ADDR=http://vault:8200
     depends_on:
       mongodb:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      vault:
         condition: service_healthy
     networks:
       - tennis-network
@@ -69,8 +96,11 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
+      - VAULT_ADDR=http://vault:8200
     depends_on:
       mongodb:
+        condition: service_healthy
+      vault:
         condition: service_healthy
     networks:
       - tennis-network
@@ -94,8 +124,11 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
+      - VAULT_ADDR=http://vault:8200
     depends_on:
       mongodb:
+        condition: service_healthy
+      vault:
         condition: service_healthy
     networks:
       - tennis-network
@@ -111,9 +144,12 @@ services:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
       - USER_EMAIL=${USER_EMAIL:-mvgnum@gmail.com}
+      - VAULT_ADDR=http://vault:8200
     depends_on:
       seed-db:
         condition: service_completed_successfully
+      vault:
+        condition: service_healthy
     networks:
       - tennis-network
     command: ["./seed-user"]
@@ -122,6 +158,9 @@ services:
 volumes:
   mongodb_data:
   redis_data:
+  vault_data:
+  vault_config:
+  vault_logs:
 
 networks:
   tennis-network:
