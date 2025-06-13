@@ -98,13 +98,11 @@ Thumbs.db
 *.p12
 *.pfx
 *.crt
-/apps/backend/scripts/setup-vault-secrets.sh
-
 # Vault Setup Scripts (contain sensitive credentials)
-apps/backend/scripts/setup-vault-secrets.sh
-apps/backend/scripts/*-real.sh
-apps/backend/scripts/*-production-*.sh
-!apps/backend/scripts/setup-vault-secrets-template.sh
+infrastructure/vault/setup-vault-secrets.sh
+infrastructure/vault/*-real.sh
+infrastructure/vault/*-production-*.sh
+!infrastructure/vault/setup-vault-secrets-template.sh
 
 # Docker
 .docker/data/
@@ -160,5 +158,4 @@ yarn-error.log*
 !.taskmaster/tasks/tasks.json
 
 # Keep directories
-!.gitkeep 
-apps/backend/scripts/setup-vault-secrets.sh
+!.gitkeep
