@@ -13,15 +13,14 @@ This project is organized as a monorepo with the following structure:
 ```
 tennis-booking-system/
 ├── apps/                      # Application code
-│   ├── backend/               # Go backend services
-│   ├── frontend/              # React TypeScript frontend
+│   ├── backend/               # Go backend services (includes notification service)
 │   └── scraper/               # Python scraping services
-├── packages/                  # Shared libraries and types
 ├── infrastructure/            # Deployment & infrastructure
-│   ├── terraform/             # OCI infrastructure as code
-│   └── docker/                # Docker configurations
+│   ├── vault/                 # HashiCorp Vault configuration & integration
+│   └── terraform/             # OCI infrastructure as code
+├── scripts/                   # Utility scripts
 ├── .github/                   # CI/CD workflows
-└── docs/                      # Documentation
+└── .taskmaster/               # Project management and tasks
 ```
 
 ## 🚀 Getting Started
@@ -51,7 +50,11 @@ tennis-booking-system/
 
 3. Start development services
    ```bash
+   # Basic development environment
    make dev
+   
+   # Or with Vault integration (recommended for production-like setup)
+   make vault-up
    ```
 
 ## 📦 Applications
@@ -64,14 +67,6 @@ The backend provides:
 - Notification service
 - Database management
 
-### Frontend (React/TypeScript)
-
-The frontend provides:
-- User authentication
-- Court availability dashboard
-- Preference management
-- System control
-
 ### Scraper (Python)
 
 The scraper service:
@@ -79,11 +74,45 @@ The scraper service:
 - Supports multiple platforms (ClubSpark, Courtside)
 - Publishes availability data to Redis
 
+## 🔐 Security & Vault Integration
+
+This project uses HashiCorp Vault for secure secret management:
+
+- **No hardcoded secrets**: All sensitive data managed by Vault
+- **Vault Agent integration**: Automatic secret injection for all services
+- **Non-root containers**: Enhanced security posture
+- **Production-ready**: Enterprise-grade security controls
+
+See [infrastructure/vault/README.md](infrastructure/vault/README.md) for detailed setup and usage.
+
+## 🛠️ Available Commands
+
+### Development Commands
+- `make setup` - Set up all applications
+- `make dev` - Start basic development environment
+- `make build` - Build all applications
+- `make test` - Run all tests
+
+### Vault Integration Commands
+- `make vault-up` - Start all services with Vault integration
+- `make vault-down` - Stop all Vault-integrated services
+- `make vault-status` - Show status of all services
+- `make vault-test` - Test Vault Agent integration
+- `make vault-logs` - Show logs for all services
+- `make vault-clean` - Clean up volumes and containers
+
+### Service-Specific Commands
+- `make backend-build` - Build Go backend services
+- `make backend-test` - Run Go backend tests
+- `make scraper-setup` - Set up Python scraper environment
+- `make scraper-run` - Run the scraper
+- `make scraper-test` - Run scraper tests
+
 ## 📚 Documentation
 
-- [API Documentation](docs/api.md)
-- [Deployment Guide](docs/deployment.md)
-- [Development Guide](docs/development.md)
+- [Vault Integration Guide](infrastructure/vault/README.md)
+- [Backend Security Notes](apps/backend/SECURITY_NOTES.md)
+- [Scraper Documentation](apps/scraper/README.md)
 
 ## 📄 License
 

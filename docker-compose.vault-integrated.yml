@@ -1,0 +1,102 @@
+services:
+  # Shared Vault Agent Template Service (not started directly)
+  vault-agent-template: &vault-agent-template
+    image: hashicorp/vault:1.13
+    user: "0:0"
+    command: ["/vault/config/universal-init.sh"]
+    volumes:
+      - ./infrastructure/vault/agent:/vault/config
+      - ./infrastructure/vault/templates:/vault/templates
+      - ./infrastructure/vault/agent/token:/vault/token
+      - vault_secrets:/vault/secrets
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    networks:
+      - tennis-network
+    restart: unless-stopped
+    profiles: ["template"]  # Prevents this from starting
+
+  # Vault Agents for Each Service
+  vault-agent-backend:
+    <<: *vault-agent-template
+    container_name: tennis-vault-agent-backend
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - SERVICE_NAME=backend
+    profiles: []  # Enable this service
+
+  vault-agent-scraper:
+    <<: *vault-agent-template
+    container_name: tennis-vault-agent-scraper
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - SERVICE_NAME=scraper
+    profiles: []  # Enable this service
+
+  vault-agent-notification:
+    <<: *vault-agent-template
+    container_name: tennis-vault-agent-notification
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - SERVICE_NAME=notification
+    profiles: []  # Enable this service
+
+  # Application Services Template
+  app-service-template: &app-service-template
+    volumes:
+      - vault_secrets:/vault/secrets:ro
+      - ./infrastructure/vault/entrypoints:/entrypoints:ro
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    networks:
+      - tennis-network
+    restart: unless-stopped
+    profiles: ["template"]  # Prevents this from starting
+
+  # Backend Service
+  backend-service:
+    <<: *app-service-template
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: tennis-backend
+    depends_on:
+      - vault-agent-backend
+    ports:
+      - "8080:8080"
+    command: ["/entrypoints/backend-entrypoint.sh"]
+    profiles: []  # Enable this service
+
+  # Scraper Service
+  scraper-service:
+    <<: *app-service-template
+    build:
+      context: apps/scraper
+      dockerfile: Dockerfile
+    container_name: tennis-scraper
+    depends_on:
+      - vault-agent-scraper
+    command: ["/entrypoints/scraper-entrypoint.sh"]
+    profiles: []  # Enable this service
+
+  # Notification Service
+  notification-service:
+    <<: *app-service-template
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile.notification
+    container_name: tennis-notification
+    depends_on:
+      - vault-agent-notification
+    ports:
+      - "8081:8081"
+    command: ["/entrypoints/notification-entrypoint.sh"]
+    profiles: []  # Enable this service
+
+volumes:
+  vault_secrets:
+
+networks:
+  tennis-network:
+    name: tennis-booker_tennis-network
+    external: true 
