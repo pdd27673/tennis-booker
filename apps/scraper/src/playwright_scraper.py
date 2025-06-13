@@ -46,7 +46,7 @@ async def main():
     parser.add_argument('--all', action='store_true', help='Scrape all active venues')
     
     # Configuration options
-    parser.add_argument('--days', type=int, default=7, help='Number of days ahead to scrape (default: 7)')
+    parser.add_argument('--days', type=int, default=8, help='Number of days ahead to scrape (default: 8)')
     parser.add_argument('--log-level', type=str, default='INFO', 
                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                        help='Logging level (default: INFO)')

@@ -8,23 +8,30 @@ loads venues from MongoDB, and stores scraping results.
 import asyncio
 import logging
 import os
+import sys
 import time
 from datetime import datetime
 from typing import List, Dict, Any
 from pymongo import MongoClient
 from bson import ObjectId
-try:
-    from ..redis_publisher import RedisPublisher
-except ImportError:
-    # Fallback for when running as script
-    import sys
-    import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from redis_publisher import RedisPublisher
 
-from .base_scraper import ScrapedSlot, ScrapingResult
-from .courtside_scraper import CourtsideScraper
-from .clubspark_scraper import ClubSparkScraper
+# Handle imports for both module and script execution
+try:
+    # Try relative imports first (when run as module)
+    from ..redis_publisher import RedisPublisher
+    from .base_scraper import ScrapedSlot, ScrapingResult
+    from .courtside_scraper import CourtsideScraper
+    from .clubspark_scraper import ClubSparkScraper
+except ImportError:
+    # Fallback for when running as script - add parent directories to path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)  # src directory
+    sys.path.insert(0, parent_dir)
+    
+    from redis_publisher import RedisPublisher
+    from scrapers.base_scraper import ScrapedSlot, ScrapingResult
+    from scrapers.courtside_scraper import CourtsideScraper
+    from scrapers.clubspark_scraper import ClubSparkScraper
 
 class ScraperOrchestrator:
     """Main orchestrator for tennis court scraping operations"""
@@ -363,5 +370,24 @@ class ScraperOrchestrator:
             return None
         finally:
             self.disconnect_mongodb()
+
+
+async def main():
+    """Main entry point for the scraper orchestrator"""
+    orchestrator = ScraperOrchestrator()
+    
+    # Run a scraping session for all venues
+    try:
+        await orchestrator.run_scraping_session()
+    except KeyboardInterrupt:
+        orchestrator.logger.info("Scraping interrupted by user")
+    except Exception as e:
+        orchestrator.logger.error(f"Scraping failed: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    # Run the scraper when executed as a script
+    asyncio.run(main())
 
  

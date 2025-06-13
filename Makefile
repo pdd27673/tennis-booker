@@ -1,4 +1,4 @@
-.PHONY: help build test clean dev setup backend-build backend-test scraper-setup scraper-run scraper-test vault-up vault-down vault-logs vault-status vault-clean vault-test vault-secrets
+.PHONY: help build test clean dev local setup backend-build backend-test scraper-setup scraper-run scraper-test vault-up vault-down vault-logs vault-status vault-clean vault-test vault-secrets
 
 # Default target
 help:
@@ -7,6 +7,7 @@ help:
 	@echo "Setup Commands:"
 	@echo "  setup           - Set up all applications"
 	@echo "  dev             - Start development environment"
+	@echo "  local           - Start complete local development (no Vault)"
 	@echo ""
 	@echo "Backend Commands:"
 	@echo "  backend-build   - Build Go backend services"
@@ -40,6 +41,11 @@ dev:
 	@echo "🚀 Starting development environment..."
 	docker-compose up -d
 	@echo "✅ Development environment started!"
+
+# Start complete local development
+local:
+	@echo "🎾 Starting complete local development environment..."
+	./scripts/run_local.sh start
 
 # Build all applications
 build: backend-build

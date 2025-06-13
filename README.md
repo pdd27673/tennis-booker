@@ -50,10 +50,13 @@ tennis-booking-system/
 
 3. Start development services
    ```bash
-   # Basic development environment
+   # Complete local development (recommended for development)
+   make local
+   
+   # Or basic Docker services only
    make dev
    
-   # Or with Vault integration (recommended for production-like setup)
+   # Or with Vault integration (production-like setup)
    make vault-up
    ```
 
@@ -89,7 +92,8 @@ See [infrastructure/vault/README.md](infrastructure/vault/README.md) for detaile
 
 ### Development Commands
 - `make setup` - Set up all applications
-- `make dev` - Start basic development environment
+- `make local` - Start complete local development (MongoDB, Redis, notification, scraper)
+- `make dev` - Start basic Docker services only
 - `make build` - Build all applications
 - `make test` - Run all tests
 
