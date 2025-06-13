@@ -1,0 +1,1585 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Monorepo Setup & Code Migration",
+      "description": "Set up the monorepo structure as specified, including directories for apps, packages, infrastructure, and GitHub workflows. Migrate existing Go backend and Python scraper code into their respective `apps/` subdirectories.",
+      "details": "Create root directories: `apps/` (with `backend/`, `frontend/`, `scraper/`), `packages/` (for shared code, e.g., types), `infrastructure/` (for Terraform, Docker Compose), `.github/` (for CI/CD workflows). Move existing Go code to `apps/backend/` and Python scrapers to `apps/scraper/`. Initialize a root `README.md` and a comprehensive `.gitignore` file. Consider using a lightweight monorepo tool like `pnpm workspaces` if Node.js is used at the root for scripting, or a simple Makefile for orchestrating common tasks.",
+      "testStrategy": "Verify directory structure is correct. Confirm Go backend and Python scrapers can be built/run from their new locations. Check that no essential files were missed during migration.",
+      "priority": "high",
+      "dependencies": [],
+      "status": "done",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize Core Monorepo Directory Structure and Root Files",
+          "description": "Create the primary directory layout (`apps/`, `packages/`, `infrastructure/`) and essential root files (`README.md`, `.gitignore`). This establishes the foundational structure of the monorepo.",
+          "dependencies": [],
+          "details": "1. Create root directories: `apps/`, `packages/`, `infrastructure/`.\n2. Inside `apps/`, create placeholder subdirectories: `backend/`, `frontend/`, `scraper/`.\n3. Initialize a root `README.md` with a project title, brief overview, and a description of the monorepo's directory structure.\n4. Create a comprehensive `.gitignore` file at the root. Include common ignore patterns for Go, Python, Node.js (e.g., `node_modules/`), OS-specific files (e.g., `.DS_Store`, `Thumbs.db`), IDE files, and common build artifacts (e.g., `*.log`, `dist/`, `build/`).",
+          "status": "done",
+          "testStrategy": "Manually verify the created directory structure and files. Commit the initial structure and check if `.gitignore` correctly ignores newly added dummy files matching its patterns (e.g., a `test.log` file or a `node_modules/` directory)."
+        },
+        {
+          "id": 2,
+          "title": "Migrate Go Backend Code to `apps/backend/`",
+          "description": "Relocate the existing Go backend codebase into the `apps/backend/` directory. Update module paths and build configurations to ensure the backend builds and tests correctly in its new location.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Move the entire Go backend project source code into the `apps/backend/` directory.\n2. Update the `go.mod` file if module paths need to be adjusted relative to the new project structure or for inter-package dependencies.\n3. Modify any existing build scripts (e.g., Makefiles, shell scripts) or CI configurations to correctly target `apps/backend/`. Ensure paths for compilation, testing, and artifact generation are updated.\n4. Verify that all unit tests and integration tests for the backend pass after migration.\n<info added on 2025-06-13T09:36:46.395Z>\nSuccessfully migrated the Go backend code to the apps/backend directory. Created the necessary directory structure, copied all Go files, updated the module path in go.mod, and created a Makefile for common tasks. Updated all import paths using a script and verified that the code can be built successfully with 'make build'.\n</info added on 2025-06-13T09:36:46.395Z>",
+          "status": "done",
+          "testStrategy": "Execute `go build ./...` and `go test ./...` (or equivalent commands) from within the `apps/backend/` directory. If root-level scripts are used, test those as well. Ensure all tests pass and the application compiles successfully."
+        },
+        {
+          "id": 3,
+          "title": "Migrate Python Scraper Code to `apps/scraper/`",
+          "description": "Transfer the existing Python scraper codebase to the `apps/scraper/` directory. Adjust script paths, dependency management, and environment configurations for the new location.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Move all Python scraper project files into the `apps/scraper/` directory.\n2. Update any `requirements.txt`, `Pipfile`, `pyproject.toml` (for Poetry/PDM) to ensure dependencies are correctly managed. Check for hardcoded paths in scripts or configurations.\n3. Adjust execution scripts (e.g., shell scripts, `Makefile` targets specific to the scraper) to work from `apps/scraper/` or relative to the monorepo root.\n4. If virtual environments are used, ensure they can be created and activated correctly within the new structure.\n<info added on 2025-06-13T09:39:58.335Z>\nSuccessfully migrated the Python scraper code to the apps/scraper directory. Created the necessary directory structure, copied all Python files, created a requirements.txt file, a Makefile for common tasks, and a basic test file. Also added a README.md with documentation on the scraper module.\n</info added on 2025-06-13T09:39:58.335Z>",
+          "status": "done",
+          "testStrategy": "Activate the Python environment for the scraper and run its main scripts or entry points. Execute any existing tests. Verify that all dependencies are resolved and the scraper functions as expected in its new location."
+        },
+        {
+          "id": 4,
+          "title": "Establish `.github/workflows` Directory for CI/CD Pipelines",
+          "description": "Create the standard GitHub directory structure for housing CI/CD workflow configurations using GitHub Actions.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. At the monorepo root, create a directory named `.github/`.\n2. Inside `.github/`, create a subdirectory named `workflows/`.\n3. Add a `.gitkeep` file inside `.github/workflows/` to ensure the directory is tracked by Git even if it's initially empty. This prepares the monorepo for future CI/CD pipeline definitions.\n<info added on 2025-06-13T09:41:59.701Z>\nCreated `ci.yml` for continuous integration (running tests) and `cd.yml` for continuous deployment (building and deploying to OCI). Added a `README.md` with documentation on the workflows and required secrets.\n</info added on 2025-06-13T09:41:59.701Z>",
+          "status": "done",
+          "testStrategy": "Verify that the `.github/workflows/` directory structure is correctly created and committed to the version control system."
+        },
+        {
+          "id": 5,
+          "title": "Implement Basic Monorepo Task Orchestration",
+          "description": "Set up a basic mechanism for running common development tasks (e.g., build, test) across different applications/packages from the monorepo root. This could be a root Makefile or scripts in a root `package.json` if using Node.js tooling.",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "1. **Decision Point:** Choose between a simple root `Makefile` or Node.js-based tooling (e.g., `pnpm workspaces` with root `package.json` scripts) based on project needs and existing tooling.\n2. **If Makefile:** Create a `Makefile` at the monorepo root. Add initial targets like:\n   `build-backend: cd apps/backend && go build ./...`\n   `test-backend: cd apps/backend && go test ./...`\n   `run-scraper: cd apps/scraper && python your_scraper_entrypoint.py` (adjust command as needed)\n   `lint: # Placeholder for future linting command`\n3. **If Node.js tooling (e.g., pnpm):**\n   - Initialize pnpm at the root (`pnpm init -y` if no root `package.json` exists).\n   - Create `pnpm-workspace.yaml` defining `packages: ['apps/*', 'packages/*']`.\n   - Add scripts to the root `package.json`, e.g.:\n     `\"build:backend\": \"pnpm --filter backend build\"` (assuming backend has a `build` script in its own `package.json` or Makefile)\n     `\"test:backend\": \"pnpm --filter backend test\"`\n     `\"run:scraper\": \"pnpm --filter scraper start\"`\n4. The goal is to provide simple, centralized commands for common operations.\n<info added on 2025-06-13T09:44:50.554Z>\nThe root Makefile approach was implemented. Commands for setup, build, test, and clean operations were created, delegating to the respective sub-applications. Testing confirmed functionality with 'make help' and 'make backend-build'. This setup provides a unified interface for managing all applications within the monorepo.\n</info added on 2025-06-13T09:44:50.554Z>",
+          "status": "done",
+          "testStrategy": "From the monorepo root, execute the newly defined orchestration commands (e.g., `make build-backend`, `pnpm run test:backend`). Verify that these commands correctly trigger the intended actions in the respective sub-projects and produce the expected outcomes (e.g., successful compilation, test execution)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Vault Integration & Initial Configuration",
+      "description": "Install and configure HashiCorp Vault for development and prepare for production. Define initial secret paths and access policies.",
+      "details": "Install HashiCorp Vault (latest stable, e.g., v1.16.x). For local development, run `vault server -dev`. Define KV v2 secret engines. Create paths like `secret/data/tennisapp/prod/db` (for database credentials), `secret/data/tennisapp/prod/jwt` (for JWT signing keys), `secret/data/tennisapp/prod/email` (for Gmail SMTP credentials). Define Vault policies granting appropriate read access to these paths for different application components/roles. Document the setup process and initial secret population steps.",
+      "testStrategy": "Verify Vault server is running. Test writing and reading secrets from defined paths using Vault CLI. Validate policies by attempting access with tokens associated with different roles.",
+      "priority": "high",
+      "dependencies": [
+        1
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Install Vault and Set Up Development Server",
+          "description": "Install HashiCorp Vault and configure a development server instance for initial setup, testing, and familiarization with basic operations.",
+          "dependencies": [],
+          "details": "Includes downloading the appropriate Vault binary, initializing the server (e.g., `vault server -dev`), understanding unseal keys and root token generation. Ensure the dev server is accessible for subsequent configuration steps.",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "title": "Enable and Configure KV v2 Secrets Engine",
+          "description": "Enable the Key/Value (KV) version 2 secrets engine on the Vault development server and configure its basic settings.",
+          "dependencies": [
+            1
+          ],
+          "details": "This involves using the Vault CLI or UI to enable the KV v2 engine at a chosen path (e.g., 'secret/'). Confirm that versioning is active, a key feature of KV v2.",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Define Secret Paths for Critical Services",
+          "description": "Establish standardized and logical secret paths within the configured KV v2 engine for database credentials, JWT signing keys, and email service configurations.",
+          "dependencies": [
+            2
+          ],
+          "details": "Example paths: 'secret/data/app/database', 'secret/data/app/jwt_config', 'secret/data/app/email_service'. Consider a clear hierarchy and naming convention for maintainability.",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Craft Initial Vault Access Policies",
+          "description": "Define and implement initial Vault access policies (HCL format) for different roles (e.g., application-service, admin-operator) to control access to the defined secret paths.",
+          "dependencies": [
+            3
+          ],
+          "details": "Policies should grant least privilege. For instance, an application service role might only have 'read' access to 'secret/data/app/database' and 'secret/data/app/jwt_config'. Create policies for both human operators and application entities.",
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "title": "Document Setup and Initial Secret Population Procedure",
+          "description": "Create comprehensive documentation detailing the Vault installation, dev server setup, KV engine configuration, defined secret paths, initial policies, and a secure procedure for populating initial secrets.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "Documentation should cover: how to start/stop the dev server, unsealing process (for dev), example policy files, commands for writing/reading secrets to the defined paths, and best practices for managing the root token and unseal keys in a development context.",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Secure Backend Secrets Management with Vault",
+      "description": "Integrate the Go backend with Vault to fetch database passwords and JWT secrets. Remove all hardcoded credentials from the backend codebase.",
+      "details": "Use the official Go Vault client library `github.com/hashicorp/vault/api` (latest version). Implement a secrets manager service in Go that initializes the Vault client (using VAULT_ADDR, VAULT_TOKEN/role-based auth) and fetches secrets at startup or on-demand. Update database connection logic and JWT generation/validation logic to use secrets from Vault. Ensure no hardcoded secrets remain (passwords, API keys, JWT secret keys). Scan code for hardcoded secrets using tools like `gitleaks` or `trufflehog`.",
+      "testStrategy": "Unit test the secrets manager service to confirm it can fetch secrets from Vault. Integration test backend services to ensure they correctly use credentials fetched from Vault for DB connection and JWT operations. Verify no hardcoded secrets are present in the codebase.",
+      "priority": "high",
+      "dependencies": [
+        1,
+        2
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Integrate Vault Go Client and Configure Initial Connection",
+          "description": "Add the `github.com/hashicorp/vault/api` dependency to the Go project. Implement basic Vault client initialization logic, reading `VAULT_ADDR` and authentication details (e.g., `VAULT_TOKEN` or AppRole credentials) from environment variables.",
+          "dependencies": [],
+          "details": "1. Add `github.com/hashicorp/vault/api` (latest version) to `go.mod` using `go get github.com/hashicorp/vault/api`. \n2. Create a new package, e.g., `pkg/vaultclient`. \n3. Implement a function `NewVaultClient()` within this package. This function should: \n    a. Read `VAULT_ADDR` from environment variables. \n    b. Read authentication configuration: `VAULT_TOKEN` for token-based auth, or `VAULT_ROLE_ID` and `VAULT_SECRET_ID` for AppRole auth. Prioritize AppRole if configured, otherwise fallback to token. \n    c. Initialize the Vault client using `api.NewClient()`. \n    d. If using AppRole, perform login to Vault to obtain a client token. \n    e. Return the configured client or an error. \n4. Include robust error handling for missing environment variables, client creation failures, and AppRole login failures.",
+          "status": "pending",
+          "testStrategy": "Unit test `NewVaultClient()` by mocking environment variables and verifying successful client initialization for both token and AppRole auth methods. Perform a manual test by running a small Go program that initializes the client against a local development Vault instance to confirm connectivity."
+        },
+        {
+          "id": 2,
+          "title": "Develop a Secrets Manager Service for Vault Interaction",
+          "description": "Create a Go service/struct (e.g., `SecretsManager`) that encapsulates the initialized Vault client. This service will provide methods to fetch specific secrets by path and key, abstracting direct Vault API calls from the rest of the application.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Define a `SecretsManager` struct in a new package (e.g., `pkg/secrets`). This struct should hold the initialized `*api.Client` from subtask 1. \n2. Implement a constructor function `NewSecretsManager(client *api.Client)` for this struct. \n3. Implement a method like `GetSecret(path string, key string) (string, error)`: \n    a. This method uses the Vault client's `Logical().Read(path)` function to fetch data from the specified Vault path. \n    b. It should parse the response, extract the value for the given `key` from the `Data` map in the secret. \n    c. Handle potential errors: secret not found at path, key not found in secret, network issues, permission errors. \n4. Consider making the `SecretsManager` a singleton or easily injectable dependency for other services.",
+          "status": "pending",
+          "testStrategy": "Unit test the `SecretsManager.GetSecret()` method. Mock the `api.Client` and its `Logical().Read()` method to return various scenarios: successful secret retrieval, secret not found, key not found within secret, and Vault API errors. Verify that `GetSecret` handles these cases correctly."
+        },
+        {
+          "id": 3,
+          "title": "Refactor Database Connection Logic to Use Secrets from Vault",
+          "description": "Modify the existing database connection module to fetch database credentials (e.g., username, password) using the `SecretsManager` service instead of hardcoded values or direct environment variable reads.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Identify the module/code responsible for establishing database connections (e.g., `pkg/database`). \n2. Inject an instance of `SecretsManager` into this module or make it accessible. \n3. Before establishing a database connection (typically at application startup or on first use), call `SecretsManager.GetSecret()` to retrieve database username and password from a predefined Vault path (e.g., `database/creds/my-app-db`). \n4. Update the database connection string (DSN) construction logic to use these fetched credentials. \n5. Ensure the application handles errors gracefully if database secrets cannot be fetched from Vault (e.g., log an error and exit, or retry based on policy). \n6. Remove any hardcoded database credentials or direct environment variable reads for these credentials from this module.",
+          "status": "pending",
+          "testStrategy": "Write integration tests where the application attempts to connect to a test database. Configure a local Vault instance with mock database credentials at the expected path. Verify the application successfully connects using these Vault-sourced credentials. Unit test the database module by mocking the `SecretsManager` to provide credentials and ensure the DSN is formed correctly."
+        },
+        {
+          "id": 4,
+          "title": "Refactor JWT Handling to Use Signing Keys/Secrets from Vault",
+          "description": "Modify the JWT generation and validation logic to fetch JWT signing keys or secrets from Vault using the `SecretsManager` service, removing any hardcoded JWT secrets.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Locate the code responsible for JWT generation (signing tokens) and validation (verifying tokens) (e.g., `pkg/auth` or `pkg/jwt`). \n2. Inject an instance of `SecretsManager` into this module. \n3. Fetch the JWT signing key(s)/secret(s) using `SecretsManager.GetSecret()` from a specific Vault path (e.g., `jwt/config/my-app-jwt`). \n4. Update token signing functions to use the fetched key/secret. \n5. Update token validation functions to use the same fetched key/secret. \n6. If key rotation is a concern, plan for how to fetch and manage multiple keys (though initial implementation can focus on a single key). \n7. Ensure error handling if JWT secrets cannot be fetched from Vault. \n8. Remove any hardcoded JWT secrets from the codebase.",
+          "status": "pending",
+          "testStrategy": "Write integration tests: generate a JWT using a key fetched from Vault, then attempt to validate it. Use a local Vault instance with a mock JWT secret. Unit test JWT generation and validation functions by mocking the `SecretsManager` to provide a JWT secret and verify correct token operations."
+        },
+        {
+          "id": 5,
+          "title": "Scan Codebase for Hardcoded Secrets and Final Verification",
+          "description": "Use automated tools like `gitleaks` or `trufflehog` to scan the entire codebase for any remaining hardcoded secrets. Manually review and remove any findings, ensuring all sensitive data is now sourced from Vault or secure configurations. Perform a final verification of the application.",
+          "dependencies": [
+            3,
+            4
+          ],
+          "details": "1. Install a secret scanning tool (e.g., `gitleaks` via `brew install gitleaks` or download binary). \n2. Configure the tool if necessary (e.g., custom rules, baseline). \n3. Run the scanner on the entire repository: `gitleaks detect --source . -v`. \n4. Carefully review the scan report. For each finding: \n    a. Determine if it's a true positive. \n    b. If it's a hardcoded secret, remove it from the code. \n    c. Ensure the corresponding functionality now correctly sources the secret from Vault (as implemented in previous subtasks) or via secure environment variable injection (not hardcoded in version control). \n5. Manually review common places for secrets: configuration files, constants, test data. \n6. After all identified hardcoded secrets are removed, commit the changes. \n7. Perform a full application smoke test to ensure all functionalities dependent on secrets (database, JWT, any other integrated services) are working as expected with secrets sourced from Vault.",
+          "status": "pending",
+          "testStrategy": "The primary test is running the chosen secret scanning tool (`gitleaks` or `trufflehog`) and ensuring it reports no hardcoded secrets in the codebase. A successful full application smoke test post-cleanup serves as a functional verification that secret migration was successful."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Secure Notification Service Credentials with Vault",
+      "description": "Update the existing notification service to retrieve Gmail SMTP credentials from Vault instead of using hardcoded values.",
+      "details": "Modify the notification service (Go or Python, as applicable) to use its respective Vault client library (e.g., `github.com/hashicorp/vault/api` for Go, `hvac` for Python). Fetch Gmail username and app password from the `secret/data/tennisapp/prod/email` path in Vault. Remove any hardcoded email credentials from the service's configuration and code.",
+      "testStrategy": "Test the notification service by sending a test email. Verify that credentials are fetched from Vault by checking logs (ensure no sensitive data is logged) and by temporarily changing credentials in Vault to see if the service fails/recovers as expected.",
+      "priority": "high",
+      "dependencies": [
+        1,
+        2
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Integrate Vault Client Library and Basic Configuration",
+          "description": "Add the appropriate Vault client library (e.g., `hvac` for Python, `github.com/hashicorp/vault/api` for Go) to the notification service's dependencies. Initialize basic Vault client configuration, primarily setting the Vault server address.",
+          "dependencies": [],
+          "details": "For Go: Run `go get github.com/hashicorp/vault/api` and import `github.com/hashicorp/vault/api`. For Python: Run `pip install hvac` and import `hvac`. Configure the Vault client by setting the `VAULT_ADDR` environment variable or by explicitly passing the Vault server address during client initialization. Instantiate the Vault client object.",
+          "status": "pending",
+          "testStrategy": "Verify the project compiles/builds successfully with the new dependency. Add a simple log statement after client instantiation to confirm it doesn't immediately error (this doesn't test connection yet, just instantiation)."
+        },
+        {
+          "id": 2,
+          "title": "Implement Vault Authentication Mechanism (e.g., AppRole)",
+          "description": "Implement the chosen Vault authentication method (e.g., AppRole) within the notification service. This will allow the service to securely obtain a Vault token for subsequent API calls.",
+          "dependencies": [
+            1
+          ],
+          "details": "If using AppRole (recommended for services): Securely provide `ROLE_ID` and `SECRET_ID` to the service (e.g., via environment variables or injected secrets, not hardcoded). Use the Vault client library to perform an AppRole login, obtaining a client token. Store this token for use by the client instance. If using another method like Kubernetes Auth or a direct token (for local dev), implement that specific login flow. Ensure the client is configured to use the obtained token.",
+          "status": "pending",
+          "testStrategy": "Write a test function or add temporary logging to attempt authentication against a Vault instance (dev/test environment). Verify that a client token is successfully obtained and the client's token is set."
+        },
+        {
+          "id": 3,
+          "title": "Develop Function to Fetch Gmail Credentials from Vault",
+          "description": "Create a dedicated function that uses the authenticated Vault client to read the Gmail SMTP username and app password from the specified Vault path: `secret/data/tennisapp/prod/email`.",
+          "dependencies": [
+            2
+          ],
+          "details": "The function should take the initialized and authenticated Vault client as input. Use the client's 'read' method for the KVv2 path `secret/data/tennisapp/prod/email`. Extract `username` and `password` from the `response['data']['data']` field (for KVv2). Implement error handling for scenarios like path not found, permission issues, or unexpected data structure. The function should return the fetched credentials.",
+          "status": "pending",
+          "testStrategy": "Unit test this function by mocking the Vault client's `read` method to return various responses (success, secret not found, permission error). If possible, test against a live (dev) Vault instance with a pre-populated secret at the specified path."
+        },
+        {
+          "id": 4,
+          "title": "Integrate Fetched Credentials and Remove Hardcoded Values",
+          "description": "Modify the notification service's SMTP logic to use the credentials fetched from Vault (via the function from subtask 3). Systematically remove all hardcoded Gmail credentials from source code, configuration files, and environment variables if they were previously set there.",
+          "dependencies": [
+            3
+          ],
+          "details": "At service startup, or before the first email dispatch, call the function created in subtask 3 to retrieve credentials. Pass these credentials to the SMTP client/library used by the service. Conduct a thorough search (e.g., using `grep` or IDE search) for any hardcoded email usernames or passwords related to Gmail SMTP and delete them. Ensure configuration templates are also updated.",
+          "status": "pending",
+          "testStrategy": "Perform a code review specifically focused on identifying and confirming the removal of hardcoded credentials. Test sending a notification through the service; it should now use the Vault-sourced credentials. Verify this by checking logs or by temporarily changing the credentials in Vault to see if sending fails/succeeds accordingly."
+        },
+        {
+          "id": 5,
+          "title": "Implement Robust Error Handling, Logging, and Final E2E Testing",
+          "description": "Enhance the Vault integration with comprehensive error handling for Vault communication (e.g., Vault unavailable, auth failure, secret issues) and detailed logging for diagnostics. Perform thorough end-to-end testing of the notification functionality.",
+          "dependencies": [
+            4
+          ],
+          "details": "Wrap Vault client calls (authentication, secret fetching) in try-catch blocks. Log critical errors related to Vault interaction (e.g., 'Failed to authenticate with Vault', 'Failed to read secret from Vault path X'). Decide on service behavior if Vault is unavailable at startup (e.g., fail fast, retry with backoff). Ensure logs clearly indicate whether credentials were loaded from Vault successfully. Update any service health checks to include Vault connectivity if critical.",
+          "status": "pending",
+          "testStrategy": "Simulate Vault being unavailable during service startup to test error handling and startup behavior. Test with an invalid Vault path or permissions to ensure errors are caught and logged. Conduct a full end-to-end test by triggering an event that sends a notification, then verify the email is received and service logs show successful credential retrieval from Vault."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Secure Docker Environment with Vault Integration",
+      "description": "Create a secure Docker setup for all services, ensuring secrets are managed via Vault (or Vault agent with Docker secrets) and default passwords are removed from Docker configurations.",
+      "details": "Update Dockerfiles for backend, scraper, and notification services to avoid embedding secrets. For services running in Docker that need Vault access, use Vault Agent as a sidecar or init container to inject secrets into files or environment variables. Alternatively, pass Vault tokens securely to containers and have applications fetch secrets directly. Remove any default passwords from `docker-compose.yml` or Dockerfiles (e.g., for MongoDB, Redis if not using managed services). Use non-root users in Docker containers.",
+      "testStrategy": "Build and run all services using Docker. Verify services can access required secrets from Vault. Inspect running containers and configurations to ensure no hardcoded secrets or default passwords are used. Test inter-service communication.",
+      "priority": "high",
+      "dependencies": [
+        1,
+        2
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Remove Hardcoded Secrets and Default Passwords from Docker Configurations",
+          "description": "Audit all Dockerfiles (backend, scraper, notification) and docker-compose.yml to identify and remove any embedded secrets, API keys, or default passwords (e.g., for MongoDB, Redis if used locally and not managed). Replace them with placeholders or indicate they will be managed by Vault.",
+          "dependencies": [],
+          "details": "Scan Dockerfiles for ENV variables or ARGs that set sensitive data. Scan docker-compose.yml for environment variables or service configurations containing secrets. For database services like MongoDB or Redis defined in docker-compose.yml (if not using managed services), ensure default credentials are removed or set to be configured via Vault-injected environment variables. Document locations where secrets were removed and will be replaced by Vault.",
+          "status": "pending",
+          "testStrategy": "Manually review Dockerfiles and docker-compose.yml to confirm no hardcoded secrets or default passwords remain. Attempt to build and run services (they might fail due to missing secrets, which is expected at this stage)."
+        },
+        {
+          "id": 2,
+          "title": "Implement Non-Root User Execution in Docker Containers",
+          "description": "Modify Dockerfiles for backend, scraper, and notification services to create and use a dedicated non-root user for running the application, enhancing container security.",
+          "dependencies": [
+            1
+          ],
+          "details": "In each Dockerfile: Add a 'RUN groupadd -r appgroup && useradd --no-log-init -r -g appgroup appuser' command (or similar). Ensure application files and directories have correct ownership for 'appuser'. Use the 'USER appuser' instruction before the CMD or ENTRYPOINT. Adjust file permissions within the container if necessary (e.g., for log files, temporary directories).",
+          "status": "pending",
+          "testStrategy": "Build the modified Docker images. Run 'docker exec -it <container_id> whoami' to verify the application process runs as the non-root user. Check if services start and operate correctly with the new user context (e.g., file access permissions)."
+        },
+        {
+          "id": 3,
+          "title": "Integrate Vault Agent with Backend Service for Secret Injection",
+          "description": "Configure the backend service to use Vault Agent as a sidecar or init container to fetch secrets from Vault and make them available to the application (e.g., via environment variables or files). This establishes the pattern for other services.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Update docker-compose.yml for the backend service: Add a Vault Agent container (e.g., hashicorp/vault-agent). Configure Vault Agent with the Vault server address, authentication method (e.g., AppRole), and secret templates to render secrets into files or environment variables. Mount a shared volume or use other mechanisms for the backend service to access these secrets. Modify the backend service's Dockerfile or entrypoint script to source secrets. Ensure Vault has necessary policies and secrets for the backend service.",
+          "status": "pending",
+          "testStrategy": "Deploy the backend service with Vault Agent. Verify that the backend application successfully starts and can access the secrets injected by Vault Agent. Check Vault Agent logs for successful authentication and secret retrieval."
+        },
+        {
+          "id": 4,
+          "title": "Extend Vault Agent Integration to Scraper and Notification Services",
+          "description": "Apply the Vault Agent integration pattern established for the backend service to the scraper and notification services, ensuring they also fetch secrets securely from Vault.",
+          "dependencies": [
+            3
+          ],
+          "details": "For scraper service: Update docker-compose.yml to include Vault Agent. Configure Vault Agent with appropriate Vault address, auth, and secret paths/templates. Modify the scraper service's Dockerfile/entrypoint to consume secrets. For notification service: Repeat the same steps. Ensure Vault policies and secrets are configured for scraper and notification services respectively.",
+          "status": "pending",
+          "testStrategy": "Deploy scraper and notification services with Vault Agent. Verify each application starts and accesses its required secrets. Check Vault Agent logs for each service for successful operations."
+        },
+        {
+          "id": 5,
+          "title": "Final Verification of Secret Management and Security Hardening",
+          "description": "Conduct a comprehensive review of all services to ensure secrets are exclusively managed by Vault, no default passwords exist, all containers run as non-root users, and the overall Docker environment adheres to security best practices.",
+          "dependencies": [
+            4
+          ],
+          "details": "Review all Dockerfiles and docker-compose.yml again to confirm no residual hardcoded secrets or default passwords. Verify that all application containers (backend, scraper, notification) are running as non-root users. Confirm that all services correctly fetch and use secrets from Vault via the agent. Test application functionality that relies on these secrets. Review Vault Agent configurations for proper token TTLs, secret lease durations, and least privilege access. Consider adding linters like hadolint for Dockerfiles.",
+          "status": "pending",
+          "testStrategy": "Perform end-to-end tests for all services, ensuring they function correctly with secrets from Vault. Manually inspect running containers (e.g., 'docker exec <container_id> env', check file permissions, 'whoami'). Review Vault audit logs for access patterns."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Environment-based Configuration System",
+      "description": "Implement a system for managing environment-specific configurations (e.g., API URLs, feature flags) separately from secrets, using environment variables or configuration files.",
+      "details": "For Go services, use libraries like `github.com/spf13/viper` or standard `os.Getenv`. For Python, use `python-dotenv` and `os.environ`. For the React frontend (Vite), use `.env` files (`.env.development`, `.env.production`). Define a clear structure for configuration files (e.g., `config/default.json`, `config/production.json`) or environment variable naming conventions. Ensure configurations are loaded based on the current environment (e.g., `NODE_ENV`, `APP_ENV`).",
+      "testStrategy": "Verify that applications load the correct configuration based on the specified environment. Test overriding default configurations with environment-specific values. Ensure sensitive data is not part of this configuration system (should be in Vault).",
+      "priority": "medium",
+      "dependencies": [
+        1
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Define Unified Configuration Structure and Naming Conventions",
+          "description": "Establish a clear and consistent structure for configuration files (e.g., `config/default.json`, `config/production.json`) or define strict naming conventions for environment variables (e.g., `APP_API_URL`, `APP_FEATURE_X_ENABLED`). This definition should cover all service types (Go, Python, React) and specify how environment detection (e.g., `APP_ENV`, `NODE_ENV`) will influence configuration loading.",
+          "dependencies": [],
+          "details": "Create a design document or a README section outlining: \n1. Preferred method: environment variables, configuration files, or a hybrid approach. \n2. If files: directory structure, file naming (e.g., `default.json`, `development.json`, `production.json`), and format (JSON, YAML, TOML). \n3. If env vars: prefixing strategy (e.g., `MYAPP_DB_HOST`), case conventions (e.g., `UPPER_SNAKE_CASE`). \n4. How to determine the current environment (e.g., standard `NODE_ENV` for Node/React, `APP_ENV` for backend services). \n5. A list of common configuration keys and their intended use (e.g., API endpoints, logging levels, feature flags). \n6. How secrets will be handled separately (this task focuses on non-secret configurations).",
+          "status": "pending",
+          "testStrategy": "Review the defined structure and conventions with the team for clarity, completeness, and consistency across different parts of the application."
+        },
+        {
+          "id": 2,
+          "title": "Implement Configuration Loading in Go Services",
+          "description": "Integrate a configuration loading mechanism into the Go services based on the defined structure (from subtask 1). Use `github.com/spf13/viper` or standard `os.Getenv` as appropriate.",
+          "dependencies": [
+            1
+          ],
+          "details": "For each Go service: \n1. Add `github.com/spf13/viper` as a dependency if chosen, or prepare utility functions for `os.Getenv`. \n2. Implement logic to load configurations based on the `APP_ENV` environment variable. \n3. If using files, ensure Viper reads from the correct file path (e.g., `config/{APP_ENV}.json`, with a fallback to `config/default.json`). \n4. If using environment variables, ensure Viper binds to the defined variable names. \n5. Expose configuration values through a clean interface within the service (e.g., a struct or a global accessor). \n6. Update service startup logic to initialize configurations early.",
+          "status": "pending",
+          "testStrategy": "Unit test the configuration loading module by mocking environment variables or providing sample configuration files for different environments (development, production). Verify that correct values are loaded and defaults are applied."
+        },
+        {
+          "id": 3,
+          "title": "Implement Configuration Loading in Python Services",
+          "description": "Integrate a configuration loading mechanism into the Python services based on the defined structure (from subtask 1). Use `python-dotenv` for loading `.env` files (if applicable for local development) and `os.environ` for accessing environment variables.",
+          "dependencies": [
+            1
+          ],
+          "details": "For each Python service: \n1. Add `python-dotenv` as a dependency. \n2. Implement logic to load configurations: \n    a. Use `python-dotenv` to load a `.env` file for local development convenience. \n    b. Primarily rely on `os.environ.get('VAR_NAME', 'default_value')` for accessing configurations, respecting the naming conventions from subtask 1. \n    c. If using structured config files (e.g., JSON/YAML), implement parsing logic based on `APP_ENV`. \n3. Ensure configurations are loaded based on the `APP_ENV` environment variable. \n4. Provide a centralized way to access configuration values within the service (e.g., a configuration module or class). \n5. Update service startup logic to initialize configurations.",
+          "status": "pending",
+          "testStrategy": "Unit test the configuration loading module. Use `unittest.mock.patch.dict` to simulate different environment variables and test loading from sample `.env` files. Verify correct values and defaults."
+        },
+        {
+          "id": 4,
+          "title": "Implement Configuration Loading in React Frontend (Vite)",
+          "description": "Set up environment-specific configuration for the React frontend using Vite's built-in support for `.env` files (`.env`, `.env.development`, `.env.production`).",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create `.env.development` and `.env.production` files in the root of the React project. \n2. Define environment variables prefixed with `VITE_` (e.g., `VITE_API_URL`, `VITE_FEATURE_FLAG_X`) as per Vite's convention and the overall naming strategy from subtask 1. \n3. Populate these files with environment-specific values. \n4. Access these variables in the React code using `import.meta.env.VITE_VARIABLE_NAME`. \n5. Ensure `.env.*` files (except `.env.example` or similar templates) are added to `.gitignore`. \n6. Document how to manage these files for different deployment environments.",
+          "status": "pending",
+          "testStrategy": "Manually verify that the correct configurations are loaded in development mode (`npm run dev`) and in a production build (`npm run build` followed by `npm run preview` or deployment). Check browser console or network requests to confirm correct API URLs or feature flag states."
+        },
+        {
+          "id": 5,
+          "title": "Document and Test End-to-End Configuration System",
+          "description": "Create comprehensive documentation for the new configuration system and perform end-to-end testing to ensure configurations are correctly applied across all services and environments.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "1. **Documentation:** \n    a. Update project READMEs or create a dedicated configuration guide. \n    b. Explain how to add new configuration variables. \n    c. Detail the process for setting up configurations for local development, staging, and production environments for each service type (Go, Python, React). \n    d. Clarify the precedence rules (e.g., env vars override file values). \n2. **End-to-End Testing:** \n    a. Set up a test scenario involving at least one Go service, one Python service, and the React frontend. \n    b. Configure them for a specific test environment (e.g., 'staging' or a local 'test' environment). \n    c. Deploy or run these services. \n    d. Verify that each component correctly loads and uses its specific configurations (e.g., API endpoints, feature flags). \n    e. Test fallback mechanisms to default configurations if applicable.",
+          "status": "pending",
+          "testStrategy": "Perform integration tests where services interact, relying on the loaded configurations. For example, the React frontend calls a Go backend API whose URL is configured. Manually verify configurations in deployed environments (dev, staging) by checking application behavior and logs."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Frontend Project Initialization & Core Setup",
+      "description": "Initialize a new React 18 project using Vite and TypeScript. Set up Tailwind CSS with a custom theme.",
+      "details": "Use Vite to scaffold a new React project: `npm create vite@latest frontend -- --template react-ts` (or `pnpm`, `yarn`). Install React 18 (`react`, `react-dom`). Install and configure Tailwind CSS (latest v3.x): `npm install -D tailwindcss postcss autoprefixer; npx tailwindcss init -p`. Configure `tailwind.config.js` with a custom theme (colors, fonts, spacing) and `postcss.config.js`. Set up basic folder structure: `src/components`, `src/pages`, `src/hooks`, `src/services`, `src/store`, `src/assets`, `src/styles/globals.css`.",
+      "testStrategy": "Run the Vite development server (`npm run dev`). Verify the default React app loads. Confirm Tailwind CSS is correctly applied by adding some utility classes to a component and checking the styling in the browser. Ensure TypeScript compilation works without errors.",
+      "priority": "high",
+      "dependencies": [
+        1,
+        6
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 8,
+      "title": "UI Component & State Management Integration",
+      "description": "Install and configure ShadCN UI, Aceternity UI, Zustand for state management, and React Query for API calls.",
+      "details": "Install ShadCN UI components following its CLI setup: `npx shadcn-ui@latest init`. Add a few sample components. Install Aceternity UI (`npm install aceternity-ui`). Install Zustand (`npm install zustand`) for global state management and React Query (`@tanstack/react-query`, `@tanstack/react-query-devtools`) for server state. Configure React Query provider in `App.tsx`. Define initial Zustand store structure for user state and preferences.",
+      "testStrategy": "Import and render a ShadCN UI component (e.g., Button) and an Aceternity UI effect. Test Zustand by creating a simple store and updating/reading its state from a component. Set up a basic React Query hook to fetch mock data and verify its lifecycle (loading, success, error states).",
+      "priority": "high",
+      "dependencies": [
+        7
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize and Configure ShadCN UI with Sample Components",
+          "description": "Set up ShadCN UI in the project using its CLI. This includes configuring `tailwind.config.js`, `globals.css`, and `components.json`. Add and verify a few basic components like Button and Card.",
+          "dependencies": [],
+          "details": "Execute `npx shadcn-ui@latest init` and respond to the CLI prompts for configuration (e.g., TypeScript, style, base color, CSS variables, tailwind.config.js location, components alias, utils alias, React Server Components). After initialization, add specific components using `npx shadcn-ui@latest add button card input`. Create a temporary route or modify an existing page (e.g., `src/app/page.tsx` or a new test page) to import and render these components to confirm successful setup and basic styling.",
+          "status": "pending",
+          "testStrategy": "Manually verify that the added ShadCN UI components render correctly on the test page without styling issues. Check `tailwind.config.js`, `globals.css`, and `components.json` for correct ShadCN configurations as per CLI choices. Ensure no console errors related to ShadCN setup."
+        },
+        {
+          "id": 2,
+          "title": "Install and Integrate Aceternity UI Components",
+          "description": "Install the Aceternity UI library. Select and integrate one or two distinct components (e.g., a Bento Grid or a specific animated element like TextGenerateEffect) to ensure compatibility and demonstrate usage.",
+          "dependencies": [
+            1
+          ],
+          "details": "Run `npm install aceternity-ui framer-motion clsx tailwind-merge` (Framer Motion, clsx, and tailwind-merge are common peer dependencies for Aceternity UI, verify specific component needs). Browse the Aceternity UI documentation and choose 1-2 components. Import these components into a test page (can be the same as for ShadCN or a new one). Ensure they render correctly and that their specific styling or animation dependencies are met. Check for any immediate style conflicts with ShadCN if used on the same page, particularly around Tailwind CSS utility classes.",
+          "status": "pending",
+          "testStrategy": "Manually verify the rendering and functionality of the chosen Aceternity UI components on the test page. Observe for any JavaScript errors in the console or visual style conflicts. Ensure animations (if any) work as expected."
+        },
+        {
+          "id": 3,
+          "title": "Install Zustand and Define Initial Global State Store",
+          "description": "Install Zustand for global client-side state management. Create an initial store structure, focusing on user-related state (e.g., authentication status, profile) and application preferences (e.g., theme).",
+          "dependencies": [],
+          "details": "Execute `npm install zustand`. Create a `src/stores` directory. Inside, define a `userStore.ts` (or a more general `appStore.ts`) using `create` from Zustand. The store should include initial state for `isAuthenticated: false`, `userProfile: null`, and `theme: 'system'`. Implement basic actions to update these states (e.g., `login()`, `logout()`, `setTheme(themeValue)`).",
+          "status": "pending",
+          "testStrategy": "Create a simple React component that connects to the Zustand store using its hook. Use store actions (e.g., via button clicks) to update state and verify that the component re-renders displaying the new state. Optionally, write unit tests for store actions and selectors, especially if logic becomes complex."
+        },
+        {
+          "id": 4,
+          "title": "Install and Configure React Query for Server State",
+          "description": "Install React Query and its development tools. Set up the `QueryClient` and `QueryClientProvider` at the application's root to enable server state management capabilities.",
+          "dependencies": [],
+          "details": "Run `npm install @tanstack/react-query @tanstack/react-query-devtools`. In the main application entry point (e.g., `src/app/layout.tsx` for Next.js App Router, or `_app.tsx` for Pages Router, or `src/main.tsx` / `App.tsx` for CRA/Vite), import `QueryClient`, `QueryClientProvider` from `@tanstack/react-query`. Instantiate `const queryClient = new QueryClient()`. Wrap the main application component or root layout with `<QueryClientProvider client={queryClient}>`. Include `<ReactQueryDevtools initialIsOpen={false} />` within the provider for development purposes.",
+          "status": "pending",
+          "testStrategy": "Create a basic component that uses `useQuery` to fetch data from a public API (e.g., `https://jsonplaceholder.typicode.com/todos/1`). Verify that the data is fetched and displayed in the component. Check the React Query Devtools to inspect query states, caching behavior, and retries. Ensure no errors related to provider setup."
+        },
+        {
+          "id": 5,
+          "title": "Integrate State Management with UI for a Sample Feature",
+          "description": "Create a small demonstration feature that utilizes both Zustand for global state and React Query for server state, interacting with ShadCN and/or Aceternity UI components.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. **Component Selection**: Choose appropriate ShadCN/Aceternity UI components for the feature (e.g., ShadCN Button, Switch, Card; Aceternity UI for layout or specific effects).\n2. **Zustand Integration**: Implement a UI element (e.g., a ShadCN Switch or a Button group) to modify a Zustand state (e.g., toggle theme between 'light' and 'dark' from `userStore`). Ensure the UI reflects this change (e.g., by changing a class on the `<body>` or a root `<div>`, or displaying the current theme value).\n3. **React Query Integration**: Create a UI section where a button (e.g., ShadCN Button) triggers a data fetch using `useQuery` (e.g., fetching a list of mock posts from JSONPlaceholder). Display the fetched data using UI components (e.g., ShadCN Cards for each post). Handle loading and error states by displaying appropriate messages or UI elements (e.g., a spinner or an alert component from ShadCN).\n4. **Location**: Implement this on a new dedicated page/route (e.g., `/integration-demo`) for clarity and isolated testing.",
+          "status": "pending",
+          "testStrategy": "Manually test the entire feature flow on the `/integration-demo` page:\n    *   Verify theme toggling updates the Zustand store (check React DevTools for Zustand if integrated) and UI reflects the change.\n    *   Verify data fetching button triggers an API call (check browser network tab & React Query devtools).\n    *   Verify loading state (e.g., spinner) is shown during fetch.\n    *   Verify fetched data is displayed correctly using the chosen UI components.\n    *   Verify error state is handled if the API call fails (simulate by using a non-existent endpoint temporarily or disconnecting network)."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Frontend Authentication System",
+      "description": "Implement JWT-based authentication in the frontend, including login/logout components, protected route wrapper, user context, auth hooks, and token refresh logic.",
+      "details": "Create Login and (optional) Registration pages/components using ShadCN UI. Implement logic to call backend authentication endpoints (mock initially, then integrate with Task 14). Store JWT (access and refresh tokens) securely (e.g., HttpOnly cookies managed by backend, or in memory for frontend and localStorage for refresh token if necessary, though less secure). Create a `ProtectedRoute` component that redirects unauthenticated users. Develop a user context/Zustand store slice for auth state and user information. Create custom hooks like `useAuth()` for easy access to auth functions (login, logout) and user data. Implement silent token refresh logic using the refresh token.",
+      "testStrategy": "Test login with valid/invalid credentials (against mock API). Verify redirection for protected routes. Test logout functionality. Check that user context/store is updated correctly. Test token refresh mechanism (simulate token expiry).",
+      "priority": "high",
+      "dependencies": [
+        8
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Login/Registration UI & Mock API Integration",
+          "description": "Create Login and optional Registration pages/components using ShadCN UI. Implement form handling and logic to call mock backend authentication endpoints for login/registration, initially handling dummy JWT responses.",
+          "dependencies": [],
+          "details": "Use ShadCN UI components (Input, Button, Form, Card) for login (email/password) and optionally registration forms. Implement client-side form validation (e.g., using `zod` and `react-hook-form`). On form submission, make API calls (using `fetch` or `axios`) to mock backend endpoints (e.g., `/api/mock/login`, `/api/mock/register`). These mock endpoints should return a dummy JWT (access and refresh token structure) on success. Handle basic success/error responses from these mock APIs, displaying appropriate messages to the user.",
+          "status": "pending",
+          "testStrategy": "Manually test login/registration forms with valid and invalid inputs. Verify mock API calls are made with correct payloads. Check that success (dummy token received) and error responses are handled by the UI."
+        },
+        {
+          "id": 2,
+          "title": "Implement JWT Storage & Basic Auth State Management",
+          "description": "Implement logic to store JWT (access and refresh tokens) received from the mock backend. Set up a user context (React Context API) or a Zustand store slice to manage authentication status, tokens, and basic user data.",
+          "dependencies": [
+            1
+          ],
+          "details": "Upon successful mock login (from subtask 1), store the received access and refresh tokens. For client-side storage, consider storing the access token in memory (e.g., a JavaScript variable in a module) and the refresh token in `localStorage` for persistence (acknowledge security implications if not using HttpOnly cookies managed by backend). Initialize the auth context/Zustand store with `isAuthenticated` (boolean), `accessToken` (string | null), `refreshToken` (string | null), and `user` (object | null). Update this state upon successful login and clear it on logout (logout function to be fully implemented in subtask 3).",
+          "status": "pending",
+          "testStrategy": "Verify tokens are stored correctly (in memory/localStorage) after a successful mock login. Inspect context/store state to ensure it updates accurately with authentication status and tokens."
+        },
+        {
+          "id": 3,
+          "title": "Create ProtectedRoute Component & Implement Logout Functionality",
+          "description": "Develop a `ProtectedRoute` component that checks authentication status from the auth context/store and redirects unauthenticated users to the login page. Implement full logout functionality.",
+          "dependencies": [
+            2
+          ],
+          "details": "Create a `ProtectedRoute` wrapper component (e.g., using `react-router-dom`). This component will read the `isAuthenticated` flag from the auth context/store. If `isAuthenticated` is false, it should redirect the user to the `/login` route. Implement a `logout` function that clears the stored tokens (from memory and `localStorage`) and resets the authentication state in the context/store to its initial unauthenticated values. Add a UI element (e.g., a logout button) that calls this logout function.",
+          "status": "pending",
+          "testStrategy": "Test that accessing a route wrapped with `ProtectedRoute` redirects to the login page if not authenticated. After mock login, verify protected routes are accessible. Test the logout button: ensure it clears tokens, resets auth state, and subsequent access to protected routes redirects to login."
+        },
+        {
+          "id": 4,
+          "title": "Develop `useAuth` Hook & Integrate User Information",
+          "description": "Create a custom hook `useAuth()` for easy access to authentication state (e.g., `isAuthenticated`, `user`), login, and logout functions. Modify the login process to include fetching/setting user information.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "Develop a `useAuth()` hook that consumes the auth context/Zustand store. This hook should provide: `isAuthenticated` (boolean), `user` (object | null), `accessToken` (string | null), `login(credentials)` function (which internally calls the API and updates state), and `logout()` function (from subtask 3). Enhance the login logic (within `useAuth` or the function it calls): after receiving tokens, decode the access token (if it contains user info) or make a mock call to a `/api/mock/me` endpoint to get user details, then store this user object in the auth state. Display some user information (e.g., email) in the UI when logged in, using data from `useAuth().user`.",
+          "status": "pending",
+          "testStrategy": "Verify the `useAuth()` hook provides correct authentication state and functions. Test that user information is fetched/decoded and stored in the auth state upon login, and displayed correctly in the UI. Ensure login and logout via the hook work as expected."
+        },
+        {
+          "id": 5,
+          "title": "Implement Silent Token Refresh Logic",
+          "description": "Implement logic to silently refresh the access token using the stored refresh token. This should happen automatically when an API call (to a protected resource) fails due to an expired access token, or proactively.",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "Create a function, possibly within an API utility module or integrated with `axios` interceptors, to handle token refresh. This function will call a mock backend endpoint (e.g., `/api/mock/auth/refresh`) with the `refreshToken`. The mock endpoint should return a new `accessToken`. Upon receiving a new access token, update it in the auth state (via `useAuth` or directly if the utility is separate) and in memory. Configure your API calling mechanism (e.g., `axios` interceptor) to: 1. Detect 401 Unauthorized errors. 2. If a 401 occurs, attempt to call the refresh token function. 3. If refresh is successful, update the stored access token and retry the original failed request with the new token. 4. If refresh fails (e.g., refresh token is invalid/expired), log the user out using the `logout` function from `useAuth()`.",
+          "status": "pending",
+          "testStrategy": "Mock a protected API endpoint. Simulate an API call with an expired access token (e.g., mock API returns 401). Verify that the refresh logic is triggered, the mock refresh endpoint is called, a new access token is (mock) received and stored, and the original API request is retried successfully. Test the scenario where the refresh token endpoint itself fails, ensuring the user is logged out."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Dashboard UI - Main View & Court Cards",
+      "description": "Develop the main dashboard UI, including a section for real-time court monitoring (initially with mock data) and court availability cards with booking links.",
+      "details": "Design and implement the main dashboard layout using ShadCN components and Tailwind CSS. Create a component for displaying court availability, possibly using Card components from ShadCN. Each card should show court details and a link to book (initially a placeholder). Implement a section for real-time monitoring (e.g., status indicators, latest updates), which will later be connected to backend data streams or polling via React Query. Use Aceternity UI for subtle visual enhancements.",
+      "testStrategy": "Visual inspection of the dashboard layout and components. Verify responsiveness across different screen sizes. Test interactivity of court cards (e.g., hover effects, link functionality). Ensure mock data is displayed correctly.",
+      "priority": "medium",
+      "dependencies": [
+        8
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize Main Dashboard Layout with ShadCN & Tailwind",
+          "description": "Create the primary React component for the dashboard (e.g., DashboardPage.tsx). Set up the basic page structure, including distinct areas for court availability and real-time monitoring, using ShadCN layout components and Tailwind CSS for styling.",
+          "dependencies": [],
+          "details": "Use ShadCN components like `Card` for section containers, and `div`s with Tailwind's flexbox/grid utilities for overall layout. Define clear placeholder regions for 'Court Availability' and 'Real-time Monitoring' sections. Ensure basic responsiveness.",
+          "status": "pending",
+          "testStrategy": "Visually inspect the layout in a browser on different screen sizes. Verify that placeholder sections are correctly positioned."
+        },
+        {
+          "id": 2,
+          "title": "Develop Reusable Court Availability Card Component",
+          "description": "Design and implement a React component (e.g., CourtCard.tsx) to display information for a single court. This component will show court details (e.g., name, type, status) and a booking link (initially a placeholder URL).",
+          "dependencies": [],
+          "details": "Utilize ShadCN `Card`, `CardHeader`, `CardContent`, `CardFooter`, and `Button` components. The component should accept props like `courtName`, `courtType`, `availabilityStatus`, and `bookingLink`. Style with Tailwind CSS. The booking link should be a `Button` or an `<a>` tag styled as a button.",
+          "status": "pending",
+          "testStrategy": "Render the component in isolation (e.g., using Storybook or a dedicated test page) with various mock props to verify its appearance and the functionality of the placeholder booking link."
+        },
+        {
+          "id": 3,
+          "title": "Integrate and Display Multiple Court Cards on Dashboard",
+          "description": "Integrate the `CourtCard` component into the 'Court Availability' section of the main dashboard. Populate this section by rendering multiple `CourtCard` instances using a predefined array of mock court data.",
+          "dependencies": [],
+          "details": "In `DashboardPage.tsx`, import the `CourtCard` component. Create an array of mock court objects (e.g., `[{ id: '1', name: 'Court Alpha', type: 'Tennis', status: 'Available', bookingLink: '#' }, ...]`). Map over this array to render a list of `CourtCard` components. Use Tailwind CSS (e.g., `grid`, `flex-wrap`) to arrange the cards.",
+          "status": "pending",
+          "testStrategy": "Visually inspect the dashboard to ensure court cards are displayed correctly, are populated with mock data, and are responsively arranged. Verify placeholder booking links on each card."
+        },
+        {
+          "id": 4,
+          "title": "Implement Real-time Monitoring Section UI with Mock Data",
+          "description": "Create the UI for the 'Real-time Monitoring' section on the dashboard. This section will display status indicators, latest updates, or other relevant information, initially populated with mock data.",
+          "dependencies": [],
+          "details": "Within `DashboardPage.tsx`, develop the structure for the real-time monitoring section. Use ShadCN components like `Card` for the section container, `Badge` for status indicators, and `List` or custom styled `div`s for displaying mock updates (e.g., 'Court 3: Match in Progress', 'System Status: Online'). Focus on clear presentation of mock information.",
+          "status": "pending",
+          "testStrategy": "Visually inspect the monitoring section on the dashboard. Ensure mock data is displayed clearly and the layout aligns with the intended design. Check for readability of status indicators and updates."
+        },
+        {
+          "id": 5,
+          "title": "Apply Aceternity UI Enhancements and Finalize Styling",
+          "description": "Integrate subtle visual enhancements using selected Aceternity UI components or patterns. Perform a final review and refinement of the overall styling for the dashboard, court cards, and monitoring section, ensuring consistency and responsiveness using Tailwind CSS and ShadCN theming.",
+          "dependencies": [],
+          "details": "Identify and integrate 1-2 suitable Aceternity UI components (e.g., subtle hover effects, animated text, or background patterns) that complement the dashboard's design. Review all Tailwind CSS classes and ShadCN component props for consistency, responsiveness, and adherence to visual design. Ensure proper spacing, typography, and color usage across all elements.",
+          "status": "pending",
+          "testStrategy": "Conduct a thorough visual review across different browsers and screen sizes. Test interactivity of any Aceternity UI elements. Perform a quick accessibility check (e.g., color contrast, keyboard navigation for interactive elements)."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Dashboard UI - User Preferences & System Control",
+      "description": "Implement the user preference management interface and the system control interface (pause/resume scraping) on the dashboard.",
+      "details": "Create a settings page or section for user preferences (e.g., preferred clubs, times). Use ShadCN forms and input components. Implement components for system control, such as buttons to pause/resume scraping and display system status. Connect these UI elements to Zustand store actions and React Query mutations that will eventually call backend APIs (Task 15).",
+      "testStrategy": "Test the UI for user preference updates; ensure changes are reflected in the state. Verify system control buttons trigger appropriate actions (mocked initially). Check form validation and user feedback for preference settings.",
+      "priority": "medium",
+      "dependencies": [
+        8
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement User Preferences Form UI Structure",
+          "description": "Create the visual structure for the user preferences form using ShadCN components. This includes input fields for preferred clubs and potentially other settings like notification times. Focus on layout and component integration without initial state logic.",
+          "dependencies": [],
+          "details": "Utilize ShadCN's `Form`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `Input`, and `FormMessage` components within a dedicated settings page or section. For 'preferred clubs', a text input can be used. For 'notification times', consider a simple text input for time strings or a basic time selection mechanism. Ensure the form is well-organized and user-friendly.",
+          "status": "pending",
+          "testStrategy": "Visual inspection of the rendered form elements and layout. Use Storybook to develop and test individual form components in isolation if they become complex."
+        },
+        {
+          "id": 2,
+          "title": "Integrate User Preferences Form with Zustand Store",
+          "description": "Connect the user preferences form (from subtask 1) to a Zustand store. Implement store slices, actions, and selectors for managing user preferences state. Ensure form inputs update the store, and the form is populated from the store on load.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create a Zustand store slice (e.g., `userPreferencesSlice`) with state properties for `preferredClubs` (e.g., `string[]`) and any other preferences. Implement actions like `setUserPreferences(preferences: UserPreferences)` or `updatePreferredClubs(clubs: string[])`. Use `react-hook-form` for form handling, integrating its `onSubmit` handler to dispatch an action that updates the Zustand store. Initialize form values from the Zustand store when the component mounts.",
+          "status": "pending",
+          "testStrategy": "Unit tests for Zustand store actions, reducers (if any), and selectors. Functional tests to verify that form submissions correctly update the store and that the form reflects store data upon initialization and changes."
+        },
+        {
+          "id": 3,
+          "title": "Implement System Control Interface UI Components",
+          "description": "Develop the UI components for system control, including buttons to pause/resume scraping operations and a display area for the current system status. Focus on the visual elements and their layout within the dashboard.",
+          "dependencies": [
+            1
+          ],
+          "details": "Use ShadCN `Button` components for 'Pause Scraping' and 'Resume Scraping' actions. Create a distinct component (e.g., `SystemStatusDisplay`) to clearly show the system's operational status (e.g., 'Running', 'Paused', 'Error', 'Idle'). Arrange these components in an accessible and intuitive section of the dashboard, possibly near the user preferences if on the same settings page.",
+          "status": "pending",
+          "testStrategy": "Visual inspection of the control buttons and status display. Use Storybook for the `SystemStatusDisplay` component to ensure it correctly renders different statuses."
+        },
+        {
+          "id": 4,
+          "title": "Integrate System Control UI with Zustand Store",
+          "description": "Connect the system control UI components (pause/resume buttons, status display from subtask 3) to a Zustand store. Implement store slices, actions, and selectors for managing system control state and reflecting the system's status.",
+          "dependencies": [
+            3
+          ],
+          "details": "Create a Zustand store slice (e.g., `systemControlSlice`) with state for `systemStatus` (e.g., an enum: 'IDLE', 'RUNNING', 'PAUSED', 'ERROR') and potentially `isScrapingActive: boolean`. Implement actions like `requestPauseScraping`, `requestResumeScraping`. These actions will, for now, primarily update the `systemStatus` in the store. The `SystemStatusDisplay` component should subscribe to and render the `systemStatus` from this store slice. Button clicks should dispatch the corresponding actions.",
+          "status": "pending",
+          "testStrategy": "Unit tests for Zustand store actions and selectors related to system control. Functional tests to verify that button clicks trigger actions that update the store, and the status display correctly reflects these changes in real-time."
+        },
+        {
+          "id": 5,
+          "title": "Connect Zustand Actions to React Query Mutations (Mocked Backend)",
+          "description": "Bridge the Zustand actions for both user preferences submission and system control commands to React Query mutations. These mutations will initially mock backend interactions, setting up the structure for future backend API integration (Task 15).",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "For user preferences: Modify the Zustand action that handles saving preferences (from subtask 2) to invoke a React Query `useMutation` hook. This mutation's function will simulate an asynchronous API call (e.g., using `setTimeout` and logging data) and can update Zustand with a success/error status. For system control: Modify the `requestPauseScraping` and `requestResumeScraping` Zustand actions (from subtask 4) to call respective React Query `useMutation` hooks. These mutations will simulate backend calls to pause/resume and update the `systemStatus` in Zustand optimistically or upon mock success/failure.",
+          "status": "pending",
+          "testStrategy": "Verify that invoking Zustand actions correctly triggers the corresponding React Query mutations. Check console logs for simulated API call data. Test that the UI (e.g., form submission status, system status display) reflects the (mocked) outcomes of these mutations, including handling of simulated loading, success, and error states."
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "PWA Configuration & Mobile Responsiveness",
+      "description": "Configure the frontend application as a Progressive Web App (PWA) and ensure the layout is mobile-responsive.",
+      "details": "Use a Vite PWA plugin like `vite-plugin-pwa` to configure manifest file, service worker, and icons. Ensure all dashboard views and components are fully responsive using Tailwind CSS's responsive design features (breakpoints: sm, md, lg, xl). Test on various device emulators and real devices if possible. Implement basic offline support (e.g., caching static assets, showing an offline page).",
+      "testStrategy": "Verify PWA installation prompt appears on supported browsers. Test Lighthouse PWA audit score. Check responsiveness by resizing browser window and using developer tools device emulation. Test offline functionality by disconnecting network.",
+      "priority": "medium",
+      "dependencies": [
+        7,
+        10,
+        11
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Install and Initialize Vite PWA Plugin",
+          "description": "Integrate the `vite-plugin-pwa` into the Vite frontend project and perform the initial setup to enable PWA capabilities.",
+          "dependencies": [],
+          "details": "1. Add `vite-plugin-pwa` as a development dependency using npm or yarn: `npm install vite-plugin-pwa -D` or `yarn add vite-plugin-pwa --dev`. \n2. Import and include the plugin in the `plugins` array in your `vite.config.js` (or `vite.config.ts`) file. \n3. Add a minimal configuration for the plugin, e.g., `{ registerType: 'autoUpdate' }` to ensure the service worker updates automatically.",
+          "status": "pending",
+          "testStrategy": "Run `npm run dev` and `npm run build`. Verify that no errors related to the PWA plugin occur. Check the browser console during development for any PWA registration messages or errors. Inspect the build output to confirm service worker and manifest files are generated (e.g., in the `dist` folder)."
+        },
+        {
+          "id": 2,
+          "title": "Configure PWA Manifest File",
+          "description": "Define the web app manifest (`manifest.json`) properties, including application name, icons, theme colors, and display mode, using the `vite-plugin-pwa` configuration.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. In the `vite-plugin-pwa` options within `vite.config.js`, configure the `manifest` object. \n2. Specify essential properties: `name`, `short_name`, `description`, `start_url` (e.g., '/'), `scope` (e.g., '/'), `display` (e.g., 'standalone', 'fullscreen'), `background_color`, `theme_color`. \n3. Define an `icons` array with objects specifying `src` (path to icon, e.g., 'pwa-192x192.png'), `sizes` (e.g., '192x192'), and `type` (e.g., 'image/png'). Ensure these icon files exist in the `public` directory or specified path. Include multiple icon sizes (e.g., 64x64, 192x192, 512x512) for different platforms.",
+          "status": "pending",
+          "testStrategy": "After building the application, open it in a browser. Use developer tools (e.g., Chrome DevTools > Application > Manifest) to inspect the loaded manifest. Verify all configured properties and icons are correctly displayed and that there are no parsing errors."
+        },
+        {
+          "id": 3,
+          "title": "Implement Service Worker for Basic Offline Support",
+          "description": "Configure the service worker via `vite-plugin-pwa` to precache static assets (HTML, CSS, JS, images) and provide a custom offline fallback page.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. In the `vite-plugin-pwa` options in `vite.config.js`, configure the `workbox` property for generating the service worker. \n2. Use `globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}']` to precache essential static assets. \n3. Create a simple `offline.html` page in the `public` directory. \n4. Configure a navigation fallback using `navigateFallback: '/offline.html'` in Workbox options to serve this page when offline and a requested page isn't cached. Ensure `offline.html` is also precached. \n5. Consider `cleanupOutdatedCaches: true`.",
+          "status": "pending",
+          "testStrategy": "Build the application. Use browser developer tools (e.g., Chrome DevTools > Application > Service Workers) to verify the service worker is registered, installed, and activated. Test offline functionality: enable 'Offline' mode in DevTools, then try to reload the app and navigate to different (pre-cached) pages. Verify the `offline.html` page is shown for non-cached routes or when the network request fails."
+        },
+        {
+          "id": 4,
+          "title": "Adapt Dashboard Layouts for Mobile Responsiveness",
+          "description": "Refactor existing dashboard views and components using Tailwind CSS responsive utilities (sm, md, lg, xl breakpoints) to ensure they are fully responsive and usable on various screen sizes, from mobile to desktop.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Identify key dashboard views (e.g., main dashboard, settings, data tables, forms). \n2. For each view and its components, apply Tailwind CSS responsive prefixes (e.g., `sm:`, `md:`, `lg:`, `xl:`) to CSS classes to adjust: \n    - Layout (e.g., `flex-col md:flex-row`, grid columns `grid-cols-1 lg:grid-cols-3`). \n    - Sizing and Spacing (e.g., `p-2 sm:p-4`, `w-full md:w-1/2`). \n    - Typography (e.g., `text-lg sm:text-xl`). \n    - Visibility (e.g., `hidden md:block`). \n3. Ensure navigation menus adapt well (e.g., collapse into a hamburger menu on small screens). \n4. Test that interactive elements like buttons and form inputs are easily tappable on touch devices.",
+          "status": "pending",
+          "testStrategy": "Use browser developer tools' responsive design mode to test layouts across standard breakpoints (e.g., 360px, 768px, 1024px, 1280px). Manually resize the browser window. Check for content overflow, unreadable text, elements breaking out of containers, and usability of interactive elements on small screens. Test on at least one physical mobile device if possible."
+        },
+        {
+          "id": 5,
+          "title": "End-to-End PWA and Responsiveness Validation",
+          "description": "Perform comprehensive testing of all PWA features (installability, offline behavior, manifest integrity) and verify mobile responsiveness across a range of emulated and physical devices.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "1. **PWA Feature Validation:** \n    - On a supported browser (e.g., Chrome on Android/Desktop), verify the 'Add to Home Screen' (A2HS) or install prompt appears. \n    - Install the PWA and test launching it from the home screen/app drawer. \n    - Confirm it runs in a standalone window if configured. \n    - Test offline functionality thoroughly: disconnect from the network and verify cached pages load correctly and the offline fallback page is shown for un-cached content. \n    - Use Google Lighthouse (in Chrome DevTools) to run a PWA audit and address any reported issues. \n2. **Responsiveness Validation:** \n    - Systematically test all dashboard views and interactive components on various device emulators (e.g., iPhone SE, iPhone X/12, Pixel 5, iPad, common Android tablet sizes). \n    - If available, test on physical iOS and Android devices. \n    - Check for layout consistency, readability, and usability at all target breakpoints (sm, md, lg, xl). \n    - Verify touch targets are adequately sized and interactions are smooth on touch devices.",
+          "status": "pending",
+          "testStrategy": "Create a test plan covering key PWA criteria (installability, offline, manifest, service worker) and responsiveness checks for all major views and breakpoints. Document test results, including screenshots or recordings for any issues found. Use Lighthouse reports as a baseline for PWA quality."
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Backend API Authentication Layer",
+      "description": "Implement JWT authentication middleware for Go backend API routes, bcrypt for password hashing, and the foundation for a user management service.",
+      "details": "Use a Go JWT library like `golang-jwt/jwt/v5`. Create middleware that parses and validates JWTs from Authorization headers. On successful validation, extract user claims and add them to the request context. Implement password hashing using `golang.org/x/crypto/bcrypt` during user registration (if applicable) and password verification during login. Define a `UserService` interface and initial implementation for user-related operations (e.g., find by username, create user). JWT secrets will be fetched from Vault (Task 3).",
+      "testStrategy": "Unit test JWT generation and validation logic. Test middleware by sending requests with valid, invalid, expired tokens. Verify password hashing and comparison functions. Test user service methods with mock database interactions.",
+      "priority": "high",
+      "dependencies": [
+        3,
+        6
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Define User Model and Basic User Service Interface/Implementation",
+          "description": "Establish the core User data structure (e.g., ID, Username, HashedPassword) and the UserService interface with initial methods for user creation and retrieval (e.g., CreateUser, FindByUsername). This forms the foundational layer for user management.",
+          "dependencies": [],
+          "details": "1. Define a `User` struct in Go, including fields like `ID` (e.g., `int` or `uuid.UUID`), `Username` (`string`), `HashedPassword` (`string`), `CreatedAt` (`time.Time`).\n2. Define a `UserService` interface: `type UserService interface { CreateUser(ctx context.Context, username, password string) (*User, error); FindByUsername(ctx context.Context, username string) (*User, error); }`.\n3. Implement a basic, potentially in-memory, version of this service (e.g., `InMemoryUserService`). For the `CreateUser` method, the password parameter will be handled as plain text initially; hashing will be added in a subsequent subtask.",
+          "status": "pending",
+          "testStrategy": "Unit test the `UserService` implementation: verify successful user creation, successful retrieval of an existing user by username, and appropriate error handling when attempting to retrieve a non-existent user."
+        },
+        {
+          "id": 2,
+          "title": "Implement Password Hashing and Verification using Bcrypt",
+          "description": "Integrate `golang.org/x/crypto/bcrypt` into the `UserService` to securely hash passwords during user creation and to verify passwords against stored hashes during login attempts.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Modify the `UserService.CreateUser` implementation (from subtask 1): Before storing/returning the user, hash the provided plaintext password using `bcrypt.GenerateFromPassword` and store this hash in the `User` object's `HashedPassword` field.\n2. Add a new method to the `UserService` interface and its implementation, e.g., `VerifyPassword(ctx context.Context, storedHashedPassword, providedPlaintextPassword string) error`. This method will use `bcrypt.CompareHashAndPassword`.\n3. Update any login-related logic (if drafted in subtask 1, or prepare for subtask 5) to use this verification method. For example, `FindByUsername` could return the user with the hashed password, and a separate step would call `VerifyPassword`.",
+          "status": "pending",
+          "testStrategy": "Unit test the password hashing in `CreateUser` to ensure passwords are not stored in plaintext. Unit test the `VerifyPassword` method for both successful verification with a correct password and failure (error returned) with an incorrect password."
+        },
+        {
+          "id": 3,
+          "title": "Implement JWT Generation Functionality",
+          "description": "Develop functions to generate JSON Web Tokens (JWTs) for authenticated users using the `golang-jwt/jwt/v5` library. These tokens will include user-specific claims such as user ID and username.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Implement a function, e.g., `GenerateJWT(user *User, jwtSecretKey []byte, expirationDuration time.Duration) (string, error)`.\n2. Use `golang-jwt/jwt/v5`. Define a custom claims struct embedding `jwt.RegisteredClaims`, e.g., `type AppClaims struct { UserID string `json:\"user_id\"`; Username string `json:\"username\"`; jwt.RegisteredClaims }` (adjust UserID type as per User model).\n3. Populate claims: `UserID`, `Username` from the `User` object, and standard claims like `ExpiresAt` (current time + `expirationDuration`), `IssuedAt`, `Issuer`.\n4. Sign the token using an appropriate algorithm (e.g., HMAC-SHA256) with the `jwtSecretKey`. This secret will eventually be fetched from Vault (as per parent Task 3); for development, it can be a hardcoded string or an environment variable.",
+          "status": "pending",
+          "testStrategy": "Unit test the `GenerateJWT` function. Verify that a token string is generated. Parse the generated token (using the same secret key) and validate that it contains the correct custom claims (UserID, Username) and standard claims (e.g., `exp` is correctly set)."
+        },
+        {
+          "id": 4,
+          "title": "Develop JWT Authentication Middleware for API Routes",
+          "description": "Create Go HTTP middleware that extracts JWTs from the 'Authorization' header (Bearer token), validates them using `golang-jwt/jwt/v5`, and if valid, extracts user claims and adds them to the request context.",
+          "dependencies": [
+            1,
+            3
+          ],
+          "details": "1. Implement the middleware function, e.g., `AuthMiddleware(jwtSecretKey []byte, userService UserService) func(http.Handler) http.Handler`.\n2. Inside the middleware: \n   a. Extract the token string from the `Authorization` header (e.g., `Bearer <token>`).\n   b. If no token or malformed header, respond with HTTP 401 Unauthorized.\n   c. Parse and validate the token using `jwt.ParseWithClaims` with the `AppClaims` struct (from subtask 3) and the `jwtSecretKey`.\n   d. If validation fails (e.g., expired, invalid signature), respond with HTTP 401.\n   e. On successful validation, extract claims (e.g., `UserID`).\n   f. (Optional but recommended) Use `userService.FindById(claims.UserID)` to ensure the user still exists and is active.\n   g. Create a new context with user claims (e.g., `context.WithValue(r.Context(), userKey, claims)` or `context.WithValue(r.Context(), userKey, userObject)`).\n   h. Call `next.ServeHTTP(w, r.WithContext(newCtx))`. Define `userKey` as a package-level unexported type for context key safety.",
+          "status": "pending",
+          "testStrategy": "Test the middleware with various scenarios: \n- Request with a valid token: ensure the next handler is called and the request context contains the expected user claims.\n- Request with an invalid token (e.g., wrong signature, malformed): expect HTTP 401.\n- Request with an expired token: expect HTTP 401.\n- Request without a token: expect HTTP 401."
+        },
+        {
+          "id": 5,
+          "title": "Integrate Authentication into User API Endpoints (Login/Register)",
+          "description": "Create or update API endpoints for user registration and login. The login endpoint will utilize the UserService and JWT generation. Protect a sample route using the JWT middleware.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. **Registration Endpoint (e.g., `POST /auth/register`)**: Handler receives user credentials (username, password). Calls `UserService.CreateUser` (which incorporates bcrypt hashing from subtask 2). Responds with success (e.g., HTTP 201) or error.\n2. **Login Endpoint (e.g., `POST /auth/login`)**: Handler receives credentials. Uses `UserService.FindByUsername` to get the user (including hashed password) and then `UserService.VerifyPassword` (or equivalent logic using bcrypt directly as per subtask 2) to check password. If valid, calls `GenerateJWT` (from subtask 3) and returns the token in the response (e.g., HTTP 200 with JSON `{\"token\": \"...\"}`).\n3. **Sample Protected Endpoint (e.g., `GET /api/me`)**: Apply the `AuthMiddleware` (from subtask 4) to this route. The handler for this route should be able to retrieve user claims from the request context and return user-specific information.",
+          "status": "pending",
+          "testStrategy": "Integration tests:\n- Register a new user: verify successful creation in the user store.\n- Login with valid credentials: verify HTTP 200 and a valid JWT is returned.\n- Login with invalid credentials: verify HTTP 401 or 400.\n- Access protected route without token: verify HTTP 401.\n- Access protected route with a valid token (obtained from login): verify HTTP 200 and correct user-specific data.\n- Access protected route with an invalid/expired token: verify HTTP 401."
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Authentication API Endpoints",
+      "description": "Develop backend REST API endpoints for user authentication: POST /auth/login, POST /auth/refresh, POST /auth/logout.",
+      "details": "Implement `/auth/login`: accepts credentials, verifies against stored hashed password, issues JWT access and refresh tokens. Refresh tokens should be stored securely (e.g., in DB associated with user, HttpOnly cookie). Implement `/auth/refresh`: accepts a refresh token, validates it, issues a new access token. Implement `/auth/logout`: invalidates the refresh token (e.g., remove from DB or blocklist). Use appropriate HTTP status codes.",
+      "testStrategy": "Integration test endpoints using an API client (e.g., Postman, curl). Test login with correct/incorrect credentials. Test token refresh with valid/invalid refresh tokens. Test logout and subsequent access attempts. Verify token structures and expiry.",
+      "priority": "high",
+      "dependencies": [
+        13
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement /auth/login Endpoint Core Logic: Credential Verification and Token Generation",
+          "description": "Create the POST /auth/login endpoint. This endpoint will accept user credentials (e.g., email/username and password), verify them against stored hashed passwords in the database. Upon successful verification, it will generate a JWT access token and a JWT refresh token. This subtask focuses on the credential check and token generation, prior to refresh token persistence.",
+          "dependencies": [],
+          "details": "Define request body schema (e.g., {\"email\": \"user@example.com\", \"password\": \"password123\"}). Retrieve user from database. Compare provided password with stored hashed password (e.g., using bcrypt). If valid, generate a short-lived JWT access token (containing user ID, roles) and a long-lived JWT refresh token. Return 200 OK with tokens on success, or 401 Unauthorized on failure. Placeholder for refresh token handling if storage is not yet implemented (e.g., return it in response body for now).",
+          "status": "pending",
+          "testStrategy": "Unit test credential verification logic. Integration test the endpoint with valid/invalid credentials, check for presence and basic structure of access and refresh tokens in the response."
+        },
+        {
+          "id": 2,
+          "title": "Implement Secure Storage and Association of Refresh Tokens",
+          "description": "Develop and integrate the mechanism for securely storing refresh tokens. This involves creating the necessary database schema, associating refresh tokens with users, and updating the /auth/login endpoint (from subtask 1) to persist the generated refresh token securely.",
+          "dependencies": [
+            1
+          ],
+          "details": "Design database schema for refresh tokens (e.g., user_id, token_hash, expires_at, created_at, revoked_flag). Store a hashed version of the refresh token. Update the /auth/login endpoint logic to save the hashed refresh token to the database upon successful login. Consider options for client-side refresh token handling (e.g., HttpOnly, Secure cookie if applicable, or secure client-side storage).",
+          "status": "pending",
+          "testStrategy": "Unit test token storage, hashing, and retrieval functions. Verify that refresh tokens are correctly stored (hashed) and associated with the user after a successful login. Test retrieval of stored token for validation purposes."
+        },
+        {
+          "id": 3,
+          "title": "Implement POST /auth/refresh Endpoint for Access Token Renewal",
+          "description": "Create the POST /auth/refresh endpoint. This endpoint will accept a refresh token, validate it against the stored and hashed refresh tokens, check its validity (not expired, not revoked), and if valid, issue a new JWT access token.",
+          "dependencies": [
+            2
+          ],
+          "details": "Define how the refresh token is received (e.g., from request body {\"refreshToken\": \"...\"} or an HttpOnly cookie). Retrieve the corresponding stored hashed refresh token from the database. Validate the provided refresh token against the stored one. Check for expiration and revocation status. If valid, generate a new short-lived JWT access token. Optionally, implement refresh token rotation (issue a new refresh token, store it, and invalidate the old one). Return 200 OK with the new access token, or 401 Unauthorized/403 Forbidden if the refresh token is invalid.",
+          "status": "pending",
+          "testStrategy": "Integration test with valid, invalid, expired, and revoked refresh tokens. Verify new access token generation and correct HTTP status codes. If rotation is implemented, verify old token invalidation and new token issuance/storage."
+        },
+        {
+          "id": 4,
+          "title": "Implement POST /auth/logout Endpoint for Refresh Token Invalidation",
+          "description": "Create the POST /auth/logout endpoint. This endpoint will invalidate the user's current refresh token by marking it as revoked or deleting it from storage, effectively preventing its further use for obtaining new access tokens.",
+          "dependencies": [
+            2
+          ],
+          "details": "Define how the refresh token to be invalidated is received (e.g., from request body or HttpOnly cookie). Locate the refresh token in the secure storage (match against hashed stored tokens). Invalidate the token by either deleting its record or marking a 'revoked' flag in the database. If using HttpOnly cookies for refresh tokens, ensure the cookie is cleared on the client side by sending appropriate Set-Cookie headers (e.g., empty value, past expiry date). Return 200 OK or 204 No Content on successful logout. Return 400 Bad Request if token is missing or malformed.",
+          "status": "pending",
+          "testStrategy": "Integration test logout functionality. Verify that after logout, the specific refresh token is marked as invalid in the database and can no longer be used by the /auth/refresh endpoint. If using cookies, verify cookie clearing headers."
+        },
+        {
+          "id": 5,
+          "title": "Setup Auth Router, Middleware, and Consistent Error Handling",
+          "description": "Configure the base router for all /auth endpoints (/login, /refresh, /logout). Implement any necessary middleware (e.g., for request body parsing, basic validation). Standardize error handling and response formats across all authentication endpoints.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "Create a dedicated router instance for the '/auth' path. Mount the fully implemented /login (from subtask 1 & 2), /refresh (from subtask 3), and /logout (from subtask 4) endpoint handlers to this router. Implement common middleware for tasks like JSON body parsing if not already global. Define and apply a consistent error response format (e.g., {\"status\": \"error\", \"message\": \"...\", \"code\": \"ERROR_CODE\"}) and ensure all auth endpoints use appropriate HTTP status codes (e.g., 400, 401, 403, 500) for various scenarios.",
+          "status": "pending",
+          "testStrategy": "Perform end-to-end testing of all auth flows. Review API responses for consistency in success and error cases. Test edge cases and invalid inputs for all endpoints to ensure robust error handling and correct status codes."
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "User & System API Endpoints",
+      "description": "Develop backend REST API endpoints for user management (GET /api/users/me, PUT /api/users/preferences) and system control (POST /api/system/pause, POST /api/system/resume, GET /api/system/status), GET /api/health.",
+      "details": "Implement `/api/users/me`: returns authenticated user's details (protected by JWT middleware). Implement `/api/users/preferences`: allows authenticated user to update their preferences (protected). Implement `/api/system/pause` and `/api/system/resume`: control scraping process (potentially admin-only or specific role, protected). Implement `/api/system/status`: returns current status of the scraping system (protected). Implement `/api/health`: simple health check endpoint, returns 200 OK if backend is healthy.",
+      "testStrategy": "Integration test each endpoint. Verify JWT protection for relevant routes. Test preference updates and retrieval. Test system control commands and status reporting. Ensure health check returns correct status.",
+      "priority": "high",
+      "dependencies": [
+        13
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement `/api/health` Endpoint",
+          "description": "Create a simple, unauthenticated health check endpoint that returns a 200 OK status and a basic 'healthy' message. This endpoint will be used to verify that the backend service is running and accessible.",
+          "dependencies": [],
+          "details": "Define a GET route for `/api/health`. The request handler should return an HTTP 200 OK status. The response body should be a JSON object indicating the service status, for example, `{\"status\": \"UP\"}` or `{\"status\": \"healthy\"}`. This endpoint should not require any authentication or database interaction.",
+          "status": "pending",
+          "testStrategy": "Send a GET request to `/api/health`. Verify that the HTTP response status code is 200 and the response body matches the expected JSON format and content (e.g., `{\"status\": \"UP\"}`)."
+        },
+        {
+          "id": 2,
+          "title": "Implement `GET /api/users/me` Endpoint for Authenticated User Details",
+          "description": "Develop the `GET /api/users/me` endpoint to return details of the currently authenticated user. This endpoint must be protected by JWT authentication middleware.",
+          "dependencies": [],
+          "details": "Create a GET route for `/api/users/me`. Apply JWT authentication middleware to protect this route. Inside the request handler, extract the user identifier (e.g., user ID) from the validated JWT payload. Use this identifier to fetch the user's details (e.g., ID, username, email, non-sensitive preferences) from the user data store (database or service). Return these details as a JSON object. Ensure appropriate error handling for cases like user not found (though JWT validation should ideally prevent this for valid tokens).",
+          "status": "pending",
+          "testStrategy": "1. Using a valid JWT for an existing user, send a GET request to `/api/users/me`. Verify the response status is 200 OK and the returned JSON contains the correct user details. 2. Send a GET request without a JWT or with an invalid/expired JWT. Verify the response status is 401 Unauthorized."
+        },
+        {
+          "id": 3,
+          "title": "Implement `PUT /api/users/preferences` Endpoint for Updating User Preferences",
+          "description": "Develop the `PUT /api/users/preferences` endpoint to allow authenticated users to update their application preferences. This endpoint must be protected by JWT authentication.",
+          "dependencies": [
+            2
+          ],
+          "details": "Create a PUT route for `/api/users/preferences`. Apply JWT authentication middleware. The request handler should expect preference data in the request body (e.g., as a JSON object). Extract the user identifier from the JWT payload. Validate the received preference data (e.g., ensure keys are valid, values meet type/format requirements). Update the user's preferences in the data store associated with the authenticated user. Respond with a 200 OK status, potentially returning the updated preferences object or a success message.",
+          "status": "pending",
+          "testStrategy": "1. Using a valid JWT, send a PUT request to `/api/users/preferences` with a valid JSON payload containing preference updates. Verify the response status is 200 OK. Optionally, call `GET /api/users/me` or check the database to confirm preferences were actually updated. 2. Test with invalid or malformed preference data in the request body; expect a 400 Bad Request response. 3. Test without a JWT or with an invalid JWT; expect a 401 Unauthorized response."
+        },
+        {
+          "id": 4,
+          "title": "Implement `GET /api/system/status` Endpoint for Scraping System Status",
+          "description": "Develop the `GET /api/system/status` endpoint to return the current status of the scraping system (e.g., running, paused, idle, error count). This endpoint must be protected and may require specific roles (e.g., admin).",
+          "dependencies": [],
+          "details": "Create a GET route for `/api/system/status`. Apply JWT authentication middleware. Implement role-based authorization if required (e.g., allow access only for users with an 'admin' role). The request handler should query the internal state of the scraping system (this might involve checking a status variable, querying a service, or reading from a cache). Format the status information (e.g., `{\"scraping_status\": \"running\", \"last_run_timestamp\": \"...\", \"items_processed\": 1000}`) and return it as a JSON object with a 200 OK status.",
+          "status": "pending",
+          "testStrategy": "1. Using a valid JWT with appropriate permissions (if role-based access is implemented), send a GET request to `/api/system/status`. Verify the response status is 200 OK and the returned JSON contains plausible system status information. 2. If role-based access is implemented, test with a JWT for a user lacking the required role; expect a 403 Forbidden response. 3. Test without a JWT or with an invalid JWT; expect a 401 Unauthorized response."
+        },
+        {
+          "id": 5,
+          "title": "Implement `POST /api/system/pause` and `POST /api/system/resume` Endpoints",
+          "description": "Develop the `POST /api/system/pause` and `POST /api/system/resume` endpoints to control the scraping process (start/stop or pause/resume). These endpoints must be protected and likely require admin or specific role access.",
+          "dependencies": [
+            4
+          ],
+          "details": "1. **`/api/system/pause`**: Create a POST route. Apply JWT authentication and role-based authorization (e.g., admin-only). The handler should trigger the scraping system to enter a paused state. Respond with 200 OK and a confirmation message (e.g., `{\"message\": \"System pausing initiated\"}`). \n2. **`/api/system/resume`**: Create a POST route. Apply JWT authentication and role-based authorization. The handler should trigger the scraping system to resume operations from a paused state. Respond with 200 OK and a confirmation message (e.g., `{\"message\": \"System resuming initiated\"}`). \nConsider the actual mechanism for pausing/resuming the scraping process (e.g., updating a flag, sending a signal to a worker process).",
+          "status": "pending",
+          "testStrategy": "For both endpoints: \n1. Using a valid JWT with admin permissions, send a POST request. Verify 200 OK and the confirmation message. \n2. After calling `/api/system/pause`, use `/api/system/status` (from subtask 4) to verify the system reports a 'paused' status. \n3. After calling `/api/system/resume` (when paused), use `/api/system/status` to verify the system reports a 'running' or 'resumed' status. \n4. Test with a JWT for a user lacking admin permissions; expect a 403 Forbidden response. \n5. Test without a JWT or with an invalid JWT; expect a 401 Unauthorized response."
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Court Data API Endpoints",
+      "description": "Develop backend REST API endpoints for retrieving court and venue data: GET /api/courts, GET /api/venues.",
+      "details": "Implement `/api/courts`: returns a list of available court slots, potentially with filtering options (e.g., by venue, date, time). Data sourced from MongoDB. Implement `/api/venues`: returns a list of configured/supported tennis venues. These endpoints should be protected by JWT middleware.",
+      "testStrategy": "Integration test endpoints. Verify data retrieval from MongoDB. Test any filtering parameters. Ensure proper authentication and authorization are enforced.",
+      "priority": "medium",
+      "dependencies": [
+        13
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize API Routes and Apply JWT Middleware for Court/Venue Endpoints",
+          "description": "Create the basic route definitions for GET /api/courts and GET /api/venues within the backend application. Apply the existing JWT authentication middleware to protect these new routes, ensuring only authenticated users can access them.",
+          "dependencies": [],
+          "details": "In the main API router file (e.g., `routes/api.js` or a dedicated `courtRoutes.js`), define the GET routes: `/courts` and `/venues`. Integrate the pre-existing JWT middleware (e.g., `authenticateJWT`) to be executed before the route handlers for these endpoints. For initial setup, route handlers can return a 501 Not Implemented status or a simple placeholder JSON response (e.g., `{\"message\": \"Endpoint under construction\"}`).",
+          "status": "pending",
+          "testStrategy": "Manually test using a tool like Postman or curl. Send requests with a valid JWT, an invalid JWT, and no JWT. Expect 401/403 for invalid/missing tokens and the placeholder/501 response for valid tokens."
+        },
+        {
+          "id": 2,
+          "title": "Implement GET /api/venues Endpoint to Retrieve Venue List",
+          "description": "Develop the full functionality for the GET /api/venues endpoint. This endpoint will fetch and return a list of all configured tennis venues from the `venues` collection in MongoDB.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create a Mongoose schema for `Venue` (e.g., fields: `name`, `address`, `city`, `numberOfCourts`, `openingHours`). If it already exists, review and update if necessary. Implement a controller function (e.g., `venueController.listVenues`). Inside the controller, use the Mongoose model to query the `venues` collection for all documents. Format the response as a JSON array of venue objects. Handle cases where no venues are found (return an empty array).",
+          "status": "pending",
+          "testStrategy": "Unit test the controller function, mocking the Mongoose `Venue.find()` method. Integration test by seeding the MongoDB `venues` collection with sample data and hitting the `/api/venues` endpoint. Verify the response structure and data accuracy."
+        },
+        {
+          "id": 3,
+          "title": "Implement Basic GET /api/courts Endpoint for All Court Slots",
+          "description": "Develop the initial version of the GET /api/courts endpoint. This version will fetch and return a list of all available court slots from the `courtSlots` collection in MongoDB, without any filtering.",
+          "dependencies": [
+            1
+          ],
+          "details": "Create a Mongoose schema for `CourtSlot` (e.g., fields: `venueId` (ObjectId, ref: 'Venue'), `courtName`, `date`, `startTime`, `endTime`, `isAvailable`, `price`). If it already exists, review and update. Implement a controller function (e.g., `courtController.listAllCourtSlots`). Inside the controller, use the Mongoose model to query the `courtSlots` collection for all documents. Consider populating `venueId` if detailed venue info is needed directly in the court slot response. Format the response as a JSON array of court slot objects. Handle cases where no court slots are found.",
+          "status": "pending",
+          "testStrategy": "Unit test the controller function, mocking the Mongoose `CourtSlot.find()` method. Integration test by seeding the MongoDB `courtSlots` collection with sample data and hitting the `/api/courts` endpoint. Verify the response structure and data accuracy."
+        },
+        {
+          "id": 4,
+          "title": "Enhance GET /api/courts with Filtering Capabilities",
+          "description": "Extend the GET /api/courts endpoint to support filtering of court slots based on query parameters such as `venueId`, `date`, and `timeRange` (e.g., `startTime`, `endTime`).",
+          "dependencies": [
+            3
+          ],
+          "details": "Modify the `courtController.listAllCourtSlots` function (or create a new one like `courtController.findCourtSlots`). Parse query parameters from `req.query` (e.g., `venueId`, `date`, `startTime`, `endTime`). Dynamically build a MongoDB query object based on the provided filters. For `venueId`: `{ venueId: mongoose.Types.ObjectId(venueId) }`. For `date`: `{ date: new Date(dateString) }` (ensure proper date parsing and timezone handling). For `timeRange`: `{ startTime: { $gte: parsedStartTime }, endTime: { $lte: parsedEndTime } }`. Ensure MongoDB indexes are present on fields used for filtering (`venueId`, `date`, `startTime`) to optimize query performance. Validate filter parameters (e.g., date format).",
+          "status": "pending",
+          "testStrategy": "Unit test the filter construction logic within the controller. Integration test by hitting the `/api/courts` endpoint with various combinations of filter parameters: no filters, filter by `venueId`, `date`, `timeRange`, and combined filters. Test filters that yield results and those that yield no results. Test invalid filter values."
+        },
+        {
+          "id": 5,
+          "title": "Write Comprehensive Integration Tests and API Documentation",
+          "description": "Develop a suite of integration tests for both `/api/venues` and `/api/courts` endpoints, covering various scenarios including authentication, data retrieval, and filtering. Also, create or update API documentation for these endpoints.",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "Integration Tests: Use a testing framework like Jest with Supertest. For `/api/venues`: test successful retrieval with valid JWT and unauthorized access. For `/api/courts`: test successful retrieval (all and filtered by `venueId`, `date`, `timeRange`, combinations), responses for valid filters with/without matching data, unauthorized access, and invalid filter parameters. API Documentation: Use a tool like Swagger/OpenAPI. Document HTTP method, path, description, authentication, query parameters, example request, response structure (success/error codes), and example response for each endpoint.",
+          "status": "pending",
+          "testStrategy": "Execute the entire integration test suite. Review the generated API documentation for accuracy, completeness, and clarity. Ensure tests cover positive, negative, and edge cases."
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "API Documentation & Validation",
+      "description": "Generate OpenAPI/Swagger documentation for all API endpoints. Implement request/response validation and proper error handling with consistent status codes.",
+      "details": "Use a Go library like `swaggo/swag` to generate OpenAPI 3.0 documentation from code annotations. Set up a route (e.g., `/swagger/index.html`) to serve the Swagger UI. Implement request body validation (e.g., using `go-playground/validator`) for all POST/PUT endpoints. Implement consistent error handling middleware that returns structured JSON error responses with appropriate HTTP status codes (e.g., 400, 401, 403, 404, 500).",
+      "testStrategy": "Access Swagger UI and verify all endpoints are documented with correct request/response schemas. Test endpoints with invalid request data to ensure validation errors are returned. Test various error scenarios to confirm consistent error responses and status codes.",
+      "priority": "medium",
+      "dependencies": [
+        14,
+        15,
+        16
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize OpenAPI (Swagger) Generation with `swaggo/swag`",
+          "description": "Integrate the `swaggo/swag` library into the Go project. Configure it to generate OpenAPI 3.0 specification and set up a route to serve Swagger UI.",
+          "dependencies": [],
+          "details": "Add `swaggo/swag` (for annotations and generation tool) and `swaggo/http-swagger` (for serving UI) to `go.mod`. Run `go get -u github.com/swaggo/swag/cmd/swag` to install the `swag` CLI. Initialize `swag init` in the main package or as part of the build process. Add general API information annotations (e.g., `// @title`, `// @version`, `// @description`) in `main.go`. Create an HTTP handler for a route like `/swagger/*any` to serve Swagger UI using `httpSwagger.WrapHandler`.",
+          "status": "pending",
+          "testStrategy": "Verify that `swag init` runs successfully and generates the `docs` folder. Access the configured Swagger UI route (e.g., `/swagger/index.html`) in a browser and confirm Swagger UI loads, displaying the general API information."
+        },
+        {
+          "id": 2,
+          "title": "Add `swaggo/swag` Annotations to All API Endpoints",
+          "description": "Systematically go through all existing API endpoints and add comprehensive `swaggo/swag` annotations for request parameters (path, query, body), responses (success and error), summaries, descriptions, and tags.",
+          "dependencies": [
+            1
+          ],
+          "details": "For each API endpoint handler function, add comments like `// @Summary Your Endpoint Summary`, `// @Description Detailed description of the endpoint.`, `// @Tags groupName`, `// @Accept json`, `// @Produce json`, `// @Param userId path int true \"User ID\"`, `// @Param requestBody body YourRequestType true \"Request Payload\"`, `// @Success 200 {object} YourSuccessResponseType`, `// @Failure 400 {object} ErrorResponseStruct`, `// @Failure 404 {object} ErrorResponseStruct`, `// @Router /users/{userId} [get]`. Ensure all data structures used in request bodies and responses are defined as Go structs and are accessible for `swag` to parse. Regenerate documentation using `swag init` after adding/updating annotations.",
+          "status": "pending",
+          "testStrategy": "After annotating each group of related endpoints, regenerate the Swagger documentation (`swag init`) and review it via Swagger UI. Check for completeness, accuracy of parameters, request/response body schemas, and status codes for each endpoint. Verify all endpoints are listed."
+        },
+        {
+          "id": 3,
+          "title": "Implement Request Body Validation for POST/PUT Endpoints",
+          "description": "Integrate the `go-playground/validator` library to validate incoming request bodies for all POST and PUT endpoints. Define validation rules using struct tags on request DTOs.",
+          "dependencies": [],
+          "details": "Add `go-playground/validator/v10` to `go.mod`. For Go structs representing request bodies (DTOs), add validation tags (e.g., `validate:\"required,email\"`, `validate:\"required,min=1,max=100\"`). In HTTP handlers for POST/PUT requests, after unmarshalling the request body into the struct, use `validate := validator.New(); err := validate.Struct(yourStruct);` to perform validation. If `err` is not nil, this indicates a validation failure.",
+          "status": "pending",
+          "testStrategy": "Write unit tests for validation logic on sample request body structs with various valid and invalid fields. For integration testing, send invalid POST/PUT requests to an endpoint and verify (e.g., via logging or a basic error response) that validation errors are detected. The full error response formatting will be handled by a later subtask."
+        },
+        {
+          "id": 4,
+          "title": "Develop Centralized Error Handling Middleware",
+          "description": "Implement a Go HTTP middleware that intercepts errors returned by handlers and panics, transforming them into structured JSON error responses with appropriate HTTP status codes (e.g., 400, 401, 403, 404, 500).",
+          "dependencies": [],
+          "details": "Create a middleware function that wraps `http.Handler`. This middleware should call the next handler and then check for any returned error or recover from panics. Define a standard JSON error response struct (e.g., `type APIError struct { Status int `json:\"status\"`; Message string `json:\"message\"`; Details interface{} `json:\"details,omitempty\"` }`). Map different types of application-specific errors (e.g., `ErrNotFound`, `ErrUnauthorized`) and common errors (e.g., `json.UnmarshalTypeError`) to specific HTTP status codes and instances of `APIError`. Panics should result in a 500 Internal Server Error.",
+          "status": "pending",
+          "testStrategy": "Unit test the middleware by mocking handlers that return different error types or panic. Verify that the middleware correctly sets the HTTP status code and writes the expected JSON error structure to the response. Integrate the middleware into the main router and test by manually triggering various error conditions in sample endpoints."
+        },
+        {
+          "id": 5,
+          "title": "Integrate Request Validation with Error Middleware & Refine OpenAPI Error Docs",
+          "description": "Ensure that validation errors from `go-playground/validator` are caught by the centralized error handling middleware and returned as structured 400 Bad Request responses. Update OpenAPI documentation (`swaggo/swag` annotations) to accurately reflect these validation error responses and other error types.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "Modify request handlers: if `validator.Struct()` (from subtask 3) returns an error, this error should be passed to be handled by the centralized error middleware (from subtask 4). The error handling middleware needs to be updated to specifically identify `validator.ValidationErrors`. If such an error is found, it should format it into a user-friendly message (e.g., listing invalid fields and their validation tags/errors) and return a 400 Bad Request with the standard JSON error structure. Review and update `@Failure` annotations (from subtask 2) in `swaggo/swag` comments for all relevant endpoints to include examples of 400 Bad Request responses due to validation failures, referencing the standard error JSON structure. Also, ensure other error types (401, 403, 404, 500) are consistently documented.",
+          "status": "pending",
+          "testStrategy": "Send POST/PUT requests with invalid bodies to various endpoints. Verify that the API returns a 400 Bad Request status with the structured JSON error format, detailing the specific validation failures. Check the generated Swagger UI to confirm that error responses (especially 400 for validation, but also 401, 403, 404, 500 as applicable) are correctly documented for relevant endpoints, including example error payloads."
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "API Rate Limiting",
+      "description": "Implement rate limiting middleware for API endpoints to protect against abuse.",
+      "details": "Integrate a rate limiting library for Go, such as `github.com/didip/tollbooth` or `github.com/ulule/limiter` with a Redis backend for distributed rate limiting. Configure sensible default limits (e.g., requests per minute/hour per IP or per user). Apply rate limiting to sensitive or computationally expensive endpoints, especially authentication and data-intensive ones.",
+      "testStrategy": "Test rate limiting by sending rapid requests to protected endpoints. Verify that requests are blocked after exceeding the limit and that appropriate HTTP 429 Too Many Requests responses are returned. Check if limits are reset after the defined window.",
+      "priority": "medium",
+      "dependencies": [
+        13
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Integrate Rate Limiting Library and Configure Redis Backend",
+          "description": "Select a suitable Go rate limiting library (e.g., `github.com/ulule/limiter` or `github.com/didip/tollbooth`), add it as a project dependency, and configure it to use a Redis instance as the backend for storing rate limit counters. This ensures distributed rate limiting capabilities.",
+          "dependencies": [],
+          "details": "1. Research and choose a Go rate limiting library. Consider features, community support, and ease of integration. \n2. Add the library to `go.mod`. \n3. Implement Redis client initialization (e.g., using `github.com/go-redis/redis/v8`). \n4. Configure the rate limiting library to use this Redis client as its store. \n5. Ensure Redis connection parameters (host, port, password, DB) are configurable via environment variables or a configuration file.",
+          "status": "pending",
+          "testStrategy": "Write a small test program or unit test to verify that the rate limiter can connect to Redis and that basic operations (e.g., incrementing a counter for a key) work as expected. Manually inspect Redis to confirm keys are being created/updated during testing."
+        },
+        {
+          "id": 2,
+          "title": "Implement IP-Based Rate Limiting Middleware",
+          "description": "Develop a generic HTTP middleware that extracts the client's IP address from incoming requests and applies a configurable, default IP-based rate limit using the integrated library. This will serve as the primary rate limiting mechanism for unauthenticated traffic and a baseline for all requests.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create a new HTTP middleware function. \n2. Implement logic to reliably extract the client's IP address. Prioritize headers like `X-Forwarded-For` (checking for trusted proxies) or `X-Real-IP`, falling back to `Request.RemoteAddr`. \n3. Use the configured rate limiter instance to check and update limits for the extracted IP. \n4. Define a sensible default rate limit (e.g., 100 requests per minute per IP). Make this limit configurable. \n5. If the rate limit is exceeded, the middleware must respond with an HTTP 429 'Too Many Requests' status code and an appropriate message. Optionally include `Retry-After` header.",
+          "status": "pending",
+          "testStrategy": "Unit test the IP extraction logic with various header combinations. Unit test the middleware's behavior for requests under the limit, at the limit, and exceeding the limit, mocking the rate limiter's responses. Perform a basic integration test by applying the middleware to a test endpoint and sending requests from a single IP."
+        },
+        {
+          "id": 3,
+          "title": "Implement User-Identifier Based Rate Limiting Middleware",
+          "description": "Develop an HTTP middleware that applies rate limits based on an authenticated user's identifier (e.g., user ID, API key). This allows for different, potentially more generous, rate limits for authenticated users.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create a new HTTP middleware function, similar to the IP-based one. \n2. This middleware should run *after* authentication middleware. Extract the authenticated user identifier from the request context or token. \n3. Use the configured rate limiter instance to check and update limits for the extracted user identifier. \n4. Define a sensible default rate limit for authenticated users (e.g., 500 requests per minute per user). Make this limit configurable. \n5. If the rate limit is exceeded, respond with HTTP 429. \n6. If no user identifier is found (e.g., for unauthenticated requests, or if this middleware is mistakenly applied before auth), it should gracefully pass through or fall back to IP limiting if designed as a combined middleware.",
+          "status": "pending",
+          "testStrategy": "Unit test the user identifier extraction logic. Unit test the middleware's behavior for authenticated users under, at, and exceeding their limits. Integration test with an endpoint that requires authentication."
+        },
+        {
+          "id": 4,
+          "title": "Apply Rate Limiting Middleware to Specific API Endpoints",
+          "description": "Identify sensitive, computationally expensive, or critical API endpoints and apply the appropriate rate limiting middleware (IP-based or User-Identifier based) to them. Configure specific rate limits for certain routes if the defaults are not suitable.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Review all API endpoints and categorize them based on sensitivity, resource consumption, and authentication requirements. \n2. Apply IP-based rate limiting (Subtask 2) to public endpoints, especially authentication endpoints like `/login`, `/register`, `/password-reset-request` (e.g., with stricter limits like 5-10 requests per minute). \n3. Apply User-Identifier based rate limiting (Subtask 3) to endpoints requiring authentication, particularly those that are data-intensive or perform critical operations. \n4. Implement a mechanism to allow route-specific overrides for default rate limits. For example, a general authenticated user limit might be 500/min, but a specific heavy data export API might be 10/hour. \n5. Ensure middleware is correctly ordered in the request processing chain (e.g., auth middleware before user-based rate limiting).",
+          "status": "pending",
+          "testStrategy": "Perform integration tests for each protected endpoint. Verify that: \n- Unauthenticated endpoints are subject to IP-based limits. \n- Authenticated endpoints are subject to user-based limits. \n- Route-specific limit overrides are correctly applied. \n- Requests exceeding limits receive HTTP 429 responses."
+        },
+        {
+          "id": 5,
+          "title": "Comprehensive Testing, Monitoring, and Documentation",
+          "description": "Conduct thorough end-to-end testing of the rate limiting system, implement basic monitoring for rate limit events, and create documentation for developers and API consumers regarding the rate limits.",
+          "dependencies": [
+            4
+          ],
+          "details": "1. Write automated end-to-end tests simulating various traffic patterns (e.g., bursts, sustained load) to verify the rate limiter's effectiveness and performance under load. Tools like `k6`, `JMeter`, or custom scripts can be used. \n2. Implement logging for rate limit events, especially when requests are denied. This helps in monitoring for abuse and fine-tuning limits. \n3. Consider adding standard rate limit HTTP headers to responses (e.g., `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) to inform API clients about their current status. \n4. Document the rate limiting strategy, default limits for IP and user-based limiting, which endpoints are protected, and how API consumers can check their current limits (if headers are implemented).",
+          "status": "pending",
+          "testStrategy": "Execute load tests against protected endpoints to confirm behavior under stress. Verify that logs capture rate limiting actions. Review HTTP responses for correctness of rate limit headers. Review documentation for clarity, accuracy, and completeness."
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Intelligent Data Retention Service",
+      "description": "Implement an intelligent data retention service for MongoDB to clean up old or irrelevant court slots, keeping only those matching user preferences or already notified, within a 7-day window.",
+      "details": "Create a Go service (can be part of the backend or a separate cron job) that periodically queries MongoDB. The service should identify and delete court slots older than 7 days UNLESS they match active user preferences OR have resulted in a notification. User preferences would need to be accessible by this service. This requires careful schema design for slots to include notification status and preference match flags, or efficient querying against user preferences.",
+      "testStrategy": "Unit test the cleanup logic with mock data. Set up test data in MongoDB with various ages and states (matching preferences, notified, old and irrelevant). Run the service and verify that only the correct documents are deleted. Monitor performance of cleanup queries.",
+      "priority": "medium",
+      "dependencies": [
+        3,
+        6,
+        15
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Enhance Court Slot Schema for Retention Logic",
+          "description": "Modify the MongoDB schema for `court_slots` to include fields necessary for the intelligent retention policy, primarily to track notification status and ensure essential date fields are optimized.",
+          "dependencies": [],
+          "details": "In the `court_slots` collection:\n1. Add a `notified_at` field (Timestamp, nullable). This field will be set to the current timestamp when a notification is sent for this slot. It should be `null` or not exist if no notification has been sent.\n2. Ensure the `slot_date` field (Timestamp) exists and accurately represents the slot's occurrence time.\n3. Create indexes on `slot_date` and `notified_at` to optimize queries for identifying old and un-notified slots.",
+          "status": "pending",
+          "testStrategy": "Write unit tests to verify schema migration scripts (if any) or model changes. Manually inspect the schema in a development MongoDB instance to confirm new fields and indexes. Test inserting and querying documents with the new fields."
+        },
+        {
+          "id": 2,
+          "title": "Develop User Preference Access Module",
+          "description": "Create a Go module (e.g., a package with specific functions) to securely and efficiently retrieve all *active* user preferences from the `user_preferences` MongoDB collection.",
+          "dependencies": [],
+          "details": "1. Implement a function, e.g., `GetActiveUserPreferences() ([]UserPreference, error)`, that queries the `user_preferences` collection.\n2. The query should filter for preferences marked as active (e.g., `is_active: true`).\n3. The function should return a slice of `UserPreference` structs (or equivalent data structure) containing all necessary details for matching against court slots (e.g., court IDs, time ranges, day preferences).\n4. Ensure appropriate indexes exist on the `user_preferences` collection for efficient querying of active preferences (e.g., on the `is_active` field).\n5. Consider caching the active preferences in memory for the duration of a single retention service run if the dataset is large but fits in memory, to reduce database load during the filtering process.",
+          "status": "pending",
+          "testStrategy": "Unit test the `GetActiveUserPreferences` function by mocking MongoDB interactions to simulate various scenarios (no active preferences, many active preferences, different preference structures). Conduct integration tests against a test MongoDB instance populated with sample user preference data."
+        },
+        {
+          "id": 3,
+          "title": "Implement Slot-to-Active-Preference Matching Logic",
+          "description": "Develop the Go logic to determine if a given court slot matches any of the currently active user preferences retrieved by the module from subtask 2.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Create a function, e.g., `DoesSlotMatchActivePreferences(slot CourtSlot, activePreferences []UserPreference) (bool, error)`.\n2. This function will iterate through the `activePreferences` slice.\n3. For each `UserPreference` in the slice, compare its criteria (e.g., court ID, location, time window, day of week) against the corresponding attributes of the `slot`.\n4. The function should return `true` as soon as a match is found with any active preference. If no match is found after checking all active preferences, it should return `false`.\n5. Ensure this matching logic is consistent with how preferences are matched elsewhere in the application (e.g., for notifications).",
+          "status": "pending",
+          "testStrategy": "Write comprehensive unit tests for the `DoesSlotMatchActivePreferences` function. Test with various `CourtSlot` objects and `UserPreference` lists, covering scenarios: no match, single match, multiple matches, matches on different criteria types, and edge cases in time/date comparisons."
+        },
+        {
+          "id": 4,
+          "title": "Implement Core Retention Service: Querying, Filtering, and Deletion",
+          "description": "Develop the main Go service logic that queries MongoDB for potentially old slots, filters them based on the retention rules (older than 7 days, not notified, and not matching active user preferences), and then deletes the identified slots.",
+          "dependencies": [
+            1,
+            3
+          ],
+          "details": "1. Define the retention window: `seven_days_ago_timestamp = currentTime.AddDate(0, 0, -7)`.\n2. Fetch all active user preferences using the `GetActiveUserPreferences()` function (from subtask 2).\n3. Query the `court_slots` collection for candidate slots: `db.court_slots.find({ \"slot_date\": { \"$lt\": seven_days_ago_timestamp }, \"notified_at\": { \"$exists\": false } })`.\n4. Initialize an empty slice `slot_ids_to_delete`.\n5. Iterate through the candidate slots retrieved from the query:\n   a. For each `slot`, call `DoesSlotMatchActivePreferences(slot, activePreferences)` (from subtask 3).\n   b. If the function returns `false` (indicating the slot does NOT match any active user preference), add the `slot._id` to the `slot_ids_to_delete` slice.\n6. If `slot_ids_to_delete` is not empty, perform a bulk deletion: `db.court_slots.deleteMany({ \"_id\": { \"$in\": slot_ids_to_delete } })`.\n7. Implement a 'dry-run' mode, configurable via an environment variable. If enabled, the service should log the `_id`s of slots that *would be* deleted, instead of performing the actual deletion.\n8. Log key metrics: number of candidate slots found, number of slots checked against preferences, number of slots identified for deletion, and number of slots actually deleted (or logged in dry-run).",
+          "status": "pending",
+          "testStrategy": "Unit test the overall orchestration logic, mocking database calls and the preference matching function. Conduct integration tests against a MongoDB instance populated with a diverse set of court slots (old/new, notified/un-notified, matching/not-matching preferences). Verify that only the correct slots are deleted (or identified in dry-run mode) and that others are preserved. Test the dry-run functionality thoroughly."
+        },
+        {
+          "id": 5,
+          "title": "Schedule, Deploy, and Monitor the Data Retention Service",
+          "description": "Package the data retention service, configure its periodic execution (e.g., as a daily cron job), and set up appropriate logging and monitoring for operational stability.",
+          "dependencies": [
+            4
+          ],
+          "details": "1. Determine deployment strategy:\n   a. Standalone Go application: Package into a Docker container. Create a Kubernetes CronJob manifest or a systemd timer configuration to run the application periodically (e.g., daily at a specific time like 3 AM UTC).\n   b. Integrated into existing backend service: Use a Go scheduling library (e.g., `github.com/robfig/cron/v3`) to invoke the retention service logic on a schedule.\n2. Externalize configuration: Manage MongoDB connection URI, run interval (cron expression), dry-run mode flag, and log level using environment variables or a configuration file.\n3. Implement structured logging (e.g., JSON format using `logrus` or `zap`) for all significant events: job start/completion, number of slots processed/deleted, errors, and dry-run outputs.\n4. Ensure logs are collected by a central logging system (e.g., ELK Stack, Grafana Loki, CloudWatch Logs).\n5. Set up basic monitoring and alerting: Create alerts for job failures, extended runtimes, or an anomalous number of deletions (e.g., zero deletions for several consecutive runs, or an extremely high number of deletions).",
+          "status": "pending",
+          "testStrategy": "In a staging/QA environment: \n1. Test the scheduling mechanism to ensure the job runs at the configured interval.\n2. Verify that logs are generated correctly, are in the expected format, and are ingested by the logging system.\n3. Test monitoring alerts by simulating failure conditions (e.g., temporarily making the database unavailable or forcing an error in the code).\n4. Perform end-to-end test runs, initially in dry-run mode, then with actual deletions, monitoring system resources and verifying outcomes against test data."
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Deduplication & Indexing Optimization",
+      "description": "Enhance Redis-based deduplication logic for scraped slots using expiring keys. Add necessary MongoDB indexes for query performance optimization.",
+      "details": "Review and enhance the existing Redis-based deduplication for scraped court slots. Use Redis `SET key value EX NX` with an expiry (e.g., 24-48 hours) to track recently seen slots and prevent re-processing. For MongoDB, analyze common query patterns from the API (Task 15, 16) and cleanup service (Task 19). Add indexes on fields used in queries, sorts, and joins (e.g., `timestamp`, `venueId`, `userId` for preferences, `notified_status`). Use MongoDB's `explain()` to verify index usage.",
+      "testStrategy": "Test deduplication by sending duplicate slot data; verify only one is processed. Monitor Redis memory usage. For MongoDB, measure query times before and after adding indexes for key operations. Use `explain()` output to confirm indexes are being used effectively.",
+      "priority": "medium",
+      "dependencies": [
+        3,
+        6
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Redis-based Slot Deduplication with Expiring Keys",
+          "description": "Update the slot scraping/processing logic to use Redis for deduplication. Implement a check using `SET key value EX <expiry_seconds> NX` to prevent processing of recently seen slots.",
+          "dependencies": [],
+          "details": "Define a unique key format for each scraped slot (e.g., `dedupe:slot:<venueId>:<date>:<time>:<courtNumber>`). Use the Redis `SET` command with `EX` (expiry in seconds, e.g., 86400 for 24 hours or 172800 for 48 hours) and `NX` (only set if key does not exist) options. If `SET` returns 1 (key was set), proceed with processing and storing the slot. If it returns 0 (key already existed), skip processing. Integrate this logic into the part of the system where new slots are first encountered.",
+          "status": "pending",
+          "testStrategy": "Unit test the Redis interaction logic. Manually send duplicate slot data to verify it's skipped. Monitor Redis keys to ensure they expire as expected."
+        },
+        {
+          "id": 2,
+          "title": "Analyze API and Service Query Patterns for MongoDB Optimization",
+          "description": "Review the codebase for API endpoints (related to Tasks 15 & 16 for slots and user preferences/notifications) and the cleanup service (Task 19) to identify common MongoDB query patterns, including filter conditions, sort orders, and projections.",
+          "dependencies": [],
+          "details": "Examine queries against the `slots` collection: common filters (e.g., `venueId`, `date`, `time`, `isAvailable`), sorts (e.g., `timestamp`, `startTime`). Examine queries related to user preferences and notifications: filters (e.g., `userId`, `venueId`, `sport`, `notified_status`), sorts. Document these patterns, noting the collections, fields involved (e.g., `timestamp`, `venueId`, `userId`, `notified_status`), and frequency/importance of each query. Pay special attention to queries that might be slow or involve large datasets.",
+          "status": "pending",
+          "testStrategy": "Review existing application logs for slow MongoDB queries if available. Manually trace execution paths for key API calls and service operations to identify all database interactions and their typical parameters."
+        },
+        {
+          "id": 3,
+          "title": "Design and Implement MongoDB Indexes",
+          "description": "Based on the query pattern analysis from Subtask 2, design and create appropriate indexes in MongoDB to optimize query performance on fields like `timestamp`, `venueId`, `userId`, and `notified_status`.",
+          "dependencies": [
+            2
+          ],
+          "details": "For the `slots` collection, create indexes on fields like `timestamp`, `venueId`, and combinations frequently used in queries (e.g., `venueId` and `timestamp`). For user preferences or notifications collections, create indexes on `userId`, `notified_status`, and potentially compound indexes involving `venueId` if applicable. Use MongoDB's `createIndex()` command. Consider the ESR (Equality, Sort, Range) rule for ordering fields in compound indexes.",
+          "status": "pending",
+          "testStrategy": "Verify index creation in MongoDB using `db.collection.getIndexes()`. Ensure index options (e.g., background creation) are set appropriately for production environments."
+        },
+        {
+          "id": 4,
+          "title": "Verify MongoDB Index Effectiveness using `explain()`",
+          "description": "Use MongoDB's `explain(\"executionStats\")` command to analyze the execution plans of common queries (identified in Subtask 2) and confirm that the newly created indexes (from Subtask 3) are being utilized effectively.",
+          "dependencies": [
+            3
+          ],
+          "details": "For each significant query pattern, execute it with `.explain(\"executionStats\")`. Analyze the output to confirm an `IXSCAN` (index scan) is used instead of `COLLSCAN` (collection scan). Check `totalKeysExamined` and `totalDocsExamined` against `nReturned` to ensure efficiency. If indexes are not used as expected, or if performance is still suboptimal, revisit the index design (Subtask 3).",
+          "status": "pending",
+          "testStrategy": "Document the `explain()` output for key queries before and after index creation to demonstrate improvement. Focus on queries identified as potentially slow or critical."
+        },
+        {
+          "id": 5,
+          "title": "Integrate Deduplication and Test Overall System Performance",
+          "description": "Ensure the Redis deduplication logic (Subtask 1) is correctly integrated with the slot scraping process. Conduct end-to-end testing to validate the performance improvements from both Redis deduplication and MongoDB indexing (Subtask 4).",
+          "dependencies": [
+            1,
+            4
+          ],
+          "details": "Verify that the scraper correctly skips slots already processed and present in Redis. Perform load testing on API endpoints that rely on the newly indexed MongoDB queries. Monitor key performance indicators (KPIs) such as API response times, database CPU usage, and the rate of processed versus skipped slots. Compare these metrics against baseline performance data if available.",
+          "status": "pending",
+          "testStrategy": "Deduplication: Feed a known set of slots, including duplicates, to the scraper; verify only unique slots are processed and stored, and check Redis key counts/TTLs. Indexing: Use load testing tools (e.g., k6, JMeter) for relevant API endpoints. Monitor application performance monitoring (APM) tools and database dashboards."
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "Advanced Queue Management",
+      "description": "Implement robust error handling for Redis pub/sub queue processing, including exponential backoff retry logic for transient errors and a dead letter queue (DLQ) for persistently failing messages. Add Redis queue monitoring.",
+      "details": "For message consumers (e.g., notification service processing messages from Redis pub/sub), implement error handling. For transient errors (e.g., temporary network issue when sending email), use exponential backoff for retries. If a message fails processing after several retries, move it to a Dead Letter Queue (DLQ) in Redis (e.g., another Redis list). Implement monitoring for queue lengths (main queue and DLQ) using Redis commands like `LLEN` or `PUBSUB NUMPAT`, potentially exposing metrics for Prometheus.",
+      "testStrategy": "Simulate transient errors in message processing; verify retry logic with exponential backoff. Simulate persistent errors; verify messages are moved to DLQ. Test monitoring by checking queue lengths under normal and error conditions.",
+      "priority": "medium",
+      "dependencies": [
+        3,
+        6
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement Basic Error Catching and Logging in Message Consumer",
+          "description": "Modify message consumers processing messages from Redis to reliably catch all exceptions during message processing. Ensure detailed logging of the error and the problematic message content for diagnosis.",
+          "dependencies": [],
+          "details": "In the message processing function/method of the consumer, wrap the core logic responsible for handling a single message in a `try/except` (or language equivalent) block. This block should catch generic exceptions. Log the full exception details (type, message, stack trace) and the complete message payload (or relevant parts if too large/sensitive) using a standardized logging library. Ensure logs are structured (e.g., JSON) for easier parsing and analysis.",
+          "status": "pending",
+          "testStrategy": "Unit test by sending messages designed to cause various exceptions (e.g., `KeyError` from missing field, `TypeError` from unexpected data type, simulated `IOError`). Verify that all exceptions are caught, logged with necessary details (error info, message content), and the consumer continues to process subsequent messages if applicable."
+        },
+        {
+          "id": 2,
+          "title": "Implement Exponential Backoff Retry for Transient Errors",
+          "description": "Enhance the error handling within the message consumer to include an exponential backoff retry mechanism for operations that might fail due to transient issues (e.g., temporary network unavailability when calling an external service).",
+          "dependencies": [
+            1
+          ],
+          "details": "Identify operations within the message processing logic that are prone to transient failures. When such an operation fails and the error is deemed transient (e.g., based on exception type or HTTP status code), implement a retry loop. This loop should use exponential backoff: `delay = initial_delay * (backoff_factor ^ attempt_number)`. Configure parameters: `initial_delay` (e.g., 1 second), `backoff_factor` (e.g., 2), `max_delay` (e.g., 60 seconds), and `max_retry_attempts` (e.g., 5). The consumer should pause execution for the calculated delay before retrying the specific failed operation. Log each retry attempt.",
+          "status": "pending",
+          "testStrategy": "Mock an external service called during message processing. Configure the mock to fail the first few calls (simulating transient errors) and then succeed. Verify that the consumer retries the operation with increasing delays matching the exponential backoff strategy. Confirm that the message is eventually processed successfully. Test the `max_retry_attempts` limit, ensuring it proceeds to the next step (e.g., DLQ) after exhausting retries."
+        },
+        {
+          "id": 3,
+          "title": "Implement Dead Letter Queue (DLQ) Mechanism for Persistent Failures",
+          "description": "For messages that consistently fail processing even after exhausting all configured retry attempts, implement a mechanism to move them to a Dead Letter Queue (DLQ) in Redis.",
+          "dependencies": [
+            2
+          ],
+          "details": "Define a Redis list to serve as the DLQ (e.g., `your_service_name:messages:dlq`). When a message fails processing after the maximum number of retries (from subtask 2), the consumer should construct a new JSON object containing the original message payload, the last error encountered (message, type, stack trace snippet), the total number of retry attempts, and a timestamp. This enriched object should then be pushed to the DLQ using Redis `RPUSH` command. Ensure the original message is not lost and sufficient context is stored for later analysis.",
+          "status": "pending",
+          "testStrategy": "Configure a message or mock a dependency to cause a persistent failure that outlasts all retry attempts. Verify that after the final retry attempt fails, the message (along with error context and retry information) is correctly formatted and pushed to the specified Redis DLQ list. Check the DLQ content using `LRANGE`."
+        },
+        {
+          "id": 4,
+          "title": "Implement Main Queue Length Monitoring",
+          "description": "Set up monitoring for the length of the primary Redis list acting as the main queue for incoming messages. Expose this length as a metric for observability (e.g., for Prometheus).",
+          "dependencies": [],
+          "details": "Assuming the main queue is a Redis list (e.g., `your_service_name:messages:main_queue`), create a component or script that periodically queries its length using the Redis `LLEN` command. This value should be exposed as a gauge metric (e.g., `redis_queue_length{queue=\"main\"}`). If using Prometheus, this can be done by exposing an HTTP endpoint that Prometheus can scrape, or by using a client library to push/expose metrics. If the 'main queue' is purely pub/sub, monitor `PUBSUB NUMSUB channel_name` for active subscriber count instead, or track processing rates at application level.",
+          "status": "pending",
+          "testStrategy": "Manually push a known number of messages to the main Redis list using `LPUSH` or `RPUSH`. Query the exposed monitoring metric (e.g., via HTTP endpoint or Prometheus query). Verify that the reported metric value matches the actual queue length obtained directly from Redis using `LLEN`. Test with an empty queue and a queue with multiple items."
+        },
+        {
+          "id": 5,
+          "title": "Implement Dead Letter Queue (DLQ) Length Monitoring",
+          "description": "Set up monitoring for the length of the Dead Letter Queue (DLQ) in Redis. Expose this length as a metric to track the number of persistently failing messages.",
+          "dependencies": [
+            3
+          ],
+          "details": "Similar to main queue monitoring, create a component or script that periodically queries the length of the DLQ Redis list (e.g., `your_service_name:messages:dlq`) using the `LLEN` command. Expose this value as a gauge metric (e.g., `redis_queue_length{queue=\"dlq\"}`). This metric is critical for setting up alerts on an increasing number of unprocessed messages, indicating potential systemic issues.",
+          "status": "pending",
+          "testStrategy": "Manually push a known number of messages to the DLQ Redis list or trigger message processing failures that result in messages being sent to the DLQ. Query the exposed monitoring metric. Verify that the reported metric value accurately reflects the current DLQ length. Test with an empty DLQ and a DLQ with multiple items."
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "OCI Infrastructure Provisioning with Terraform",
+      "description": "Create Terraform configuration to provision OCI Always Free resources: ARM Ampere A1 instance, VCN, subnet, security groups, and block storage.",
+      "details": "Write Terraform scripts using the OCI provider (`hashicorp/oci` latest, e.g., v5.30.0). Define resources for: an ARM Ampere A1 compute instance (up to 4 OCPUs, 24GB RAM - PRD says 2 OCPUs, 12GB RAM, adjust as needed within free tier limits), a Virtual Cloud Network (VCN), public/private subnets, Internet Gateway, NAT Gateway (if needed for private subnets), Security Lists/Network Security Groups (to allow HTTP/S, SSH, etc.), and Block Volume for persistent storage (e.g., for MongoDB data). Store Terraform state remotely and securely (e.g., OCI Object Storage with encryption).",
+      "testStrategy": "Run `terraform plan` to review changes. Run `terraform apply` to provision resources. Verify resources are created correctly in the OCI console. Test SSH access to the instance. Check network connectivity.",
+      "priority": "high",
+      "dependencies": [
+        1
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize Terraform Project and Configure OCI Provider & Remote Backend",
+          "description": "Set up the basic Terraform project structure, configure the OCI provider with necessary credentials, and establish remote state management using OCI Object Storage.",
+          "dependencies": [],
+          "details": "Create `main.tf`, `variables.tf`, and `outputs.tf` files. In `main.tf`, define the `terraform` block specifying the OCI provider (e.g., `hashicorp/oci` version `~> 5.30.0`). Configure the OCI provider block using variables for authentication details (tenancy_ocid, user_ocid, fingerprint, private_key_path, region). Define the `terraform backend \"oci\"` block, specifying a pre-existing OCI Object Storage bucket name, region, and enabling encryption. Ensure the bucket has versioning enabled.",
+          "status": "pending",
+          "testStrategy": "Run `terraform init`. Verify successful backend initialization and provider plugin download. After a `terraform apply` with a minimal configuration (e.g., just the provider block and a data source), check the OCI console to confirm the state file is created and encrypted in the specified Object Storage bucket."
+        },
+        {
+          "id": 2,
+          "title": "Define Core Network Infrastructure (VCN, Subnets, Gateways, Route Tables)",
+          "description": "Create the Virtual Cloud Network (VCN), public and private subnets, Internet Gateway, NAT Gateway, and associated route tables to establish network connectivity.",
+          "dependencies": [
+            1
+          ],
+          "details": "Define `oci_core_vcn` resource with a suitable CIDR block (e.g., 10.0.0.0/16). Define `oci_core_subnet` for a public subnet (e.g., 10.0.1.0/24) and a private subnet (e.g., 10.0.2.0/24) within the VCN. Define `oci_core_internet_gateway` and associate it with the VCN. Define `oci_core_nat_gateway` for the private subnet. Create `oci_core_route_table` for the public subnet, routing 0.0.0.0/0 to the Internet Gateway. Create another `oci_core_route_table` for the private subnet, routing 0.0.0.0/0 to the NAT Gateway. Associate these route tables with their respective subnets.",
+          "status": "pending",
+          "testStrategy": "Run `terraform apply`. Verify in the OCI console that the VCN, public/private subnets, Internet Gateway, NAT Gateway, and route tables are created correctly with the specified CIDR blocks and routing rules."
+        },
+        {
+          "id": 3,
+          "title": "Configure Network Security (Security Lists or Network Security Groups)",
+          "description": "Implement network security rules using Security Lists (SLs) or Network Security Groups (NSGs) to control ingress and egress traffic for the subnets/instances, allowing SSH, HTTP/S.",
+          "dependencies": [
+            2
+          ],
+          "details": "Choose between Security Lists (associated with subnets) or Network Security Groups (associated with VNICs); NSGs are generally preferred for granularity. If using Security Lists: Define `oci_core_security_list` for the public subnet with ingress rules for TCP port 22 (SSH from a trusted source IP range), TCP port 80 (HTTP), and TCP port 443 (HTTPS) from 0.0.0.0/0. Define another `oci_core_security_list` for the private subnet, allowing necessary internal traffic and egress via the NAT Gateway. If using NSGs: Define `oci_core_network_security_group` and add `oci_core_network_security_group_security_rule` resources for the same ingress ports (SSH, HTTP, HTTPS) and necessary egress rules. The NSG will be associated with the instance's VNIC in a later step.",
+          "status": "pending",
+          "testStrategy": "Run `terraform apply`. Review the security rules in the OCI console (either on Security Lists or NSGs). Connectivity tests will be performed after instance provisioning."
+        },
+        {
+          "id": 4,
+          "title": "Provision ARM Ampere A1 Compute Instance",
+          "description": "Create an ARM Ampere A1 compute instance within the public subnet (or private, if a bastion is planned separately), configured with an Always Free eligible OS image and SSH key for access.",
+          "dependencies": [
+            3
+          ],
+          "details": "Define an `oci_core_instance` resource. Specify `availability_domain`, `compartment_id`. Set `shape` to `VM.Standard.A1.Flex` and configure `shape_config` with OCPUs (e.g., 2) and memory_in_gbs (e.g., 12) within Always Free limits. Use `source_details` to specify an Always Free eligible ARM OS image (e.g., Oracle Linux or Ubuntu ARM). In `create_vnic_details`, specify the public subnet ID, set `assign_public_ip` to true, and if using NSGs, associate the NSG ID(s). Provide `metadata` with `ssh_authorized_keys` containing your public SSH key. Optionally, use `user_data` for basic setup scripts (e.g., OS updates).",
+          "status": "pending",
+          "testStrategy": "Run `terraform apply`. Verify the instance is created and in a 'RUNNING' state in the OCI console. Attempt to SSH into the instance using its public IP and the provided SSH key. Check if HTTP/S ports are open (though no service might be running yet)."
+        },
+        {
+          "id": 5,
+          "title": "Provision and Attach Block Volume for Persistent Storage",
+          "description": "Create a Block Volume and attach it to the ARM Ampere A1 compute instance to provide persistent storage, for example, for MongoDB data.",
+          "dependencies": [
+            4
+          ],
+          "details": "Define an `oci_core_volume` resource. Specify `availability_domain` (same as the instance), `compartment_id`, and `size_in_gbs` (e.g., 50GB, respecting Always Free tier limits for block storage, typically 2 volumes up to 200GB total). Define an `oci_core_volume_attachment` resource, setting `attachment_type` to `iscsi`. Provide `instance_id` (from the output of the compute instance resource) and `volume_id` (from the output of the block volume resource). The Terraform script will handle the attachment; OS-level configuration (formatting, mounting) can be done manually post-provisioning or via `user_data` in the instance resource if complex.",
+          "status": "pending",
+          "testStrategy": "Run `terraform apply`. Verify in the OCI console that the block volume is created and shows as 'Attached' to the correct instance. SSH into the instance and use commands like `lsblk` to confirm the new block device is visible. Manually attempt to format and mount the volume to ensure it's usable."
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Production Deployment Orchestration with Docker Compose & Traefik",
+      "description": "Set up a production Docker Compose file using Traefik for reverse proxy and SSL termination, Let's Encrypt for SSL certificates, and DuckDNS for domain management. Deploy all services.",
+      "details": "Create a `docker-compose.prod.yml` file. Configure Traefik (latest stable, e.g., v2.11 or v3.0) as a reverse proxy. Use Traefik labels in service definitions for automatic service discovery and routing. Configure Traefik to use Let's Encrypt for automatic SSL certificate generation and renewal (DNS challenge with DuckDNS or HTTP challenge). Set up DuckDNS to point a free subdomain to the OCI instance's public IP. Define services for frontend, backend, notification, scraper, MongoDB, Redis, and Vault (if self-hosted, or configure access to external Vault). Mount persistent volumes for MongoDB, Redis data, and Traefik SSL certificates.",
+      "testStrategy": "Deploy services using `docker-compose -f docker-compose.prod.yml up -d`. Verify all services are running. Access the frontend via the DuckDNS domain over HTTPS. Check Traefik dashboard for correct routing and SSL certificate status. Test functionality of all deployed services.",
+      "priority": "high",
+      "dependencies": [
+        5,
+        22
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 24,
+      "title": "CI Pipeline Setup: Testing, Security Scanning, Image Build",
+      "description": "Create GitHub Actions workflows for automated testing (Go, TypeScript, Python), security scanning (Trivy, TruffleHog, Semgrep), and Docker image building/pushing to GitHub Container Registry (GHCR).",
+      "details": "Create workflow files in `.github/workflows/`. **Testing Workflow**: Trigger on push/PR to main/develop branches. Set up Go, Node.js, Python environments. Run unit tests (`go test ./...`, `npm test` or `vitest run`, `pytest`). **Security Scanning Workflow**: Use `aquasecurity/trivy-action` for container image vulnerability scanning, `trufflesecurity/trufflehog` for secret scanning, and `returntocorp/semgrep-action` for static code analysis. **Docker Build & Push Workflow**: Trigger on merge to main or tag creation. Build Docker images for backend, frontend, scraper, notification services. Push images to GHCR using `docker/build-push-action` and `docker/login-action` with `GITHUB_TOKEN`.",
+      "testStrategy": "Trigger workflows by pushing code changes. Verify tests pass. Check security scan reports for vulnerabilities. Confirm Docker images are built and pushed to GHCR successfully. Ensure workflows complete without errors.",
+      "priority": "high",
+      "dependencies": [
+        1,
+        23
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement CI Testing Workflow for Go, TypeScript, and Python",
+          "description": "Create a GitHub Actions workflow (`.github/workflows/testing.yml`) that triggers on push/PR to main/develop branches. This workflow will set up Go, Node.js (for TypeScript), and Python environments and execute their respective unit tests.",
+          "dependencies": [],
+          "details": "Utilize `actions/setup-go`, `actions/setup-node`, and `actions/setup-python` for environment configuration. Execute tests using standard commands: `go test ./...` for Go; `npm install && npm test` (or `vitest run` if using Vitest) for TypeScript; `pip install -r requirements.txt && pytest` for Python. Implement caching for dependencies (Go modules, npm packages, pip packages) to optimize workflow speed. Ensure the workflow correctly reports success or failure based on test outcomes.",
+          "status": "pending",
+          "testStrategy": "Push code with passing tests to a develop branch PR; verify workflow success. Introduce a failing test in one language; verify workflow failure and clear error reporting."
+        },
+        {
+          "id": 2,
+          "title": "Implement Static Security Analysis Workflow (Semgrep & TruffleHog)",
+          "description": "Create a GitHub Actions workflow (`.github/workflows/static-security-scan.yml`) for static application security testing (SAST) and secret scanning. This workflow should trigger on push/PR to main/develop branches.",
+          "dependencies": [
+            1
+          ],
+          "details": "Integrate `returntocorp/semgrep-action@v1` for SAST. Configure it with relevant rulesets (e.g., `p/default` or language-specific rules like `p/golang`, `p/typescript`, `p/python`). Integrate `trufflesecurity/trufflehog@main` action to scan for exposed secrets in code and commit history. Configure both tools to fail the workflow on critical findings or as per project policy. Results should be available in workflow logs and ideally as PR comments or annotations using GitHub's problem matchers or SARIF uploads.",
+          "status": "pending",
+          "testStrategy": "Introduce a test secret (e.g., `ghp_dummytoken...` in a new commit) and a simple, detectable SAST vulnerability (e.g., hardcoded password in a comment for Semgrep if rules allow). Verify both tools detect the issues and the workflow fails or reports as configured."
+        },
+        {
+          "id": 3,
+          "title": "Implement Docker Image Building for All Services (PR Validation)",
+          "description": "Create a GitHub Actions workflow (`.github/workflows/docker-build-pr.yml`) to build Docker images for backend, frontend, scraper, and notification services. This workflow triggers on push/PR to main/develop branches to validate Dockerfile integrity and build success, but does not push images.",
+          "dependencies": [
+            1
+          ],
+          "details": "Use `docker/setup-qemu-action` (for potential multi-platform builds) and `docker/setup-buildx-action`. For each service (backend, frontend, scraper, notification), create a job that uses `docker/build-push-action@v5` with `push: false` and `load: true`. The `load: true` option makes the built image available to subsequent jobs in the same workflow (e.g., for Trivy scanning). Use dynamic tagging for PR builds (e.g., `SERVICE_NAME:pr-${{ github.event.number }}`). Ensure all Dockerfiles are correctly referenced and build contexts are set up.",
+          "status": "pending",
+          "testStrategy": "Verify the workflow successfully builds images for all services on a PR. Check build logs for errors. Ensure no images are pushed. Intentionally break a Dockerfile for one service and verify its build job fails."
+        },
+        {
+          "id": 4,
+          "title": "Integrate Trivy Container Image Vulnerability Scanning in PR Workflow",
+          "description": "Add a new job (or jobs, one per service image) to the `docker-build-pr.yml` workflow (created in Subtask 3). This job will scan the Docker images (backend, frontend, scraper, notification) built in the previous jobs for vulnerabilities using Trivy. This scan should occur after images are successfully built on push/PR to main/develop.",
+          "dependencies": [
+            3
+          ],
+          "details": "This new job(s) in `docker-build-pr.yml` will depend on the successful completion of the respective image building jobs. Use `aquasecurity/trivy-action@master` (or latest stable version). Configure it to scan the image names/tags that were built and loaded in Subtask 3 (e.g., `SERVICE_NAME:pr-${{ github.event.number }}`). Specify types of vulnerabilities to scan for (`os,library`). Set severity thresholds (e.g., `HIGH,CRITICAL`) to fail the workflow if vulnerabilities exceeding these levels are found. Configure output format (e.g., `table` for logs, and `sarif` for upload to GitHub Security tab using `github/codeql-action/upload-sarif`).",
+          "status": "pending",
+          "testStrategy": "For one service, temporarily use a base image known to have vulnerabilities (e.g., an older OS version or a library with known CVEs). Verify Trivy detects these vulnerabilities, reports them, and fails the workflow based on the configured severity threshold. Check SARIF output if configured."
+        },
+        {
+          "id": 5,
+          "title": "Implement Docker Image Push to GHCR on Main/Tag Workflow",
+          "description": "Create a new GitHub Actions workflow (`.github/workflows/docker-publish.yml`) to build and push Docker images for all services (backend, frontend, scraper, notification) to GitHub Container Registry (GHCR). This workflow triggers on merge to the `main` branch or when a new version tag (e.g., `v*.*.*`) is pushed.",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "This workflow will: \n1. Use `docker/login-action@v3` to authenticate to GHCR (`ghcr.io`) with `username: ${{ github.actor }}` and `password: ${{ secrets.GITHUB_TOKEN }}`. \n2. For each service: \n   a. Re-use or adapt the build logic from Subtask 3, using `docker/build-push-action@v5`. \n   b. Tag images appropriately: e.g., `ghcr.io/${{ github.repository_owner }}/SERVICE_NAME:latest` for pushes to `main`, and `ghcr.io/${{ github.repository_owner }}/SERVICE_NAME:${{ github.ref_name }}` for tag pushes. Consider also tagging with commit SHA for traceability. \n   c. Set `push: true` in `docker/build-push-action`. \n3. Ensure the workflow has a `permissions:` block with `contents: read` (for checkout) and `packages: write` (for pushing to GHCR).",
+          "status": "pending",
+          "testStrategy": "Create a test tag (e.g., `v0.0.1-test`) and push it to the repository. Verify the workflow triggers, builds all images, and pushes them to GHCR with the correct tags. Check GHCR to confirm images are present and accessible. If feasible, test merge to `main` on a protected branch or after thorough review."
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "CD Pipeline Setup: Automated Deployment & Quality Gates",
+      "description": "Create a GitHub Actions workflow for automated deployment to the OCI instance. Implement quality gates: 95%+ test coverage, block on security vulnerabilities, and automated rollback on deployment failures.",
+      "details": "Create a deployment workflow in `.github/workflows/`. **Deployment Trigger**: On push to main branch (after CI passes) or manual trigger. **Quality Gates**: Integrate test coverage tools (e.g., Codecov/Coveralls via `codecov/codecov-action`) and fail workflow if coverage is below 95%. Fail workflow if security scans (from CI) report critical/high vulnerabilities. **Deployment Steps**: SSH into OCI instance (using `appleboy/ssh-action` with secrets for SSH key). Pull latest images from GHCR. Stop and remove old containers. Start new containers using `docker-compose -f docker-compose.prod.yml up -d`. Perform health checks on deployed services. **Rollback**: If health checks fail, implement a strategy to roll back to the previous stable version (e.g., by re-tagging and re-deploying previous Docker images).",
+      "testStrategy": "Trigger deployment workflow. Verify quality gates are enforced (e.g., temporarily lower coverage to test failure). Confirm successful deployment to OCI. Test health checks post-deployment. Simulate a deployment failure and test rollback mechanism.",
+      "priority": "high",
+      "dependencies": [
+        23,
+        24
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Initialize GitHub Actions CD Workflow and Define Triggers",
+          "description": "Create the basic structure for the Continuous Deployment (CD) workflow file in `.github/workflows/`. Configure it to trigger on pushes to the `main` branch and allow manual dispatch (`workflow_dispatch`).",
+          "dependencies": [],
+          "details": "1. Create a new YAML file, e.g., `.github/workflows/cd-pipeline.yml`. \n2. Define the `name` of the workflow (e.g., 'CD Pipeline').\n3. Set up `on` triggers: \n   - `push`: `branches: [main]`\n   - `workflow_dispatch`: {} (for manual trigger)\n4. Define an initial job (e.g., `deploy`) that `runs-on: ubuntu-latest`.\n5. Note: The `push` trigger to `main` should ideally be conditional on CI success. This can be managed via branch protection rules requiring status checks from the CI workflow to pass, or by using `on: workflow_run` if CI is a separate workflow.",
+          "status": "pending",
+          "testStrategy": "Manually trigger the workflow via `workflow_dispatch` or push a test commit to a temporary branch configured with the same trigger. Verify the workflow run starts successfully in the GitHub Actions tab."
+        },
+        {
+          "id": 2,
+          "title": "Implement Test Coverage Quality Gate (95% Threshold)",
+          "description": "Add a step to the CD workflow to check test coverage results from the CI phase. The workflow must fail if the coverage is below 95%.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Assume test coverage reports (e.g., LCOV, Cobertura XML) are generated and uploaded as artifacts in a preceding CI workflow/job.\n2. In the CD workflow's `deploy` job, add a step to download the coverage artifact (e.g., using `actions/download-artifact`).\n3. Integrate a tool or script to parse the coverage report. For example, use `codecov/codecov-action`.\n   - Configure `codecov/codecov-action` with your `CODECOV_TOKEN` (stored as a GitHub secret).\n   - Set parameters for the action to enforce the 95% coverage threshold and fail the workflow if not met.\n4. If using a custom script, it should parse the coverage percentage from the report and `exit 1` if it's below 95%.",
+          "status": "pending",
+          "testStrategy": "1. Push code with test coverage >95% and verify this gate passes. \n2. Push code with test coverage <95% and verify the workflow fails at this step, with a clear error message about coverage."
+        },
+        {
+          "id": 3,
+          "title": "Implement Security Vulnerability Quality Gate",
+          "description": "Add a step to the CD workflow to check for critical or high-severity security vulnerabilities based on reports from CI scans. The workflow must fail if such vulnerabilities are present.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Assume security scan results (e.g., a SARIF file from tools like Snyk, Trivy, or GitHub Code Scanning) are generated and uploaded as artifacts in a preceding CI workflow/job.\n2. In the CD workflow's `deploy` job, add a step to download the security scan artifact.\n3. Implement a script (e.g., Python, Bash) to parse the scan report (e.g., SARIF JSON).\n   - The script should identify vulnerabilities flagged as 'CRITICAL' or 'HIGH' severity.\n   - If any such vulnerabilities are found, the script must `exit 1` to fail the workflow job.\n4. Alternatively, if using a security tool that offers a GitHub Action for checks, configure it to fail on critical/high vulnerabilities.",
+          "status": "pending",
+          "testStrategy": "1. Simulate a scan report with no critical/high vulnerabilities and verify this gate passes.\n2. Simulate a scan report containing critical/high vulnerabilities and verify the workflow fails at this step, with a clear error message."
+        },
+        {
+          "id": 4,
+          "title": "Configure Automated Deployment to OCI Instance with Health Checks",
+          "description": "Implement steps to securely connect to the OCI instance, pull the latest Docker images from GHCR, deploy the application using `docker-compose`, and perform post-deployment health checks.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Store necessary credentials as GitHub secrets: `OCI_SSH_KEY` (private SSH key), `OCI_HOST` (instance IP/hostname), `OCI_USER` (SSH username), and `GHCR_TOKEN` (GitHub PAT with `read:packages` scope).\n2. Add a step in the `deploy` job (after quality gates) using `appleboy/ssh-action` to execute commands on the OCI instance.\n3. The script executed via SSH should perform the following:\n   a. Log in to GHCR: `echo \"$GHCR_TOKEN\" | docker login ghcr.io -u \"$GITHUB_ACTOR\" --password-stdin`.\n   b. Navigate to the project directory on the OCI instance.\n   c. Pull the latest images specified in `docker-compose.prod.yml`: `docker-compose -f docker-compose.prod.yml pull`.\n   d. Stop and remove old containers: `docker-compose -f docker-compose.prod.yml down --remove-orphans`.\n   e. Start new containers in detached mode: `docker-compose -f docker-compose.prod.yml up -d`.\n   f. Perform health checks: Implement a script to check application endpoints (e.g., `curl -f http://localhost/health`) or container health status (`docker ps`). If checks fail, the script must `exit 1` to signal deployment failure to the workflow.",
+          "status": "pending",
+          "testStrategy": "1. Manually trigger deployment to a staging OCI instance.\n2. Verify SSH connection, GHCR login, image pull, and container restart.\n3. Confirm health checks pass for a successful deployment.\n4. Test a scenario where health checks fail (e.g., deploy a broken app version) to ensure the step correctly reports failure."
+        },
+        {
+          "id": 5,
+          "title": "Implement Automated Rollback on Deployment Failure",
+          "description": "If the deployment health checks (from Subtask 4) fail, implement a mechanism to automatically roll back the application on the OCI instance to its previously deployed stable version.",
+          "dependencies": [
+            4
+          ],
+          "details": "1. **Prerequisites**: \n   - Docker images must be tagged with unique, persistent identifiers (e.g., Git commit SHA or semantic versions) and available on GHCR.\n   - `docker-compose.prod.yml` should be configurable to use specific image tags, e.g., via environment variables (e.g., `IMAGE_TAG_WEBAPP=${WEBAPP_VERSION}`).\n2. **State Management**: Before attempting a new deployment (Subtask 4), identify and securely store the tag(s) of the current stable version (e.g., `PREVIOUS_STABLE_IMAGE_TAGS`). This could be a file on the OCI server updated on successful deployments or retrieved from Git tags.\n3. **Rollback Step**: Add a conditional step to the `deploy` job that runs only if the deployment step (Subtask 4) fails. This step will also use `appleboy/ssh-action`.\n4. **Rollback Script on OCI**: The script executed via SSH for rollback should:\n   a. Retrieve the `PREVIOUS_STABLE_IMAGE_TAGS`.\n   b. Update the environment variables or configuration that `docker-compose.prod.yml` uses to point to these previous tags.\n   c. Pull the specific previous images: `docker-compose -f docker-compose.prod.yml pull`.\n   d. Re-deploy the previous version: `docker-compose -f docker-compose.prod.yml up -d --remove-orphans`.\n   e. Perform basic health checks on the rolled-back version to confirm its stability.\n5. The GitHub Actions workflow should clearly log the rollback attempt and its outcome.",
+          "status": "pending",
+          "testStrategy": "1. Simulate a deployment where the new application version fails health checks (triggering failure in Subtask 4).\n2. Verify that the rollback mechanism is automatically triggered.\n3. Confirm that the OCI instance reverts to running the previously stable version of the application and that it's healthy.\n4. Check workflow logs for detailed information about the rollback process."
+        }
+      ]
+    }
+  ]
+}

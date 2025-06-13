@@ -1,93 +1,213 @@
 {
   "meta": {
-    "generatedAt": "2025-06-09T15:26:35.603Z",
-    "tasksAnalyzed": 1,
-    "totalTasks": 10,
-    "analysisCount": 10,
+    "generatedAt": "2025-06-13T09:02:05.659Z",
+    "tasksAnalyzed": 25,
+    "totalTasks": 25,
+    "analysisCount": 25,
     "thresholdScore": 5,
     "projectName": "Taskmaster",
     "usedResearch": false
   },
   "complexityAnalysis": [
     {
-      "taskId": 3,
-      "taskTitle": "HashiCorp Vault Integration for Credential Management",
-      "complexityScore": 6,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Break down 'HashiCorp Vault Integration for Credential Management' into subtasks for: storing initial platform credentials in Vault as per PRD 5.5, developing a Go client/utility to read secrets from Vault, and developing a Python client/utility to read secrets from Vault.",
-      "reasoning": "Requires integration with an external secrets manager and client implementation in two different languages. Storing secrets, Go client, and Python client are separable efforts."
-    },
-    {
-      "taskId": 4,
-      "taskTitle": "Python Scraper Development with Firecrawl MCP for Court Monitoring",
-      "complexityScore": 8,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down 'Python Scraper Development with Firecrawl MCP' into subtasks for: implementing scraper logic for LTA/Clubspark venues, implementing scraper logic for courtsides.com/tennistowerhamlets venues, ensuring scraped data is structured and stored into ScrapingLogs MongoDB, and implementing robust error handling and configurability for the scraper.",
-      "reasoning": "Web scraping is inherently complex due to external website dependencies, JS rendering, and anti-bot measures. Firecrawl helps, but targeting different sites, data handling, and robustness are significant efforts."
-    },
-    {
-      "taskId": 5,
-      "taskTitle": "Go Scheduler Service and Redis Task Queue Integration",
-      "complexityScore": 7,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Break down 'Go Scheduler Service and Redis Task Queue Integration' into subtasks for: developing the Go scheduler service to generate scraping tasks, implementing Redis integration in the Go scheduler for task publishing, and adapting the Python scraper to consume tasks from the Redis queue.",
-      "reasoning": "Involves cron scheduling, message queue (Redis) setup and integration, and coordination between Go (producer) and Python (consumer) services. Each part (scheduler, Redis publishing, Python worker adaptation) is a distinct component."
-    },
-    {
-      "taskId": 6,
-      "taskTitle": "User Preference Management API Endpoints",
-      "complexityScore": 5,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Break down 'User Preference Management API Endpoints' into subtasks for: implementing GET and PUT endpoints for `/api/v1/preferences` (including MongoDB interaction and validation), implementing the POST endpoint for `/api/v1/preferences/venues` (including MongoDB interaction and validation), and setting up the Gin router and base structure for these API endpoints.",
-      "reasoning": "Standard CRUD API development using Gin and MongoDB. Complexity is moderate, involving route definitions, handlers, DB interaction, and validation. Grouping by main preferences and venue preferences is logical."
-    },
-    {
-      "taskId": 7,
-      "title": "Intelligent Booking Engine (Initial Version with Playwright)",
-      "complexityScore": 9,
-      "recommendedSubtasks": 5,
-      "expansionPrompt": "Break down 'Intelligent Booking Engine (Initial Version with Playwright)' into subtasks covering: Go engine core logic (slot consumption, preference/credential fetching, matching), '7-day advance booking' timing logic, Playwright automation script development for LTA/Clubspark, Playwright automation script development for courtsides.com, and integration of Go engine with Playwright scripts including retry mechanisms and MongoDB updates for bookings.",
-      "reasoning": "High complexity due to browser automation (Playwright), coordination between Go and Python, critical booking logic (timing, retries), and interaction with multiple services (Redis, Vault, MongoDB). Each platform's automation is a major sub-task."
-    },
-    {
-      "taskId": 8,
-      "taskTitle": "Notification System Integration (Email & SMS)",
-      "complexityScore": 6,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down 'Notification System Integration (Email & SMS)' into subtasks for: implementing SendGrid integration for email notifications, implementing Twilio integration for SMS notifications, integrating these into the booking engine for event-driven alerts (success/failure), and developing logic for scheduled/triggered alerts (24-hour confirmation, new slot availability).",
-      "reasoning": "Involves integrating two third-party APIs (SendGrid, Twilio), secure API key management, and implementing logic for different notification triggers. Each service integration and type of alert can be a subtask."
-    },
-    {
-      "taskId": 9,
-      "taskTitle": "API Server Development (Booking, Venue, System Endpoints)",
-      "complexityScore": 5,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Break down 'API Server Development (Booking, Venue, System Endpoints)' into subtasks for: implementing booking management endpoints (GET list, PUT confirm, DELETE cancel) including database interaction and authorization, implementing venue and slot information endpoints (GET venues, GET venue slots), and implementing system health and basic metrics endpoints.",
-      "reasoning": "Extends existing API server with more CRUD operations and system endpoints. Complexity is moderate, similar to Task 6, focusing on different resources. Grouping by resource type (bookings, venues) and system endpoints is logical."
-    },
-    {
-      "taskId": 10,
-      "taskTitle": "Basic Data Analytics and Reporting Structure",
-      "complexityScore": 4,
-      "recommendedSubtasks": 3,
-      "expansionPrompt": "Break down 'Basic Data Analytics and Reporting Structure' into subtasks for: designing the schema/storage for aggregated analytics, implementing data aggregation for booking success rates (by time/venue/day), and implementing data aggregation for scraping effectiveness (slots found, duration per venue).",
-      "reasoning": "Focuses on foundational data aggregation, not complex ML or UI. Involves designing aggregation queries and storage. Schema design, booking analytics, and scraping analytics are distinct parts."
-    },
-    {
       "taskId": 1,
-      "taskTitle": "Project Setup and Core Infrastructure Initialization",
-      "complexityScore": 7,
+      "taskTitle": "Monorepo Setup & Code Migration",
+      "complexityScore": 6,
       "recommendedSubtasks": 5,
-      "expansionPrompt": "Generate subtasks for 'Project Setup and Core Infrastructure Initialization'. The subtasks should cover: 1. Initializing the Go project structure (PRD 5.1), Go module (`tennis-booking-bot`), and installing Go dependencies (PRD 5.2). 2. Initializing the Python project structure (PRD 5.1), Python virtual environment (`scraper-env`), and installing Python dependencies (PRD 5.3). 3. Setting up Docker Compose with MongoDB and Redis services, ensuring they are operational. 4. Setting up Docker Compose for HashiCorp Vault, including its operational initialization (docker part, `vault operator init`, `unseal`, basic auth) as per PRD 5.5. 5. Creating the `.env.example` file and performing initial verification of all components (Docker services start, Go build, Python env activation & dependencies, Vault accessibility and basic R/W test).",
-      "reasoning": "The task involves multiple distinct setup areas: Go project initialization, Python project initialization, Docker Compose configuration for three services (MongoDB, Redis, Vault), and a multi-step Vault initialization process. Each of these requires specific configurations and verifications, contributing to a moderate-to-high complexity. Breaking it down allows focused effort on each component and simplifies verification."
+      "expansionPrompt": "Break down the 'Monorepo Setup & Code Migration' task into subtasks covering: 1. Initial root directory structure creation (apps/, packages/, infrastructure/, .github/). 2. Migration of existing Go backend code to `apps/backend/` and build/run verification. 3. Migration of existing Python scraper code to `apps/scraper/` and build/run verification. 4. Initialization of root `README.md` and comprehensive `.gitignore` file. 5. Evaluation and setup of a lightweight monorepo tool (e.g., pnpm workspaces or Makefile) for orchestrating common tasks.",
+      "reasoning": "Involves creating a new foundational structure, migrating two distinct codebases, and setting up tooling. Each migration and setup step is distinct and contributes to overall complexity."
     },
     {
       "taskId": 2,
-      "taskTitle": "MongoDB Schema Implementation and Initial Data Seeding",
+      "taskTitle": "Vault Integration & Initial Configuration",
       "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "The task 'Vault Integration & Initial Configuration' is already well-defined with 5 subtasks. If re-evaluating, expand it into subtasks for: 1. Vault installation and dev server setup. 2. KV v2 secrets engine enablement and configuration. 3. Defining logical secret paths for services (DB, JWT, email). 4. Crafting initial Vault access policies (HCL) for application roles. 5. Documenting the complete setup process and initial secret population procedure.",
+      "reasoning": "This task introduces a new, critical security component (Vault), requiring installation, configuration of its core features (KV engines, paths), policy definition (which requires understanding HCL and Vault's auth model), and thorough documentation. The existing 5 subtasks accurately reflect this multi-step process."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Secure Backend Secrets Management with Vault",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down 'Secure Backend Secrets Management with Vault' into subtasks for: 1. Integrating the Go Vault client library into the backend. 2. Designing and implementing a secrets manager service/module in Go. 3. Refactoring database connection logic to fetch credentials from Vault via the secrets manager. 4. Refactoring JWT generation/validation logic to fetch secrets from Vault. 5. Performing a code scan (e.g., gitleaks) and removing all hardcoded secrets from the backend codebase.",
+      "reasoning": "Requires integrating a new library, developing a new service within the backend, refactoring critical parts of the existing codebase (DB, JWT), and ensuring complete removal of hardcoded secrets, which can be intricate."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Secure Notification Service Credentials with Vault",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Expand 'Secure Notification Service Credentials with Vault' into subtasks covering: 1. Integrating the appropriate Vault client library (Go or Python) into the notification service. 2. Modifying the service's email sending logic to fetch SMTP credentials from the designated Vault path. 3. Removing any hardcoded email credentials from the service's configuration and code, and testing.",
+      "reasoning": "Similar to backend Vault integration but more focused on a single service and specific set of credentials. Complexity is moderate due to library integration and code modification."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Secure Docker Environment with Vault Integration",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down 'Secure Docker Environment with Vault Integration' into subtasks for: 1. Updating Dockerfiles for all services (backend, scraper, notification) to avoid embedding secrets and use non-root users. 2. Researching and implementing a strategy for Vault secret injection into containers (e.g., Vault Agent sidecar/init container, or secure token passing). 3. Removing any default passwords or hardcoded secrets from `docker-compose.yml` or other Docker configurations. 4. Testing secret accessibility for all services running within Docker.",
+      "reasoning": "Involves modifying multiple Dockerfiles, implementing a potentially complex secret injection pattern (like Vault Agent), and ensuring security across the Dockerized environment. Affects all services."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Environment-based Configuration System",
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Expand 'Environment-based Configuration System' into subtasks for: 1. Implementing configuration management for Go services (e.g., using Viper or os.Getenv, loading from files/env). 2. Implementing configuration management for Python services (e.g., using python-dotenv, os.environ). 3. Implementing configuration management for the React frontend (Vite .env files for different environments). 4. Defining and documenting a clear structure for configuration files or environment variable naming conventions across all services.",
+      "reasoning": "Requires implementing configuration handling across three different technology stacks (Go, Python, React/Vite), each with its own idiomatic approach, and establishing consistent conventions."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Frontend Project Initialization & Core Setup",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down 'Frontend Project Initialization & Core Setup' into subtasks for: 1. Scaffolding a new React 18 project using Vite and TypeScript. 2. Installing and configuring Tailwind CSS (v3.x) and PostCSS. 3. Defining a custom Tailwind theme in `tailwind.config.js` (colors, fonts, spacing). 4. Setting up a basic folder structure (components, pages, services, styles, etc.). 5. Initializing `src/styles/globals.css` with base styles and Tailwind directives.",
+      "reasoning": "This is a foundational task for the frontend, involving project scaffolding with specific versions and tools, and significant configuration for styling (Tailwind theme) and project structure."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "UI Component & State Management Integration",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Expand 'UI Component & State Management Integration' into subtasks for: 1. Installing and initializing ShadCN UI, including adding a few sample components. 2. Installing Aceternity UI and integrating a sample effect/component. 3. Installing Zustand and setting up an initial global store structure (e.g., for user state, preferences). 4. Installing React Query and configuring its provider in `App.tsx` for server state management.",
+      "reasoning": "Involves integrating four distinct, significant libraries, each with its own setup process and concepts, which collectively form the core of the frontend's UI and state architecture."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Frontend Authentication System",
+      "complexityScore": 8,
       "recommendedSubtasks": 6,
-      "expansionPrompt": "Break down the task 'MongoDB Schema Implementation and Initial Data Seeding'. Create separate subtasks for: 1. Defining Go structs (in `pkg/database` or similar) and implementing the MongoDB schema for the Users collection based on PRD section 6.1. 2. Defining Go structs and implementing the MongoDB schema for the Venues collection based on PRD section 6.1. 3. Defining Go structs and implementing the MongoDB schema for the Bookings collection based on PRD section 6.1. 4. Defining Go structs and implementing the MongoDB schema for the ScrapingLogs collection based on PRD section 6.1. 5. Defining and applying necessary indexes (e.g., on `user_id` for Bookings, `venue_id` for ScrapingLogs) to all collections. 6. Developing a script (Go or Python) to seed the `Venues` collection with initial data for LTA/Clubspark and courtsides.com/tennistowerhamlets, ensuring the script handles MongoDB connection and collection creation if they don't exist.",
-      "reasoning": "This task involves multiple distinct components: defining four separate data schemas and their Go struct representations, implementing these schemas in MongoDB, defining and applying database indexes, and developing a data seeding script. Each component requires focused effort and careful implementation. Separating these into subtasks improves clarity, allows for potentially parallel development of schemas, and makes progress tracking more granular, justifying a complexity of 7 and 6 subtasks."
+      "expansionPrompt": "Break down 'Frontend Authentication System' into subtasks for: 1. Creating Login and (optional) Registration UI components/pages using ShadCN UI. 2. Implementing client-side logic to call backend authentication endpoints (mock initially, then integrate). 3. Designing and implementing secure JWT (access and refresh token) storage and retrieval (e.g., HttpOnly cookies via backend, or in-memory/localStorage with caveats). 4. Developing a `ProtectedRoute` higher-order component or route wrapper. 5. Creating a user context or Zustand store slice for authentication state and user information, along with custom hooks like `useAuth()`. 6. Implementing silent token refresh logic using the refresh token.",
+      "reasoning": "A complex frontend feature involving UI, state management, API integration, security considerations for token handling, routing logic, and advanced patterns like token refresh. High user impact."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Dashboard UI - Main View & Court Cards",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Expand 'Dashboard UI - Main View & Court Cards' into subtasks for: 1. Designing and implementing the main dashboard layout structure using ShadCN components and Tailwind CSS. 2. Developing reusable `CourtCard` components to display court availability details and booking links (initially placeholders). 3. Implementing the UI for the real-time court monitoring section (initially with mock data). 4. Integrating subtle visual enhancements using Aceternity UI where appropriate.",
+      "reasoning": "Core UI development task involving layout design, creation of key reusable components, and presentation of dynamic data (even if mocked initially)."
+    },
+    {
+      "taskId": 11,
+      "taskTitle": "Dashboard UI - User Preferences & System Control",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down 'Dashboard UI - User Preferences & System Control' into subtasks for: 1. Implementing the user preference management interface (e.g., a settings page/modal with forms using ShadCN components). 2. Developing UI components for system control (e.g., buttons to pause/resume scraping, display system status). 3. Connecting these UI elements to Zustand store actions and React Query mutations for state updates and future API calls.",
+      "reasoning": "Involves UI development for forms and interactive controls, and integrating these with client-side state management, which requires careful handling of user input and application state."
+    },
+    {
+      "taskId": 12,
+      "taskTitle": "PWA Configuration & Mobile Responsiveness",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Expand 'PWA Configuration & Mobile Responsiveness' into subtasks for: 1. Integrating and configuring a Vite PWA plugin (e.g., `vite-plugin-pwa`) to generate manifest file and service worker. 2. Defining PWA icons and implementing basic offline support (e.g., caching static assets, offline page). 3. Reviewing and ensuring all dashboard views and components are fully mobile-responsive using Tailwind CSS. 4. Testing PWA installation, Lighthouse score, and responsiveness on various device emulators and real devices if possible.",
+      "reasoning": "Combines PWA-specific setup (service worker, manifest) which can be tricky, with the pervasive task of ensuring mobile responsiveness across the entire application."
+    },
+    {
+      "taskId": 13,
+      "taskTitle": "Backend API Authentication Layer",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down 'Backend API Authentication Layer' into subtasks for: 1. Integrating a Go JWT library (e.g., `golang-jwt/jwt/v5`) and creating utility functions for JWT generation and parsing. 2. Developing JWT authentication middleware to validate tokens from Authorization headers and extract user claims into request context. 3. Implementing password hashing using `golang.org/x/crypto/bcrypt` for user registration/login. 4. Defining a `UserService` interface and an initial implementation for user-related database operations (e.g., find by username, create user - focusing on auth needs).",
+      "reasoning": "This is a critical backend security feature involving cryptography (JWT, bcrypt), middleware development, and foundational user service logic. Errors here have high impact."
+    },
+    {
+      "taskId": 14,
+      "taskTitle": "Authentication API Endpoints",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Expand 'Authentication API Endpoints' into subtasks for: 1. Developing the POST /auth/login endpoint: validate credentials, issue JWT access and refresh tokens. 2. Developing the POST /auth/refresh endpoint: validate refresh token, issue new access token. 3. Developing the POST /auth/logout endpoint: invalidate refresh token (e.g., remove from DB/blocklist).",
+      "reasoning": "Involves implementing specific business logic for three distinct authentication flows, each requiring careful handling of tokens and user state."
+    },
+    {
+      "taskId": 15,
+      "taskTitle": "User & System API Endpoints",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down 'User & System API Endpoints' into subtasks for: 1. Implementing GET /api/users/me endpoint to return authenticated user's details. 2. Implementing PUT /api/users/preferences endpoint to allow authenticated users to update their preferences. 3. Implementing system control endpoints: POST /api/system/pause and POST /api/system/resume. 4. Implementing GET /api/system/status endpoint to return current system status. 5. Implementing a GET /api/health endpoint for basic health checks. Ensure all relevant endpoints are protected by JWT middleware.",
+      "reasoning": "Covers multiple distinct API functionalities, from user data management to system control, each requiring its own logic, data handling, and appropriate authorization."
+    },
+    {
+      "taskId": 16,
+      "taskTitle": "Court Data API Endpoints",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Expand 'Court Data API Endpoints' into subtasks for: 1. Developing GET /api/courts endpoint to return a list of available court slots, including filtering options (e.g., by venue, date, time). 2. Developing GET /api/venues endpoint to return a list of configured/supported tennis venues. 3. Ensuring these endpoints are protected by JWT middleware and efficiently query MongoDB.",
+      "reasoning": "Standard API endpoint development for data retrieval, with added complexity for potential filtering logic and database interaction optimization."
+    },
+    {
+      "taskId": 17,
+      "taskTitle": "API Documentation & Validation",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down 'API Documentation & Validation' into subtasks for: 1. Integrating a Go library like `swaggo/swag` to generate OpenAPI 3.0 documentation from code annotations. 2. Setting up a route to serve the Swagger UI (e.g., /swagger/index.html). 3. Implementing request body validation (e.g., using `go-playground/validator`) for all POST/PUT endpoints. 4. Developing consistent error handling middleware that returns structured JSON error responses with appropriate HTTP status codes.",
+      "reasoning": "Involves integrating new tooling for documentation, systematically annotating all existing and future endpoints, and implementing cross-cutting concerns like validation and standardized error handling, which requires attention to detail across the API."
+    },
+    {
+      "taskId": 18,
+      "taskTitle": "API Rate Limiting",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Expand 'API Rate Limiting' into subtasks for: 1. Researching and selecting a suitable Go rate limiting library (e.g., `tollbooth`, `ulule/limiter`). 2. Integrating the chosen library and configuring it with a backend (e.g., in-memory for simplicity, or Redis for distributed limiting) and defining rate limit rules (requests per minute/hour per IP/user). 3. Applying the rate limiting middleware to sensitive or computationally expensive API endpoints.",
+      "reasoning": "Adds a security and stability layer. Complexity comes from choosing the right library, configuring it correctly (especially if distributed with Redis), and strategically applying it."
+    },
+    {
+      "taskId": 19,
+      "taskTitle": "Intelligent Data Retention Service",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down 'Intelligent Data Retention Service' into subtasks for: 1. Designing the schema modifications or query logic to identify court slots based on age, user preference matches, and notification status. 2. Implementing the Go service/job to periodically query MongoDB for slots eligible for deletion. 3. Developing the logic to cross-reference slots with active user preferences (if not flagged directly on slots). 4. Implementing the safe deletion process and logging for the retention service.",
+      "reasoning": "Involves complex business logic for data cleanup, requiring careful querying of MongoDB based on multiple criteria and potentially interacting with user preference data. Risk of incorrect data deletion if not implemented carefully."
+    },
+    {
+      "taskId": 20,
+      "taskTitle": "Deduplication & Indexing Optimization",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Expand 'Deduplication & Indexing Optimization' into subtasks for: 1. Reviewing and enhancing Redis-based deduplication for scraped court slots using `SET key value EX NX` with appropriate expiry. 2. Analyzing common MongoDB query patterns from API endpoints and the data retention service to identify fields needing indexes. 3. Adding necessary indexes in MongoDB and verifying their usage and performance improvement using `explain()` and load testing.",
+      "reasoning": "Focuses on performance and data integrity, involving work with two different databases (Redis for deduplication, MongoDB for indexing) and requiring analysis of query patterns."
+    },
+    {
+      "taskId": 21,
+      "title": "Advanced Queue Management",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down 'Advanced Queue Management' into subtasks for: 1. Implementing exponential backoff retry logic for transient errors in Redis pub/sub message consumers. 2. Designing and implementing a Dead Letter Queue (DLQ) mechanism using another Redis list or stream. 3. Modifying message consumers to move persistently failing messages to the DLQ after a configurable number of retries. 4. Adding basic Redis queue monitoring (e.g., main queue length, DLQ length) potentially exposing metrics.",
+      "reasoning": "Introduces robust error handling patterns for asynchronous processing, which can be complex to implement correctly (retries, DLQ logic) and requires careful consideration of message lifecycle."
+    },
+    {
+      "taskId": 22,
+      "taskTitle": "OCI Infrastructure Provisioning with Terraform",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down 'OCI Infrastructure Provisioning with Terraform' into subtasks for: 1. Setting up the OCI provider for Terraform and configuring remote state storage (e.g., OCI Object Storage). 2. Writing Terraform configuration for network resources: VCN, public/private subnets, Internet Gateway, NAT Gateway, Security Lists/NSGs. 3. Writing Terraform configuration for the ARM Ampere A1 compute instance, including boot volume and OS configuration. 4. Writing Terraform configuration for necessary Block Storage. 5. Iteratively running `terraform plan` and `terraform apply`, verifying resource creation in the OCI console.",
+      "reasoning": "Infrastructure as Code for a specific cloud provider (OCI) involves learning provider-specific resources and Terraform syntax. Provisioning compute, networking, and storage is a significant undertaking and foundational for deployment."
+    },
+    {
+      "taskId": 23,
+      "taskTitle": "Production Deployment Orchestration with Docker Compose & Traefik",
+      "complexityScore": 9,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down 'Production Deployment Orchestration with Docker Compose & Traefik' into subtasks for: 1. Creating a `docker-compose.prod.yml` file defining all services (frontend, backend, scraper, notification, MongoDB, Redis, Traefik, Vault if self-hosted). 2. Configuring Traefik as a reverse proxy, including dynamic configuration using Docker labels for service discovery. 3. Setting up DuckDNS for a domain and configuring Traefik for automatic SSL certificate generation and renewal via Let's Encrypt (DNS or HTTP challenge). 4. Configuring persistent Docker volumes for MongoDB data, Redis data, and Traefik SSL certificates. 5. Deploying and testing the entire stack, verifying routing, SSL, and service functionality.",
+      "reasoning": "This is a complex setup involving multiple services orchestrated by Docker Compose, with advanced networking (Traefik reverse proxy), SSL termination, automated certificate management, and DNS. Getting all parts to work together reliably in a production-like manner is challenging."
+    },
+    {
+      "taskId": 24,
+      "taskTitle": "CI Pipeline Setup: Testing, Security Scanning, Image Build",
+      "complexityScore": 8,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down 'CI Pipeline Setup' into subtasks for: 1. Creating a GitHub Actions workflow for automated testing: set up Go, Node.js, Python environments; run unit tests (`go test`, `vitest run`, `pytest`). 2. Creating a GitHub Actions workflow for security scanning: integrate Trivy for image scanning, TruffleHog for secret scanning, and Semgrep for SAST. 3. Creating a GitHub Actions workflow for building Docker images for all services and pushing them to GitHub Container Registry (GHCR) on relevant triggers (e.g., merge to main). 4. Configuring workflow triggers (on push/PR to specific branches), caching, and notifications.",
+      "reasoning": "Involves creating multiple, potentially complex GitHub Actions workflows, integrating various testing and security tools, and managing Docker image builds and registry pushes. Requires knowledge of GHA syntax and tool configurations."
+    },
+    {
+      "taskId": 25,
+      "taskTitle": "CD Pipeline Setup: Automated Deployment & Quality Gates",
+      "complexityScore": 9,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down 'CD Pipeline Setup' into subtasks for: 1. Creating a GitHub Actions workflow for automated deployment to the OCI instance (e.g., using SSH). 2. Implementing a quality gate for test coverage (e.g., fail workflow if below 95% using Codecov/Coveralls). 3. Implementing a quality gate to block deployment if CI security scans report critical/high vulnerabilities. 4. Scripting the deployment steps on the OCI instance: pull latest images from GHCR, stop/remove old containers, start new containers using `docker-compose -f docker-compose.prod.yml up -d`. 5. Implementing post-deployment health checks for critical services. 6. Designing and implementing an automated rollback strategy (e.g., re-deploying previous image tags) on deployment or health check failure.",
+      "reasoning": "This is a highly complex and critical task. It involves automating deployment, integrating strict quality gates (coverage, security), remote server interaction, and the challenging aspect of implementing a reliable automated rollback mechanism."
     }
   ]
 }

@@ -1,82 +1,97 @@
-# Tennis Booking Bot Makefile
-
-# Variables
-GO=go
-GOFLAGS=-v
-BUILD_DIR=./bin
-DB_TOOLS_DIR=./cmd/db-tools
-ENSURE_INDEXES=$(DB_TOOLS_DIR)/ensure_indexes.go
-
-# Build targets
-.PHONY: build
-build:
-	@echo "Building application..."
-	mkdir -p $(BUILD_DIR)
-	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/notification-service ./cmd/notification-service
-	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/seed-db ./cmd/seed-db
-	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/seed-user ./cmd/seed-user
-	$(GO) build $(GOFLAGS) -o $(BUILD_DIR)/ensure-indexes $(ENSURE_INDEXES)
-
-# Database targets
-.PHONY: db-ensure-indexes
-db-ensure-indexes:
-	@echo "Creating database indexes..."
-	$(GO) run $(GOFLAGS) $(ENSURE_INDEXES)
-
-.PHONY: db-verify-indexes
-db-verify-indexes:
-	@echo "Verifying database indexes..."
-	$(GO) run $(GOFLAGS) $(ENSURE_INDEXES) --verify
-
-.PHONY: db-verify-indexes-verbose
-db-verify-indexes-verbose:
-	@echo "Verifying database indexes (verbose)..."
-	$(GO) run $(GOFLAGS) $(ENSURE_INDEXES) --verify --verbose
-
-# Seed targets
-.PHONY: seed-db
-seed-db:
-	@echo "Seeding database with venues..."
-	$(GO) run ./cmd/seed-db
-
-.PHONY: seed-user
-seed-user:
-	@echo "Seeding user preferences..."
-	$(GO) run ./cmd/seed-user
-
-# Test targets
-.PHONY: test
-test:
-	@echo "Running tests..."
-	$(GO) test ./...
-
-.PHONY: test-short
-test-short:
-	@echo "Running tests (short mode)..."
-	$(GO) test -short ./...
-
-# Clean target
-.PHONY: clean
-clean:
-	@echo "Cleaning build artifacts..."
-	rm -rf $(BUILD_DIR)
-
-# Help target
-.PHONY: help
-help:
-	@echo "Tennis Court Availability Alert System Makefile"
-	@echo ""
-	@echo "Usage:"
-	@echo "  make build                 Build all binaries (notification-service, seed tools)"
-	@echo "  make test                  Run all tests"
-	@echo "  make test-short            Run tests in short mode"
-	@echo "  make db-ensure-indexes     Create all database indexes"
-	@echo "  make db-verify-indexes     Verify database indexes"
-	@echo "  make db-verify-indexes-verbose  Verify database indexes with details"
-	@echo "  make seed-db               Seed venues collection"
-	@echo "  make seed-user             Seed user preferences"
-	@echo "  make clean                 Clean build artifacts"
-	@echo "  make help                  Show this help message"
+.PHONY: help build test clean dev setup backend-build backend-test scraper-setup scraper-run scraper-test
 
 # Default target
-.DEFAULT_GOAL := help 
+help:
+	@echo "🎾 Tennis Booking System - Monorepo Commands"
+	@echo ""
+	@echo "Setup Commands:"
+	@echo "  setup           - Set up all applications"
+	@echo "  dev             - Start development environment"
+	@echo ""
+	@echo "Backend Commands:"
+	@echo "  backend-build   - Build Go backend services"
+	@echo "  backend-test    - Run Go backend tests"
+	@echo "  backend-run     - Run notification service"
+	@echo ""
+	@echo "Scraper Commands:"
+	@echo "  scraper-setup   - Set up Python scraper environment"
+	@echo "  scraper-run     - Run the scraper"
+	@echo "  scraper-test    - Run scraper tests"
+	@echo ""
+	@echo "General Commands:"
+	@echo "  build           - Build all applications"
+	@echo "  test            - Run all tests"
+	@echo "  clean           - Clean all build artifacts"
+
+# Setup all applications
+setup: backend-setup scraper-setup
+	@echo "✅ All applications set up successfully!"
+
+# Start development environment
+dev:
+	@echo "🚀 Starting development environment..."
+	docker-compose up -d
+	@echo "✅ Development environment started!"
+
+# Build all applications
+build: backend-build
+	@echo "✅ All applications built successfully!"
+
+# Run all tests
+test: backend-test scraper-test
+	@echo "✅ All tests completed!"
+
+# Clean all build artifacts
+clean: backend-clean scraper-clean
+	@echo "✅ All build artifacts cleaned!"
+
+# Backend commands
+backend-setup:
+	@echo "🔧 Setting up Go backend..."
+	cd apps/backend && go mod download
+
+backend-build:
+	@echo "🔨 Building Go backend..."
+	cd apps/backend && make build
+
+backend-test:
+	@echo "🧪 Running Go backend tests..."
+	cd apps/backend && make test
+
+backend-run:
+	@echo "🚀 Running notification service..."
+	cd apps/backend && make run-notification
+
+backend-clean:
+	@echo "🧹 Cleaning Go backend..."
+	cd apps/backend && make clean
+
+# Scraper commands
+scraper-setup:
+	@echo "🔧 Setting up Python scraper..."
+	cd apps/scraper && make setup
+
+scraper-run:
+	@echo "🕷️ Running scraper..."
+	cd apps/scraper && make run
+
+scraper-test:
+	@echo "🧪 Running scraper tests..."
+	cd apps/scraper && make test
+
+scraper-clean:
+	@echo "🧹 Cleaning scraper..."
+	cd apps/scraper && make clean
+
+# Docker commands
+docker-up:
+	@echo "🐳 Starting Docker services..."
+	docker-compose up -d
+
+docker-down:
+	@echo "🐳 Stopping Docker services..."
+	docker-compose down
+
+docker-logs:
+	@echo "📋 Showing Docker logs..."
+	docker-compose logs -f

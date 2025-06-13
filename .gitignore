@@ -1,33 +1,4 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-
-# Dependency directories
-node_modules/
-
-# Environment variables
-.env
-/venv
-
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# OS specific
-.DS_Store
-
-# Task files
-tasks.json
-tasks/
+# Tennis Booking System Monorepo - .gitignore
 
 # Go
 *.exe
@@ -38,6 +9,11 @@ tasks/
 *.test
 *.out
 go.work
+/vendor/
+/bin/
+/dist/
+*.log
+*/bin/
 
 # Python
 __pycache__/
@@ -45,7 +21,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -57,43 +32,125 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-scraper-env/
+venv/
+ENV/
+env/
+.env
+.venv
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
 
-# IDE
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.pnp/
+.pnp.js
+coverage/
+.next/
+.nuxt/
+.cache/
+.vite/
+.output/
+dist/
+build/
+.turbo/
+.eslintcache
+.stylelintcache
+
+# IDE/Editors
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
+*~
+.DS_Store
 Thumbs.db
-
-# Project specific
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
 .cursor/
 .roo/
 .roomodes
-.windsurfrules 
+.windsurfrules
+.taskmaster/tasks/*
 
-# Additional cleanup patterns
-debug_*
-temp_*
-test_temp*
-*.bak
-*.orig
-*~
-coverage.out
-*.prof
+# Environment & Secrets
+.env
+.env.*
+!.env-example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
 
-# Scraper specific
-*.pid
-playwright_scraper.log
-scraper_orchestrator.log
-test_auto_redis.py 
+# Docker
+.docker/data/
+docker-compose.override.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+.terraformrc
+terraform.rc
+*.auto.tfvars
+*.auto.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Misc
+.DS_Store
+Thumbs.db
+.tmp/
+temp/
+tmp/
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vercel
+.netlify
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.history/
+.vscode-test
+*.tsbuildinfo
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# TaskMaster
+.taskmaster/tasks/*.md
+!.taskmaster/tasks/tasks.json
+
+# Keep directories
+!.gitkeep 
