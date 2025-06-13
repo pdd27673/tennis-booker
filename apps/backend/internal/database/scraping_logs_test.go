@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourusername/tennis-booking-system/apps/backend/internal/models"
+	"tennis-booker/internal/models"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

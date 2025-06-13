@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/yourusername/tennis-booking-system/apps/backend/internal/models"
+	"tennis-booker/internal/models"
 )
 
 func main() {

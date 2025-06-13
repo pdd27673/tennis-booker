@@ -18,7 +18,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"tennis-booker/internal/database"
+	"tennis-booker/internal/secrets"
 )
 
 // User represents user preferences for notifications
@@ -93,6 +94,31 @@ func NewGmailService(email, password, fromName string, logger *log.Logger) *Gmai
 	}
 }
 
+// NewGmailServiceFromVault creates a Gmail service using credentials from Vault
+func NewGmailServiceFromVault(secretsManager *secrets.SecretsManager, logger *log.Logger) (*GmailService, error) {
+	email, password, smtpHost, smtpPort, err := secretsManager.GetEmailCredentials()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get email credentials from vault: %w", err)
+	}
+
+	// Use defaults if not provided
+	if smtpHost == "" {
+		smtpHost = "smtp.gmail.com"
+	}
+	if smtpPort == "" {
+		smtpPort = "587"
+	}
+
+	return &GmailService{
+		smtpHost:     smtpHost,
+		smtpPort:     smtpPort,
+		fromEmail:    email,
+		fromPassword: password,
+		fromName:     "Tennis Court Alerts",
+		logger:       logger,
+	}, nil
+}
+
 // SendCourtAvailabilityAlert sends email notification via Gmail SMTP
 func (g *GmailService) SendCourtAvailabilityAlert(toEmail, courtDetails, bookingLink string) error {
 	// Detect if this is a batched notification (multiple courts)
@@ -160,34 +186,155 @@ func main() {
 	// Check for test mode
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		logger.Println("📧 Running in test mode - sending test email...")
-		gmailService := NewGmailService(
+		
+		// Try to use Vault for test email
+		secretsManager, err := secrets.NewSecretsManagerFromEnv()
+		if err != nil {
+			logger.Printf("⚠️ Failed to connect to Vault for test: %v", err)
+			logger.Println("🔄 Using fallback credentials for test...")
+			
+			// Fallback to hardcoded test credentials
+			gmailService := NewGmailService(
+				getEnvWithDefault("GMAIL_EMAIL", "demo@example.com"),
+				getEnvWithDefault("GMAIL_PASSWORD", "eswk jgaw zbet wgxo"),
+				"Tennis Court Alerts",
+				logger,
+			)
+			
+			if err := gmailService.SendTestEmail("demo@example.com"); err != nil {
+				logger.Printf("❌ Test email failed: %v", err)
+				os.Exit(1)
+			} else {
+				logger.Println("✅ Test email sent successfully!")
+				os.Exit(0)
+			}
+		} else {
+			defer secretsManager.Close()
+			
+			gmailService, err := NewGmailServiceFromVault(secretsManager, logger)
+			if err != nil {
+				logger.Printf("❌ Failed to create Gmail service from Vault: %v", err)
+				os.Exit(1)
+			}
+			
+			if err := gmailService.SendTestEmail("demo@example.com"); err != nil {
+				logger.Printf("❌ Test email failed: %v", err)
+				os.Exit(1)
+			} else {
+				logger.Println("✅ Test email sent successfully using Vault credentials!")
+				os.Exit(0)
+			}
+		}
+	}
+
+	// Initialize database connection using Vault
+	connectionManager, err := database.NewConnectionManagerFromEnv()
+	if err != nil {
+		logger.Printf("⚠️ Failed to create database connection manager: %v", err)
+		logger.Println("🔄 Attempting fallback connection...")
+		
+		// Fallback to environment variables
+		mongoURI := getEnvWithDefault("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017")
+		dbName := getEnvWithDefault("DB_NAME", "tennis_booking")
+		
+		db, err := database.InitDatabase(mongoURI, dbName)
+		if err != nil {
+			logger.Fatalf("Failed to connect to MongoDB with fallback: %v", err)
+		}
+		logger.Println("✅ Connected to MongoDB using fallback credentials")
+		
+		// Continue with the rest of the initialization using fallback
+		initializeServiceWithFallback(db, logger)
+		return
+	}
+	defer connectionManager.Close()
+
+	// Connect to database using Vault credentials
+	db, err := connectionManager.ConnectWithFallback()
+	if err != nil {
+		logger.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	logger.Println("✅ Connected to MongoDB")
+
+	// Get secrets manager for other credentials
+	secretsManager := connectionManager.GetSecretsManager()
+
+	// Initialize Redis connection using Vault
+	redisHost, redisPassword, err := secretsManager.GetRedisCredentials()
+	if err != nil {
+		logger.Printf("⚠️ Failed to get Redis credentials from Vault: %v", err)
+		logger.Println("🔄 Using fallback Redis credentials...")
+		redisHost = getEnvWithDefault("REDIS_ADDR", "localhost:6379")
+		redisPassword = getEnvWithDefault("REDIS_PASSWORD", "password")
+	}
+
+	// Connect to Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisHost,
+		Password: redisPassword,
+		DB:       0,
+	})
+
+	// Test Redis connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		logger.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	logger.Println("✅ Connected to Redis")
+
+	// Initialize Gmail service using Vault
+	gmailService, err := NewGmailServiceFromVault(secretsManager, logger)
+	if err != nil {
+		logger.Printf("⚠️ Failed to create Gmail service from Vault: %v", err)
+		logger.Println("🔄 Using fallback email credentials...")
+		
+		gmailService = NewGmailService(
 			getEnvWithDefault("GMAIL_EMAIL", "demo@example.com"),
 			getEnvWithDefault("GMAIL_PASSWORD", "eswk jgaw zbet wgxo"),
 			"Tennis Court Alerts",
 			logger,
 		)
-
-		if err := gmailService.SendTestEmail("demo@example.com"); err != nil {
-			logger.Printf("❌ Test email failed: %v", err)
-			os.Exit(1)
-		} else {
-			logger.Println("✅ Test email sent successfully!")
-			os.Exit(0)
-		}
 	}
 
+	// Create notification service
+	service := &NotificationService{
+		db:          db,
+		redisClient: redisClient,
+		logger:      logger,
+	}
+
+	// Load users
+	if err := service.loadUsers(); err != nil {
+		logger.Fatalf("Failed to load users: %v", err)
+	}
+
+	// Log service status
+	service.logServiceStatus()
+
+	// Set up graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start notification engine in a goroutine
+	go func() {
+		service.startNotificationEngine(gmailService)
+	}()
+
+	// Wait for shutdown signal
+	<-sigChan
+	logger.Println("🛑 Shutdown signal received, stopping notification service...")
+
+	// Cleanup
+	redisClient.Close()
+	logger.Println("✅ Notification service stopped gracefully")
+}
+
+// initializeServiceWithFallback initializes the service using fallback credentials
+func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	// Get configuration from environment
-	mongoURI := getEnvWithDefault("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017")
-	dbName := getEnvWithDefault("DB_NAME", "tennis_booking")
 	redisAddr := getEnvWithDefault("REDIS_ADDR", "localhost:6379")
 	redisPassword := getEnvWithDefault("REDIS_PASSWORD", "password")
-
-	// Connect to MongoDB
-	db, err := connectMongoDB(mongoURI, dbName)
-	if err != nil {
-		logger.Fatalf("Failed to connect to MongoDB: %v", err)
-	}
-	logger.Println("✅ Connected to MongoDB")
 
 	// Connect to Redis
 	redisClient := redis.NewClient(&redis.Options{
@@ -243,24 +390,6 @@ func main() {
 	// Cleanup
 	redisClient.Close()
 	logger.Println("✅ Notification service stopped gracefully")
-}
-
-// connectMongoDB establishes connection to MongoDB
-func connectMongoDB(uri, dbName string) (*mongo.Database, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		return nil, err
-	}
-
-	// Test connection
-	if err := client.Ping(ctx, nil); err != nil {
-		return nil, err
-	}
-
-	return client.Database(dbName), nil
 }
 
 // loadUsers loads user preferences from MongoDB

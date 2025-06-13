@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourusername/tennis-booking-system/apps/backend/internal/models"
+	"tennis-booker/internal/models"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

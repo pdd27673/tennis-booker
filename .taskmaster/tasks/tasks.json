@@ -143,7 +143,7 @@
         1,
         2
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -151,7 +151,7 @@
           "description": "Add the `github.com/hashicorp/vault/api` dependency to the Go project. Implement basic Vault client initialization logic, reading `VAULT_ADDR` and authentication details (e.g., `VAULT_TOKEN` or AppRole credentials) from environment variables.",
           "dependencies": [],
           "details": "1. Add `github.com/hashicorp/vault/api` (latest version) to `go.mod` using `go get github.com/hashicorp/vault/api`. \n2. Create a new package, e.g., `pkg/vaultclient`. \n3. Implement a function `NewVaultClient()` within this package. This function should: \n    a. Read `VAULT_ADDR` from environment variables. \n    b. Read authentication configuration: `VAULT_TOKEN` for token-based auth, or `VAULT_ROLE_ID` and `VAULT_SECRET_ID` for AppRole auth. Prioritize AppRole if configured, otherwise fallback to token. \n    c. Initialize the Vault client using `api.NewClient()`. \n    d. If using AppRole, perform login to Vault to obtain a client token. \n    e. Return the configured client or an error. \n4. Include robust error handling for missing environment variables, client creation failures, and AppRole login failures.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Unit test `NewVaultClient()` by mocking environment variables and verifying successful client initialization for both token and AppRole auth methods. Perform a manual test by running a small Go program that initializes the client against a local development Vault instance to confirm connectivity."
         },
         {
@@ -162,7 +162,7 @@
             1
           ],
           "details": "1. Define a `SecretsManager` struct in a new package (e.g., `pkg/secrets`). This struct should hold the initialized `*api.Client` from subtask 1. \n2. Implement a constructor function `NewSecretsManager(client *api.Client)` for this struct. \n3. Implement a method like `GetSecret(path string, key string) (string, error)`: \n    a. This method uses the Vault client's `Logical().Read(path)` function to fetch data from the specified Vault path. \n    b. It should parse the response, extract the value for the given `key` from the `Data` map in the secret. \n    c. Handle potential errors: secret not found at path, key not found in secret, network issues, permission errors. \n4. Consider making the `SecretsManager` a singleton or easily injectable dependency for other services.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Unit test the `SecretsManager.GetSecret()` method. Mock the `api.Client` and its `Logical().Read()` method to return various scenarios: successful secret retrieval, secret not found, key not found within secret, and Vault API errors. Verify that `GetSecret` handles these cases correctly."
         },
         {
@@ -173,7 +173,7 @@
             2
           ],
           "details": "1. Identify the module/code responsible for establishing database connections (e.g., `pkg/database`). \n2. Inject an instance of `SecretsManager` into this module or make it accessible. \n3. Before establishing a database connection (typically at application startup or on first use), call `SecretsManager.GetSecret()` to retrieve database username and password from a predefined Vault path (e.g., `database/creds/my-app-db`). \n4. Update the database connection string (DSN) construction logic to use these fetched credentials. \n5. Ensure the application handles errors gracefully if database secrets cannot be fetched from Vault (e.g., log an error and exit, or retry based on policy). \n6. Remove any hardcoded database credentials or direct environment variable reads for these credentials from this module.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Write integration tests where the application attempts to connect to a test database. Configure a local Vault instance with mock database credentials at the expected path. Verify the application successfully connects using these Vault-sourced credentials. Unit test the database module by mocking the `SecretsManager` to provide credentials and ensure the DSN is formed correctly."
         },
         {
@@ -184,7 +184,7 @@
             2
           ],
           "details": "1. Locate the code responsible for JWT generation (signing tokens) and validation (verifying tokens) (e.g., `pkg/auth` or `pkg/jwt`). \n2. Inject an instance of `SecretsManager` into this module. \n3. Fetch the JWT signing key(s)/secret(s) using `SecretsManager.GetSecret()` from a specific Vault path (e.g., `jwt/config/my-app-jwt`). \n4. Update token signing functions to use the fetched key/secret. \n5. Update token validation functions to use the same fetched key/secret. \n6. If key rotation is a concern, plan for how to fetch and manage multiple keys (though initial implementation can focus on a single key). \n7. Ensure error handling if JWT secrets cannot be fetched from Vault. \n8. Remove any hardcoded JWT secrets from the codebase.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Write integration tests: generate a JWT using a key fetched from Vault, then attempt to validate it. Use a local Vault instance with a mock JWT secret. Unit test JWT generation and validation functions by mocking the `SecretsManager` to provide a JWT secret and verify correct token operations."
         },
         {
@@ -196,7 +196,7 @@
             4
           ],
           "details": "1. Install a secret scanning tool (e.g., `gitleaks` via `brew install gitleaks` or download binary). \n2. Configure the tool if necessary (e.g., custom rules, baseline). \n3. Run the scanner on the entire repository: `gitleaks detect --source . -v`. \n4. Carefully review the scan report. For each finding: \n    a. Determine if it's a true positive. \n    b. If it's a hardcoded secret, remove it from the code. \n    c. Ensure the corresponding functionality now correctly sources the secret from Vault (as implemented in previous subtasks) or via secure environment variable injection (not hardcoded in version control). \n5. Manually review common places for secrets: configuration files, constants, test data. \n6. After all identified hardcoded secrets are removed, commit the changes. \n7. Perform a full application smoke test to ensure all functionalities dependent on secrets (database, JWT, any other integrated services) are working as expected with secrets sourced from Vault.",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "The primary test is running the chosen secret scanning tool (`gitleaks` or `trufflehog`) and ensuring it reports no hardcoded secrets in the codebase. A successful full application smoke test post-cleanup serves as a functional verification that secret migration was successful."
         }
       ]

@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/tennis-booking-system/apps/backend/internal/database"
+	"go.mongodb.org/mongo-driver/mongo"
+	"tennis-booker/internal/database"
 
 	"github.com/joho/godotenv"
 )
@@ -19,6 +20,7 @@ func main() {
 	verify := flag.Bool("verify", false, "Only verify indexes without creating them")
 	verbose := flag.Bool("verbose", false, "Show detailed index information")
 	envFile := flag.String("env", ".env", "Path to .env file")
+	useVault := flag.Bool("vault", true, "Use Vault for database credentials (default: true)")
 	flag.Parse()
 
 	// Load environment variables
@@ -27,23 +29,31 @@ func main() {
 		log.Printf("Warning: Error loading .env file: %v", err)
 	}
 
-	// Get MongoDB connection details from environment
-	mongoURI := os.Getenv("MONGO_URI")
-	if mongoURI == "" {
-		mongoURI = "mongodb://admin:YOUR_PASSWORD@localhost:27017"
-		log.Printf("MONGO_URI not set, using default: %s", mongoURI)
-	}
-
-	dbName := os.Getenv("MONGO_DB_NAME")
-	if dbName == "" {
-		dbName = "tennis_booking"
-		log.Printf("MONGO_DB_NAME not set, using default: %s", dbName)
-	}
-
-	// Initialize database connection
-	db, err := database.InitDatabase(mongoURI, dbName)
-	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	var db *mongo.Database
+	
+	if *useVault {
+		// Try to use Vault for database connection
+		log.Println("Attempting to connect to database using Vault credentials...")
+		
+		connectionManager, err := database.NewConnectionManagerFromEnv()
+		if err != nil {
+			log.Printf("⚠️ Failed to create database connection manager: %v", err)
+			log.Println("🔄 Falling back to environment variables...")
+			db = connectWithFallback()
+		} else {
+			defer connectionManager.Close()
+			
+			database, err := connectionManager.ConnectWithFallback()
+			if err != nil {
+				log.Fatalf("Failed to connect to MongoDB: %v", err)
+			}
+			db = database
+			log.Println("✅ Connected to MongoDB using Vault credentials")
+		}
+	} else {
+		// Use environment variables directly
+		log.Println("Using environment variables for database connection...")
+		db = connectWithFallback()
 	}
 
 	// Create context with timeout (used in database operations)
@@ -163,4 +173,29 @@ func main() {
 			}
 		}
 	}
+}
+
+// connectWithFallback connects using environment variables as fallback
+func connectWithFallback() *mongo.Database {
+	// Get MongoDB connection details from environment
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://admin:YOUR_PASSWORD@localhost:27017"
+		log.Printf("MONGO_URI not set, using default: %s", mongoURI)
+	}
+
+	dbName := os.Getenv("MONGO_DB_NAME")
+	if dbName == "" {
+		dbName = "tennis_booking"
+		log.Printf("MONGO_DB_NAME not set, using default: %s", dbName)
+	}
+
+	// Initialize database connection
+	db, err := database.InitDatabase(mongoURI, dbName)
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	
+	log.Println("✅ Connected to MongoDB using environment variables")
+	return db
 } 

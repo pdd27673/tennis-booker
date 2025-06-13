@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/yourusername/tennis-booking-system/apps/backend/internal/auth"
+	"tennis-booker/internal/auth"
 )
 
 // PlatformCredentials holds credentials for a booking platform
