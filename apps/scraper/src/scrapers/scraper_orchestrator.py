@@ -19,6 +19,7 @@ from bson import ObjectId
 try:
     # Try relative imports first (when run as module)
     from ..redis_publisher import RedisPublisher
+    from ..config import get_config
     from .base_scraper import ScrapedSlot, ScrapingResult
     from .courtside_scraper import CourtsideScraper
     from .clubspark_scraper import ClubSparkScraper
@@ -29,6 +30,7 @@ except ImportError:
     sys.path.insert(0, parent_dir)
     
     from redis_publisher import RedisPublisher
+    from config import get_config
     from scrapers.base_scraper import ScrapedSlot, ScrapingResult
     from scrapers.courtside_scraper import CourtsideScraper
     from scrapers.clubspark_scraper import ClubSparkScraper
@@ -37,6 +39,9 @@ class ScraperOrchestrator:
     """Main orchestrator for tennis court scraping operations"""
     
     def __init__(self, mongo_uri: str = None, db_name: str = None):
+        # Load configuration
+        self.config = get_config()
+        
         self.setup_logging()
         
         # MongoDB connection
@@ -48,22 +53,39 @@ class ScraperOrchestrator:
         # Redis publisher
         self.redis_publisher = RedisPublisher()
         
-        # Scraper registry
-        self.scrapers = {
-            'courtside': CourtsideScraper,
-            'clubspark': ClubSparkScraper
-        }
+        # Scraper registry - only include enabled platforms
+        self.scrapers = {}
+        if self.config.is_platform_enabled('courtside'):
+            self.scrapers['courtside'] = CourtsideScraper
+        if self.config.is_platform_enabled('clubspark'):
+            self.scrapers['clubspark'] = ClubSparkScraper
         
     def setup_logging(self):
         """Configure logging"""
-        log_level = os.getenv("LOG_LEVEL", "INFO")
+        log_level = self.config.get_log_level()
+        
+        # Configure handlers based on config
+        handlers = []
+        if self.config.is_log_console_enabled():
+            handlers.append(logging.StreamHandler())
+        if self.config.is_log_file_enabled():
+            handlers.append(logging.FileHandler('scraper_orchestrator.log'))
+        
+        # Use default console handler if none configured
+        if not handlers:
+            handlers.append(logging.StreamHandler())
+        
+        # Configure format based on config
+        log_format = self.config.get_log_format()
+        if log_format == 'json':
+            format_str = '{"timestamp": "%(asctime)s", "name": "%(name)s", "level": "%(levelname)s", "message": "%(message)s"}'
+        else:
+            format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        
         logging.basicConfig(
             level=getattr(logging, log_level),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler('scraper_orchestrator.log'),
-                logging.StreamHandler()
-            ]
+            format=format_str,
+            handlers=handlers
         )
         self.logger = logging.getLogger(__name__)
         
@@ -148,7 +170,8 @@ class ScraperOrchestrator:
         
         # Use default dates if none provided
         if not target_dates:
-            target_dates = scraper.get_target_dates(days_ahead=8)
+            days_ahead = self.config.get_scraper_days_ahead()
+            target_dates = scraper.get_target_dates(days_ahead=days_ahead)
             
         self.logger.info(f"Starting scrape for {venue_name} ({platform_type}) - {len(target_dates)} dates")
         
@@ -184,7 +207,10 @@ class ScraperOrchestrator:
                 await self.store_scraping_result(result)
                 
                 # Rate limiting between venues
-                await asyncio.sleep(3)
+                interval = self.config.get_scraper_interval()
+                # Convert interval to a reasonable delay between venues (use 1/10th of interval)
+                delay = max(1, interval // 10)
+                await asyncio.sleep(delay)
                 
             except Exception as e:
                 error_msg = f"Error scraping venue {venue['name']}: {e}"
@@ -337,9 +363,13 @@ class ScraperOrchestrator:
         finally:
             self.disconnect_mongodb()
             
-    async def test_single_venue(self, venue_name: str, days_ahead: int = 1):
+    async def test_single_venue(self, venue_name: str, days_ahead: int = None):
         """Test scraping a single venue for debugging"""
         self.logger.info(f"Testing scrape for venue: {venue_name}")
+        
+        # Use config default if not specified
+        if days_ahead is None:
+            days_ahead = self.config.get_scraper_days_ahead()
         
         try:
             self.connect_mongodb()

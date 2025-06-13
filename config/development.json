@@ -1,0 +1,17 @@
+{
+  "app": {
+    "environment": "development"
+  },
+  "logging": {
+    "level": "debug",
+    "enableConsole": true
+  },
+  "scraper": {
+    "interval": 60,
+    "timeout": 10
+  },
+  "features": {
+    "realTimeUpdates": true,
+    "analytics": false
+  }
+} 

@@ -1,0 +1,54 @@
+{
+  "app": {
+    "name": "Tennis Booker",
+    "version": "1.0.0",
+    "environment": "development"
+  },
+  "api": {
+    "port": 8080,
+    "timeout": "30s",
+    "rateLimit": {
+      "enabled": true,
+      "requestsPerMinute": 100
+    }
+  },
+  "database": {
+    "poolSize": 10,
+    "timeout": "30s",
+    "retryAttempts": 3
+  },
+  "scraper": {
+    "interval": 300,
+    "timeout": 30,
+    "maxRetries": 3,
+    "daysAhead": 8,
+    "platforms": {
+      "clubspark": {
+        "enabled": true,
+        "baseUrl": "https://clubspark.lta.org.uk"
+      },
+      "courtsides": {
+        "enabled": true,
+        "baseUrl": "https://courtsides.com"
+      }
+    }
+  },
+  "notification": {
+    "port": 8081,
+    "emailRateLimit": 10,
+    "batchSize": 50,
+    "retryAttempts": 3
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "enableConsole": true,
+    "enableFile": false
+  },
+  "features": {
+    "advancedFiltering": true,
+    "smsNotifications": false,
+    "analytics": true,
+    "realTimeUpdates": false
+  }
+} 

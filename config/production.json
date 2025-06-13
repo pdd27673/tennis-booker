@@ -1,0 +1,36 @@
+{
+  "app": {
+    "environment": "production"
+  },
+  "api": {
+    "port": 8080,
+    "rateLimit": {
+      "enabled": true,
+      "requestsPerMinute": 200
+    }
+  },
+  "database": {
+    "poolSize": 20,
+    "timeout": "60s"
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "enableConsole": false,
+    "enableFile": true
+  },
+  "scraper": {
+    "interval": 300,
+    "timeout": 30
+  },
+  "notification": {
+    "emailRateLimit": 50,
+    "batchSize": 100
+  },
+  "features": {
+    "advancedFiltering": true,
+    "smsNotifications": true,
+    "analytics": true,
+    "realTimeUpdates": false
+  }
+} 

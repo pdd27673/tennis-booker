@@ -24,9 +24,14 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from scrapers.scraper_orchestrator import ScraperOrchestrator
+from config import get_config
 
-def setup_logging(log_level: str = "INFO"):
+def setup_logging(log_level: str = None):
     """Setup logging configuration"""
+    if log_level is None:
+        config = get_config()
+        log_level = config.get_log_level()
+    
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -46,10 +51,10 @@ async def main():
     parser.add_argument('--all', action='store_true', help='Scrape all active venues')
     
     # Configuration options
-    parser.add_argument('--days', type=int, default=8, help='Number of days ahead to scrape (default: 8)')
-    parser.add_argument('--log-level', type=str, default='INFO', 
+    parser.add_argument('--days', type=int, help='Number of days ahead to scrape (uses config default if not specified)')
+    parser.add_argument('--log-level', type=str, 
                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
-                       help='Logging level (default: INFO)')
+                       help='Logging level (uses config default if not specified)')
     
     # MongoDB connection options
     parser.add_argument('--mongo-uri', type=str, help='MongoDB connection URI')
@@ -60,6 +65,10 @@ async def main():
     # Setup logging
     setup_logging(args.log_level)
     logger = logging.getLogger(__name__)
+    
+    # Load configuration for defaults
+    config = get_config()
+    days_ahead = args.days if args.days is not None else config.get_scraper_days_ahead()
     
     # Validate arguments
     if not any([args.test, args.venues, args.all]):
@@ -75,7 +84,7 @@ async def main():
         if args.test:
             # Test mode - single venue
             logger.info(f"🧪 Testing venue: {args.test}")
-            result = await orchestrator.test_single_venue(args.test, days_ahead=args.days)
+            result = await orchestrator.test_single_venue(args.test, days_ahead=days_ahead)
             
             if result:
                 print(f"\n✅ Test Results for {args.test}:")
@@ -117,7 +126,7 @@ async def main():
                 
         elif args.all:
             # All venues mode
-            logger.info(f"🎾 Scraping all active venues ({args.days} days ahead)")
+            logger.info(f"🎾 Scraping all active venues ({days_ahead} days ahead)")
             
             results = await orchestrator.run_scraping_session(
                 venue_names=None,  # All venues
