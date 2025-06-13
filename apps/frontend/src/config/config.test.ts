@@ -3,19 +3,19 @@
  * This can be run manually to verify configuration loading
  */
 
-// Mock Vite's import.meta.env for testing
-const mockEnv = {
-  MODE: 'test',
-  VITE_APP_NAME: 'Test Tennis Booker',
-  VITE_APP_VERSION: '1.0.0',
-  VITE_APP_ENVIRONMENT: 'test',
-  VITE_API_URL: 'http://localhost:3000',
-  VITE_API_TIMEOUT: '5000',
-  VITE_FEATURE_ANALYTICS_ENABLED: 'false',
-  VITE_FEATURE_NOTIFICATIONS_ENABLED: 'true',
-  VITE_LOG_LEVEL: 'warn',
-  VITE_DEBUG_MODE: 'false',
-};
+// Mock Vite's import.meta.env for testing (example values)
+// const mockEnv = {
+//   MODE: 'test',
+//   VITE_APP_NAME: 'Test Tennis Booker',
+//   VITE_APP_VERSION: '1.0.0',
+//   VITE_APP_ENVIRONMENT: 'test',
+//   VITE_API_URL: 'http://localhost:3000',
+//   VITE_API_TIMEOUT: '5000',
+//   VITE_FEATURE_ANALYTICS_ENABLED: 'false',
+//   VITE_FEATURE_NOTIFICATIONS_ENABLED: 'true',
+//   VITE_LOG_LEVEL: 'warn',
+//   VITE_DEBUG_MODE: 'false',
+// };
 
 // Test configuration parsing
 console.log('🧪 Testing Configuration System');
