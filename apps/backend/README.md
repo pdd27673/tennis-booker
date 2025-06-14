@@ -350,4 +350,257 @@ For questions or issues:
 
 ## 📄 License
 
-This project is part of the Tennis Booker application. 
+This project is part of the Tennis Booker application.
+
+## Database Optimization
+
+### MongoDB Index Strategy
+
+The application uses optimized MongoDB indexes for high-performance queries:
+
+#### Court Slots Collection
+```javascript
+// Primary query optimization (venue + date + time)
+db.court_slots.createIndex({venue_id: 1, slot_date: 1, start_time: 1}, {name: "idx_venue_date_time"})
+
+// Availability queries
+db.court_slots.createIndex({is_available: 1, last_scraped: 1}, {name: "idx_availability_freshness"})
+
+// Court-specific queries
+db.court_slots.createIndex({venue_id: 1, court_id: 1, slot_date: 1}, {name: "idx_venue_court_date"})
+
+// Automatic cleanup (7 days)
+db.court_slots.createIndex({slot_date: 1}, {name: "idx_slot_date_ttl", expireAfterSeconds: 604800})
+```
+
+#### User Preferences Collection
+```javascript
+// Unique user lookup
+db.user_preferences.createIndex({user_id: 1}, {name: "idx_user_id_unique", unique: true})
+
+// Notification settings
+db.user_preferences.createIndex({user_id: 1, "notification_settings.enabled": 1}, {name: "idx_user_notifications"})
+
+// Sparse indexes for optional fields
+db.user_preferences.createIndex({preferred_venues: 1}, {name: "idx_preferred_venues", sparse: true})
+db.user_preferences.createIndex({preferred_sports: 1}, {name: "idx_preferred_sports", sparse: true})
+```
+
+#### Scraping Logs Collection
+```javascript
+// Monitoring queries
+db.scraping_logs.createIndex({venue_id: 1, scrape_timestamp: 1}, {name: "idx_venue_timestamp"})
+
+// Status-based queries
+db.scraping_logs.createIndex({status: 1, scrape_timestamp: 1}, {name: "idx_status_timestamp"})
+
+// Automatic cleanup (30 days)
+db.scraping_logs.createIndex({scrape_timestamp: 1}, {name: "idx_scrape_timestamp_ttl", expireAfterSeconds: 2592000})
+```
+
+### Index Management Tools
+
+Use the provided MongoDB optimization tools in `scripts/mongodb/`:
+
+```bash
+# Analyze current database performance
+cd scripts/mongodb
+go run analyze_indexes.go > analysis.json
+
+# Apply optimizations
+go run optimize_indexes.go analysis.json
+
+# Or use the automated script
+./optimize_mongodb.sh --analyze --optimize
+```
+
+### Query Performance Verification
+
+Verify index effectiveness using MongoDB's explain:
+
+```javascript
+// Check if queries use indexes (should show IXSCAN, not COLLSCAN)
+db.court_slots.find({venue_id: "venue123", slot_date: {$gte: new Date()}}).explain("executionStats")
+
+// Performance targets:
+// - Execution time: <100ms
+// - Stage: IXSCAN (not COLLSCAN)
+// - Document efficiency: totalDocsExamined/nReturned ≤ 1.5
+```
+
+## Redis Integration
+
+### Deduplication Strategy
+
+The scraper uses Redis for efficient slot deduplication:
+
+```go
+// Key format: dedupe:slot:<venueId>:<date>:<startTime>:<courtId>
+key := fmt.Sprintf("dedupe:slot:%s:%s:%s:%s", venueId, date, startTime, courtId)
+
+// Check for duplicates with 48-hour expiry
+result := redisClient.Set(ctx, key, slotData, 48*time.Hour).Val()
+if result == "OK" {
+    // New slot - process and store
+    processSlot(slot)
+} else {
+    // Duplicate - skip processing
+    skipSlot(slot)
+}
+```
+
+### Performance Targets
+
+- **Redis deduplication hit rate**: >90%
+- **MongoDB query execution time**: <100ms
+- **System throughput**: >100 slots/second
+- **Error rate**: <1%
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Database
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DATABASE=tennis_booking
+REDIS_URL=redis://localhost:6379
+
+# Authentication
+JWT_SECRET=your-secret-key
+JWT_EXPIRY=24h
+
+# API Configuration
+PORT=8080
+GIN_MODE=release
+
+# Scraper Integration
+SCRAPER_REDIS_DB=1
+DEDUP_EXPIRY_HOURS=48
+```
+
+### Production Deployment
+
+```bash
+# Build Docker image
+docker build -t tennis-booking-backend .
+
+# Run with Docker Compose
+docker-compose up -d
+
+# Health check
+curl http://localhost:8080/health
+```
+
+## Monitoring
+
+### Key Metrics
+
+Monitor these performance indicators:
+
+- **API Response Times**: <200ms for 95th percentile
+- **Database Query Performance**: <100ms average
+- **Redis Hit Rate**: >90% for deduplication
+- **Error Rate**: <1% of requests
+- **Memory Usage**: Stable, no leaks
+
+### Database Monitoring
+
+```javascript
+// Check index usage
+db.court_slots.aggregate([{$indexStats: {}}])
+
+// Monitor slow queries (>100ms)
+db.setProfilingLevel(2, {slowms: 100})
+db.system.profile.find().sort({ts: -1}).limit(10)
+```
+
+## Development
+
+### Code Structure
+
+```
+cmd/
+├── api/           # API server
+├── retention/     # Data retention service
+└── notification/  # Notification service
+
+internal/
+├── handlers/      # HTTP handlers
+├── models/        # Data models
+├── services/      # Business logic
+├── middleware/    # HTTP middleware
+└── database/      # Database layer
+
+scripts/
+├── mongodb/       # Database optimization tools
+└── load-test/     # Performance testing
+```
+
+### Testing
+
+```bash
+# Unit tests
+go test ./...
+
+# Integration tests
+make test-integration
+
+# Load testing
+cd scripts/load-test
+./run-load-test.sh
+```
+
+### Database Migrations
+
+```bash
+# Apply indexes
+cd scripts/mongodb
+./optimize_mongodb.sh --optimize
+
+# Verify performance
+./optimize_mongodb.sh --verify
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Slow Queries**
+```javascript
+// Check execution plan
+db.collection.find(query).explain("executionStats")
+
+// Look for COLLSCAN instead of IXSCAN
+// Add appropriate indexes if needed
+```
+
+**Redis Connection Issues**
+```bash
+# Test Redis connectivity
+redis-cli ping
+
+# Check Redis memory usage
+redis-cli info memory
+```
+
+**High Memory Usage**
+```bash
+# Check MongoDB memory usage
+db.serverStatus().mem
+
+# Monitor Go memory usage
+curl http://localhost:8080/debug/pprof/heap
+```
+
+## Contributing
+
+1. Follow Go conventions and best practices
+2. Add tests for new features
+3. Update documentation
+4. Verify performance impact
+5. Use conventional commits
+
+## License
+
+MIT License - see LICENSE file for details. 

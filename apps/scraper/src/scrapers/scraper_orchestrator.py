@@ -35,6 +35,12 @@ except ImportError:
     from scrapers.courtside_scraper import CourtsideScraper
     from scrapers.clubspark_scraper import ClubSparkScraper
 
+# Import Redis deduplicator
+try:
+    from ..deduplication.redis_deduplicator import RedisDeduplicator
+except ImportError:
+    from deduplication.redis_deduplicator import RedisDeduplicator
+
 class ScraperOrchestrator:
     """Main orchestrator for tennis court scraping operations"""
     
@@ -52,6 +58,15 @@ class ScraperOrchestrator:
         
         # Redis publisher
         self.redis_publisher = RedisPublisher()
+        
+        # Redis deduplicator for slot deduplication
+        self.redis_deduplicator = RedisDeduplicator(
+            redis_host=os.getenv("REDIS_HOST", "localhost"),
+            redis_port=int(os.getenv("REDIS_PORT", "6379")),
+            redis_password=os.getenv("REDIS_PASSWORD"),
+            redis_db=int(os.getenv("REDIS_DEDUPE_DB", "1")),  # Use different DB for deduplication
+            expiry_hours=int(os.getenv("REDIS_DEDUPE_EXPIRY_HOURS", "48"))
+        )
         
         # Scraper registry - only include enabled platforms
         self.scrapers = {}
@@ -236,6 +251,7 @@ class ScraperOrchestrator:
         """Store scraping result and slots in MongoDB, and publish new slots to Redis for notifications"""
         try:
             new_slots_for_notification = []
+            duplicate_slots_count = 0
             
             # Store slots in slots collection
             if result.slots_found:
@@ -257,10 +273,18 @@ class ScraperOrchestrator:
                         "platform": result.platform
                     }
                     slots_data.append(slot_doc)
-                    
-                # Upsert slots and track new ones for notifications
+                
+                # Use Redis deduplication to filter out recently seen slots
+                self.logger.debug(f"Checking {len(slots_data)} slots for duplicates using Redis deduplication")
+                new_slots, duplicate_slots = self.redis_deduplicator.check_multiple_slots(slots_data)
+                duplicate_slots_count = len(duplicate_slots)
+                
+                if duplicate_slots_count > 0:
+                    self.logger.info(f"🔄 Skipped {duplicate_slots_count} duplicate slots for {result.venue_name} (recently seen)")
+                
+                # Process only new slots (not seen in Redis cache)
                 slots_collection = self.db.slots
-                for slot_doc in slots_data:
+                for slot_doc in new_slots:
                     filter_query = {
                         "venue_id": slot_doc["venue_id"],
                         "court_id": slot_doc["court_id"],
@@ -268,7 +292,7 @@ class ScraperOrchestrator:
                         "start_time": slot_doc["start_time"]
                     }
                     
-                    # Check if this slot already exists
+                    # Check if this slot already exists in MongoDB (fallback check)
                     existing_slot = slots_collection.find_one(filter_query)
                     is_new_slot = existing_slot is None
                     
@@ -294,7 +318,7 @@ class ScraperOrchestrator:
                         new_slots_for_notification.append(notification_slot)
                         self.logger.info(f"🆕 New slot detected: {result.venue_name} - {slot_doc['court_name']} on {slot_doc['date']} at {slot_doc['start_time']}")
                     
-                self.logger.info(f"Stored {len(slots_data)} slots for {result.venue_name}")
+                self.logger.info(f"Processed {len(new_slots)} new slots for {result.venue_name} (skipped {duplicate_slots_count} duplicates)")
                 
             # Publish new slots to Redis for immediate notifications
             if new_slots_for_notification:
@@ -350,10 +374,15 @@ class ScraperOrchestrator:
             
             session_duration = time.time() - session_start
             
+            # Get deduplication metrics
+            dedupe_metrics = self.redis_deduplicator.get_metrics()
+            
             self.logger.info(f"Scraping session completed in {session_duration:.2f}s")
             self.logger.info(f"Venues: {successful_venues}/{total_venues} successful")
             self.logger.info(f"Total slots found: {total_slots}")
             self.logger.info(f"Total errors: {total_errors}")
+            self.logger.info(f"Deduplication: {dedupe_metrics['duplicates_found']}/{dedupe_metrics['total_checks']} duplicates found "
+                           f"({dedupe_metrics['duplicate_rate']:.1%} duplicate rate)")
             
             return results
             
@@ -362,6 +391,7 @@ class ScraperOrchestrator:
             raise
         finally:
             self.disconnect_mongodb()
+            self.redis_deduplicator.close()
             
     async def test_single_venue(self, venue_name: str, days_ahead: int = None):
         """Test scraping a single venue for debugging"""
@@ -400,6 +430,7 @@ class ScraperOrchestrator:
             return None
         finally:
             self.disconnect_mongodb()
+            self.redis_deduplicator.close()
 
 
 async def main():
