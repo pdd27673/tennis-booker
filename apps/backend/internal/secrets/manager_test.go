@@ -38,7 +38,7 @@ func TestNewSecretsManager(t *testing.T) {
 		client: nil, // We'll set this to nil for this test
 		cache:  make(map[string]map[string]interface{}),
 	}
-	
+
 	assert.NotNil(t, sm)
 	assert.NotNil(t, sm.cache)
 }
@@ -47,7 +47,7 @@ func TestNewSecretsManagerFromEnv_MissingVault(t *testing.T) {
 	// Clear environment variables
 	os.Unsetenv("VAULT_ADDR")
 	os.Unsetenv("VAULT_TOKEN")
-	
+
 	_, err := NewSecretsManagerFromEnv()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create vault client")
@@ -58,17 +58,17 @@ func TestSecretsManager_GetSecret(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	// We'll test the caching logic by manually setting up the cache
 	testPath := "test/path"
 	testKey := "test_key"
 	testValue := "test_value"
-	
+
 	// Test cache hit
 	sm.cache[testPath] = map[string]interface{}{
 		testKey: testValue,
 	}
-	
+
 	value, err := sm.GetSecret(testPath, testKey)
 	assert.NoError(t, err)
 	assert.Equal(t, testValue, value)
@@ -78,21 +78,21 @@ func TestSecretsManager_GetSecret_KeyNotFound(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	testPath := "test/path"
 	testKey := "test_key"
 	nonExistentKey := "nonexistent_key"
-	
+
 	// Set up cache with a different key
 	sm.cache[testPath] = map[string]interface{}{
 		testKey: "test_value",
 	}
-	
+
 	// Test that we can find the existing key
 	value, err := sm.GetSecret(testPath, testKey)
 	assert.NoError(t, err)
 	assert.Equal(t, "test_value", value)
-	
+
 	// Test that we get an error for a non-existent key in the cached data
 	_, err = sm.GetSecret(testPath, nonExistentKey)
 	assert.Error(t, err)
@@ -103,16 +103,16 @@ func TestSecretsManager_GetSecretData(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	testPath := "test/path"
 	testData := map[string]interface{}{
 		"key1": "value1",
 		"key2": "value2",
 	}
-	
+
 	// Test cache hit
 	sm.cache[testPath] = testData
-	
+
 	data, err := sm.GetSecretData(testPath)
 	assert.NoError(t, err)
 	assert.Equal(t, testData, data)
@@ -122,17 +122,17 @@ func TestSecretsManager_RefreshSecret(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	testPath := "test/path"
-	
+
 	// Set up initial cache
 	sm.cache[testPath] = map[string]interface{}{
 		"key": "old_value",
 	}
-	
+
 	// Verify cache exists
 	assert.Contains(t, sm.cache, testPath)
-	
+
 	// Since we don't have a real client, this will fail
 	// but we can verify the cache was cleared
 	sm.RefreshAllSecrets() // Clear cache manually for this test
@@ -143,15 +143,15 @@ func TestSecretsManager_RefreshAllSecrets(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	// Set up cache with multiple entries
 	sm.cache["path1"] = map[string]interface{}{"key1": "value1"}
 	sm.cache["path2"] = map[string]interface{}{"key2": "value2"}
-	
+
 	assert.Len(t, sm.cache, 2)
-	
+
 	sm.RefreshAllSecrets()
-	
+
 	assert.Len(t, sm.cache, 0)
 }
 
@@ -159,7 +159,7 @@ func TestSecretsManager_GetDBCredentials(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	// Set up mock database credentials
 	sm.cache[DBSecretPath] = map[string]interface{}{
 		"username": "test_user",
@@ -167,7 +167,7 @@ func TestSecretsManager_GetDBCredentials(t *testing.T) {
 		"host":     "localhost",
 		"database": "test_db",
 	}
-	
+
 	username, password, host, database, err := sm.GetDBCredentials()
 	assert.NoError(t, err)
 	assert.Equal(t, "test_user", username)
@@ -180,12 +180,12 @@ func TestSecretsManager_GetJWTSecret(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	// Set up mock JWT secret
 	sm.cache[JWTSecretPath] = map[string]interface{}{
 		"secret": "jwt_secret_key",
 	}
-	
+
 	secret, err := sm.GetJWTSecret()
 	assert.NoError(t, err)
 	assert.Equal(t, "jwt_secret_key", secret)
@@ -195,7 +195,7 @@ func TestSecretsManager_GetEmailCredentials(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	// Set up mock email credentials
 	sm.cache[EmailSecretPath] = map[string]interface{}{
 		"email":     "test@example.com",
@@ -203,7 +203,7 @@ func TestSecretsManager_GetEmailCredentials(t *testing.T) {
 		"smtp_host": "smtp.gmail.com",
 		"smtp_port": "587",
 	}
-	
+
 	email, password, smtpHost, smtpPort, err := sm.GetEmailCredentials()
 	assert.NoError(t, err)
 	assert.Equal(t, "test@example.com", email)
@@ -216,13 +216,13 @@ func TestSecretsManager_GetRedisCredentials(t *testing.T) {
 	sm := &SecretsManager{
 		cache: make(map[string]map[string]interface{}),
 	}
-	
+
 	// Set up mock Redis credentials
 	sm.cache[RedisSecretPath] = map[string]interface{}{
 		"host":     "localhost:6379",
 		"password": "redis_pass",
 	}
-	
+
 	host, password, err := sm.GetRedisCredentials()
 	assert.NoError(t, err)
 	assert.Equal(t, "localhost:6379", host)
@@ -274,4 +274,4 @@ func TestSecretsManagerIntegration(t *testing.T) {
 			t.Logf("Expected error reading test secret: %v", err)
 		}
 	})
-} 
+}

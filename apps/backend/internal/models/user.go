@@ -293,4 +293,4 @@ func (s *InMemoryUserService) VerifyPassword(ctx context.Context, user *User, pa
 // Collection returns the name of the MongoDB collection for users
 func (s *InMemoryUserService) Collection() string {
 	return "users"
-} 
+}

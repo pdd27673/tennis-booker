@@ -158,7 +158,7 @@ func (cm *ConnectionManager) connectFromEnv() (*mongo.Database, error) {
 	dbName := "tennis_booking"
 
 	log.Printf("⚠️ Using fallback connection: %s", uri)
-	
+
 	db, err := InitDatabase(uri, dbName)
 	if err != nil {
 		return nil, fmt.Errorf("fallback connection failed: %w", err)
@@ -187,4 +187,4 @@ func (cm *ConnectionManager) Close() error {
 // GetSecretsManager returns the underlying secrets manager
 func (cm *ConnectionManager) GetSecretsManager() *secrets.SecretsManager {
 	return cm.secretsManager
-} 
+}

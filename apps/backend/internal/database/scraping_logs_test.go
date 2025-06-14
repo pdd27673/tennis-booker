@@ -28,7 +28,7 @@ func setupScrapingLogTest(t *testing.T) (*mongo.Database, *ScrapingLogRepository
 
 	// Use a unique database name for each test to ensure isolation
 	dbName := "test_db_" + primitive.NewObjectID().Hex()
-	
+
 	// Connect to MongoDB with short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -50,10 +50,10 @@ func setupScrapingLogTest(t *testing.T) (*mongo.Database, *ScrapingLogRepository
 
 	// Create a new database for testing
 	db := client.Database(dbName)
-	
+
 	// Create repository
 	repo := NewScrapingLogRepository(db)
-	
+
 	// Return cleanup function
 	cleanup := func() {
 		err := db.Drop(context.Background())
@@ -126,7 +126,7 @@ func TestScrapingLogRepository_FindByVenueID(t *testing.T) {
 		}
 		err := repo.Create(ctx, log1)
 		require.NoError(t, err)
-		
+
 		log2 := &models.ScrapingLog{
 			VenueID:         venue2ID,
 			ScrapeTimestamp: time.Now().Add(time.Duration(i) * time.Hour),
@@ -157,9 +157,9 @@ func TestScrapingLogRepository_FindByTimeRange(t *testing.T) {
 
 	ctx := context.Background()
 	venueID := primitive.NewObjectID()
-	
+
 	now := time.Now()
-	
+
 	// Create logs at different times
 	for i := 0; i < 10; i++ {
 		log := &models.ScrapingLog{
@@ -171,11 +171,11 @@ func TestScrapingLogRepository_FindByTimeRange(t *testing.T) {
 		err := repo.Create(ctx, log)
 		require.NoError(t, err)
 	}
-	
+
 	// Test finding logs within time range (last 5 hours)
 	startTime := now.Add(-5 * time.Hour)
 	endTime := now
-	
+
 	logs, err := repo.FindByTimeRange(ctx, startTime, endTime, 0, 0)
 	assert.NoError(t, err)
 	assert.Equal(t, 6, len(logs)) // Includes logs at now, -1h, -2h, -3h, -4h, -5h
@@ -187,7 +187,7 @@ func TestScrapingLogRepository_FindSuccessfulByVenue(t *testing.T) {
 
 	ctx := context.Background()
 	venueID := primitive.NewObjectID()
-	
+
 	// Create both successful and failed logs
 	for i := 0; i < 5; i++ {
 		log := &models.ScrapingLog{
@@ -198,7 +198,7 @@ func TestScrapingLogRepository_FindSuccessfulByVenue(t *testing.T) {
 		}
 		err := repo.Create(ctx, log)
 		require.NoError(t, err)
-		
+
 		log = &models.ScrapingLog{
 			VenueID:         venueID,
 			ScrapeTimestamp: time.Now(),
@@ -209,7 +209,7 @@ func TestScrapingLogRepository_FindSuccessfulByVenue(t *testing.T) {
 		err = repo.Create(ctx, log)
 		require.NoError(t, err)
 	}
-	
+
 	// Test finding only successful logs
 	logs, err := repo.FindSuccessfulByVenue(ctx, venueID, 0, 0)
 	assert.NoError(t, err)
@@ -226,7 +226,7 @@ func TestScrapingLogRepository_CountByVenue(t *testing.T) {
 	ctx := context.Background()
 	venue1ID := primitive.NewObjectID()
 	venue2ID := primitive.NewObjectID()
-	
+
 	// Create logs for two venues
 	for i := 0; i < 3; i++ {
 		log := &models.ScrapingLog{
@@ -237,7 +237,7 @@ func TestScrapingLogRepository_CountByVenue(t *testing.T) {
 		err := repo.Create(ctx, log)
 		require.NoError(t, err)
 	}
-	
+
 	for i := 0; i < 5; i++ {
 		log := &models.ScrapingLog{
 			VenueID:         venue2ID,
@@ -247,12 +247,12 @@ func TestScrapingLogRepository_CountByVenue(t *testing.T) {
 		err := repo.Create(ctx, log)
 		require.NoError(t, err)
 	}
-	
+
 	// Test count
 	count, err := repo.CountByVenue(ctx, venue1ID)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), count)
-	
+
 	count, err = repo.CountByVenue(ctx, venue2ID)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(5), count)
@@ -264,9 +264,9 @@ func TestScrapingLogRepository_DeleteOlderThan(t *testing.T) {
 
 	ctx := context.Background()
 	venueID := primitive.NewObjectID()
-	
+
 	now := time.Now()
-	
+
 	// Create logs at different times
 	for i := 0; i < 10; i++ {
 		log := &models.ScrapingLog{
@@ -278,15 +278,15 @@ func TestScrapingLogRepository_DeleteOlderThan(t *testing.T) {
 		err := repo.Create(ctx, log)
 		require.NoError(t, err)
 	}
-	
+
 	// Delete logs older than 5 days
 	deleteCutoff := now.Add(-5 * 24 * time.Hour)
 	deleted, err := repo.DeleteOlderThan(ctx, deleteCutoff)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(5), deleted) // Should delete logs from 5 to 9 days ago (5 logs)
-	
+
 	// Verify count
 	count, err := repo.CountByVenue(ctx, venueID)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(5), count) // Should have 5 logs left (0 to 4 days ago)
-} 
+}

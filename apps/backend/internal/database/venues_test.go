@@ -49,12 +49,12 @@ func TestVenueRepository_Create(t *testing.T) {
 		ScrapingInterval: 30,
 		IsActive:         true,
 		ScraperConfig: models.ScraperConfig{
-			Type:              "clubspark",
-			RequiresLogin:     true,
-			CredentialKey:     "lta_credentials",
-			RetryCount:        3,
-			TimeoutSeconds:    60,
-			WaitAfterLoadMs:   1000,
+			Type:               "clubspark",
+			RequiresLogin:      true,
+			CredentialKey:      "lta_credentials",
+			RetryCount:         3,
+			TimeoutSeconds:     60,
+			WaitAfterLoadMs:    1000,
 			UseHeadlessBrowser: true,
 		},
 	}
@@ -494,4 +494,4 @@ func TestVenueRepository_CreateIndexes(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error when creating venue with duplicate name, got nil")
 	}
-} 
+}

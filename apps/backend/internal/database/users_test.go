@@ -372,4 +372,4 @@ func TestUserRepository_CreateIndexes(t *testing.T) {
 	if len(indexes) < 2 {
 		t.Errorf("Expected at least 2 indexes, got %d", len(indexes))
 	}
-} 
+}

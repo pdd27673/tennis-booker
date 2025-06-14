@@ -86,4 +86,4 @@ func GetUsernameFromContext(ctx context.Context) (string, error) {
 // SetUserClaimsInContext is a helper function to set user claims in context (primarily for testing)
 func SetUserClaimsInContext(ctx context.Context, claims *AppClaims) context.Context {
 	return context.WithValue(ctx, UserClaimsKey, claims)
-} 
+}

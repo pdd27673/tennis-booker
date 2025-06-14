@@ -188,4 +188,4 @@ func (r *VenueRepository) CreateIndexes(ctx context.Context) error {
 		activeIndex,
 	})
 	return err
-} 
+}

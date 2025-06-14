@@ -57,7 +57,7 @@ func TestNewVaultClientFromEnv_WithToken(t *testing.T) {
 	client, err := NewVaultClientFromEnv()
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
-	
+
 	// Health check will fail since no real Vault is running
 	err = client.HealthCheck()
 	assert.Error(t, err)
@@ -145,4 +145,4 @@ func TestVaultClientIntegration(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no secret found at path")
 	})
-} 
+}

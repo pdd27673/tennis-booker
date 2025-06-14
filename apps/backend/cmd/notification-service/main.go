@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -128,7 +128,7 @@ func (g *GmailService) SendCourtAvailabilityAlert(toEmail, courtDetails, booking
 	} else {
 		subject = "🎾 Tennis Court Available!"
 	}
-	
+
 	body := fmt.Sprintf(`%s
 
 🔗 Primary booking link: %s
@@ -144,19 +144,19 @@ Tennis Court Booking Alert System
 func (g *GmailService) sendEmail(toEmail, subject, body string) error {
 	// Gmail SMTP configuration
 	auth := smtp.PlainAuth("", g.fromEmail, g.fromPassword, g.smtpHost)
-	
+
 	// Compose message
 	msg := fmt.Sprintf("To: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", toEmail, subject, body)
-	
+
 	// Send email
 	addr := fmt.Sprintf("%s:%s", g.smtpHost, g.smtpPort)
 	err := smtp.SendMail(addr, auth, g.fromEmail, []string{toEmail}, []byte(msg))
-	
+
 	if err != nil {
 		g.logger.Printf("❌ Failed to send email to %s: %v", toEmail, err)
 		return err
 	}
-	
+
 	g.logger.Printf("✅ Email sent successfully to %s", toEmail)
 	return nil
 }
@@ -186,24 +186,24 @@ func main() {
 	// Check for test mode
 	if len(os.Args) > 1 && os.Args[1] == "test" {
 		logger.Println("📧 Running in test mode - sending test email...")
-		
+
 		// Try to use Vault for test email
 		secretsManager, err := secrets.NewSecretsManagerFromEnv()
 		if err != nil {
 			logger.Printf("⚠️ Failed to connect to Vault for test: %v", err)
 			logger.Println("🔄 Using fallback credentials for test...")
-			
+
 			// Fallback to environment variables (no hardcoded credentials)
 			email := os.Getenv("GMAIL_EMAIL")
 			password := os.Getenv("GMAIL_PASSWORD")
-			
+
 			if email == "" || password == "" {
 				logger.Printf("❌ Test mode requires either Vault or GMAIL_EMAIL/GMAIL_PASSWORD environment variables")
 				os.Exit(1)
 			}
-			
+
 			gmailService := NewGmailService(email, password, "Tennis Court Alerts", logger)
-			
+
 			// Use the configured email for testing
 			if err := gmailService.SendTestEmail(email); err != nil {
 				logger.Printf("❌ Test email failed: %v", err)
@@ -214,13 +214,13 @@ func main() {
 			}
 		} else {
 			defer secretsManager.Close()
-			
+
 			gmailService, err := NewGmailServiceFromVault(secretsManager, logger)
 			if err != nil {
 				logger.Printf("❌ Failed to create Gmail service from Vault: %v", err)
 				os.Exit(1)
 			}
-			
+
 			// Use the same email that's configured in Vault for testing
 			if err := gmailService.SendTestEmail(gmailService.fromEmail); err != nil {
 				logger.Printf("❌ Test email failed: %v", err)
@@ -237,17 +237,17 @@ func main() {
 	if err != nil {
 		logger.Printf("⚠️ Failed to create database connection manager: %v", err)
 		logger.Println("🔄 Attempting fallback connection...")
-		
+
 		// Fallback to environment variables
 		mongoURI := getEnvWithDefault("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017")
 		dbName := getEnvWithDefault("DB_NAME", "tennis_booking")
-		
+
 		db, err := database.InitDatabase(mongoURI, dbName)
 		if err != nil {
 			logger.Fatalf("Failed to connect to MongoDB with fallback: %v", err)
 		}
 		logger.Println("✅ Connected to MongoDB using fallback credentials")
-		
+
 		// Continue with the rest of the initialization using fallback
 		initializeServiceWithFallback(db, logger)
 		return
@@ -294,14 +294,14 @@ func main() {
 	if err != nil {
 		logger.Printf("⚠️ Failed to create Gmail service from Vault: %v", err)
 		logger.Println("🔄 Attempting to use environment variables for email credentials...")
-		
+
 		email := os.Getenv("GMAIL_EMAIL")
 		password := os.Getenv("GMAIL_PASSWORD")
-		
+
 		if email == "" || password == "" {
 			logger.Fatalf("❌ Failed to get email credentials from Vault and no GMAIL_EMAIL/GMAIL_PASSWORD environment variables set")
 		}
-		
+
 		gmailService = NewGmailService(email, password, "Tennis Court Alerts", logger)
 		logger.Println("✅ Using email credentials from environment variables")
 	} else {
@@ -365,11 +365,11 @@ func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	// Initialize Gmail service from environment variables
 	email := os.Getenv("GMAIL_EMAIL")
 	password := os.Getenv("GMAIL_PASSWORD")
-	
+
 	if email == "" || password == "" {
 		logger.Fatalf("❌ GMAIL_EMAIL and GMAIL_PASSWORD environment variables are required for fallback mode")
 	}
-	
+
 	gmailService := NewGmailService(email, password, "Tennis Court Alerts", logger)
 	logger.Println("✅ Using email credentials from environment variables")
 
@@ -471,13 +471,13 @@ func (s *NotificationService) addSlotToBatch(slotJSON string, gmailService *Gmai
 			}
 
 			s.logger.Printf("Slot matches preferences for user: %s", user.Email)
-			
+
 			// Add to batch
 			if s.slotBatch[user.Email] == nil {
 				s.slotBatch[user.Email] = make([]SlotData, 0)
 			}
 			s.slotBatch[user.Email] = append(s.slotBatch[user.Email], slot)
-			
+
 			// Reset/start the batch timer (10 seconds)
 			if s.batchTimer != nil {
 				s.batchTimer.Stop()
@@ -512,7 +512,7 @@ func (s *NotificationService) sendBatchedNotifications(gmailService *GmailServic
 				s.logger.Printf("Error sending batched notification to %s: %v", email, err)
 			} else {
 				s.logger.Printf("✅ Batched notification sent to %s (%d slots)", email, len(slots))
-				
+
 				// Record all notifications
 				for _, slot := range slots {
 					s.recordNotification(user, slot)
@@ -537,7 +537,7 @@ func (s *NotificationService) processSlotNotification(slotJSON string, gmailServ
 	for _, user := range s.users {
 		if s.matchesUserPreferences(user, slot) {
 			s.logger.Printf("Slot matches preferences for user: %s", user.Email)
-			
+
 			// Check for duplicates
 			if s.isDuplicateNotification(user, slot) {
 				s.logger.Printf("Skipping duplicate notification for user: %s", user.Email)
@@ -713,7 +713,7 @@ func (s *NotificationService) sendBatchedNotification(user User, slots []SlotDat
 	// Build consolidated details
 	var courtDetails strings.Builder
 	slotCount := len(slots)
-	
+
 	if slotCount == 1 {
 		courtDetails.WriteString("🎾 A tennis court just became available!\n\n")
 	} else {
@@ -723,7 +723,7 @@ func (s *NotificationService) sendBatchedNotification(user User, slots []SlotDat
 	// Add booking links section at the top for quick access
 	courtDetails.WriteString("🔗 QUICK BOOKING LINKS:\n")
 	for i, slot := range slots {
-		courtDetails.WriteString(fmt.Sprintf("  %d. %s %s %s-%s: %s\n", 
+		courtDetails.WriteString(fmt.Sprintf("  %d. %s %s %s-%s: %s\n",
 			i+1, slot.VenueName, slot.CourtName, slot.StartTime, slot.EndTime, slot.BookingURL))
 	}
 	courtDetails.WriteString("\n📋 COURT DETAILS:\n")
@@ -731,12 +731,12 @@ func (s *NotificationService) sendBatchedNotification(user User, slots []SlotDat
 	// Organize by venue and date
 	for venueName, dates := range venueGroups {
 		courtDetails.WriteString(fmt.Sprintf("\n🏟️ %s:\n", venueName))
-		
+
 		for date, venueSlots := range dates {
 			courtDetails.WriteString(fmt.Sprintf("  📅 %s:\n", date))
-			
+
 			for _, slot := range venueSlots {
-				courtDetails.WriteString(fmt.Sprintf("    • %s: %s-%s (£%.2f)\n", 
+				courtDetails.WriteString(fmt.Sprintf("    • %s: %s-%s (£%.2f)\n",
 					slot.CourtName, slot.StartTime, slot.EndTime, slot.Price))
 			}
 		}
@@ -780,4 +780,4 @@ func getEnvWithDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-} 
+}

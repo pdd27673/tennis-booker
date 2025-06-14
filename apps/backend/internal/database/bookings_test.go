@@ -672,4 +672,4 @@ func TestBookingRepository_CreateIndexes(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error when creating booking with duplicate venue, court, date, and start time, got nil")
 	}
-} 
+}

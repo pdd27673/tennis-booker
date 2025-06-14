@@ -134,4 +134,4 @@ func (vc *VaultClient) Close() error {
 // GetClient returns the underlying Vault API client
 func (vc *VaultClient) GetClient() *api.Client {
 	return vc.client
-} 
+}

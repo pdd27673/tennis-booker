@@ -143,23 +143,23 @@ func (sm *SecretsManager) GetClient() *auth.VaultClient {
 const (
 	// Database secrets
 	DBSecretPath = "kv/data/tennisapp/prod/db"
-	
+
 	// JWT secrets
 	JWTSecretPath = "kv/data/tennisapp/prod/jwt"
-	
+
 	// Email secrets
 	EmailSecretPath = "kv/data/tennisapp/prod/email"
-	
+
 	// Redis secrets
 	RedisSecretPath = "kv/data/tennisapp/prod/redis"
-	
+
 	// API secrets
 	APISecretPath = "kv/data/tennisapp/prod/api"
-	
+
 	// Platform credentials
 	LTACredentialsPath        = "kv/data/tennisapp/prod/platforms/lta"
 	CourtsidesCredentialsPath = "kv/data/tennisapp/prod/platforms/courtsides"
-	
+
 	// Notification services
 	TwilioCredentialsPath   = "kv/data/tennisapp/prod/notifications/twilio"
 	SendGridCredentialsPath = "kv/data/tennisapp/prod/notifications/sendgrid"
@@ -213,4 +213,4 @@ func (sm *SecretsManager) GetRedisCredentials() (host, password string, err erro
 	password, _ = secretData["password"].(string)
 
 	return host, password, nil
-} 
+}

@@ -210,4 +210,4 @@ func TestGlobalCredentialsManager(t *testing.T) {
 		err := InitializeCredentials("lta", "invalid_platform")
 		assert.NoError(t, err)
 	})
-} 
+}

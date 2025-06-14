@@ -15,7 +15,7 @@ func TestJWTMiddleware_ValidToken(t *testing.T) {
 	// Setup
 	mockSecretsProvider := &MockJWTSecretsProvider{}
 	mockSecretsProvider.On("GetJWTSecret").Return("test-secret-key", nil)
-	
+
 	jwtService := NewJWTService(mockSecretsProvider, "tennis-booker")
 	middleware := JWTMiddleware(jwtService)
 
@@ -132,7 +132,7 @@ func TestJWTMiddleware_InvalidToken(t *testing.T) {
 	// Setup
 	mockSecretsProvider := &MockJWTSecretsProvider{}
 	mockSecretsProvider.On("GetJWTSecret").Return("test-secret-key", nil)
-	
+
 	jwtService := NewJWTService(mockSecretsProvider, "tennis-booker")
 	middleware := JWTMiddleware(jwtService)
 
@@ -161,14 +161,14 @@ func TestJWTMiddleware_ExpiredToken(t *testing.T) {
 	// Setup
 	mockSecretsProvider := &MockJWTSecretsProvider{}
 	mockSecretsProvider.On("GetJWTSecret").Return("test-secret-key", nil)
-	
+
 	jwtService := NewJWTService(mockSecretsProvider, "tennis-booker")
 	middleware := JWTMiddleware(jwtService)
 
 	// Generate an expired token
 	token, err := jwtService.GenerateToken("user123", "testuser", time.Nanosecond)
 	require.NoError(t, err)
-	
+
 	// Wait for token to expire
 	time.Sleep(time.Millisecond)
 
@@ -273,4 +273,4 @@ func TestGetUsernameFromContext_NotFound(t *testing.T) {
 	username, err := GetUsernameFromContext(ctx)
 	assert.Error(t, err)
 	assert.Empty(t, username)
-} 
+}

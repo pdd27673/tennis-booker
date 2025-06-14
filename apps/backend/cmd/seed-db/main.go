@@ -48,7 +48,7 @@ func main() {
 
 	// Clear existing data
 	log.Println("Clearing existing data...")
-	
+
 	collections := []string{"venues", "scraping_logs", "bookings", "slots"}
 	for _, collName := range collections {
 		result, err := db.Collection(collName).DeleteMany(ctx, bson.M{})
@@ -61,7 +61,7 @@ func main() {
 
 	// Seed venues
 	log.Println("Seeding venues...")
-	
+
 	venues := []models.Venue{
 		{
 			ID:       primitive.NewObjectID(),
@@ -88,10 +88,10 @@ func main() {
 				WaitAfterLoadMs:    2000,
 				UseHeadlessBrowser: true,
 				CustomParameters: map[string]interface{}{
-					"date_selector":     ".day-picker",
-					"court_selector":    ".court-widget",
-					"booking_selector":  "input.bookable",
-					"price_selector":    "[data-price]",
+					"date_selector":      ".day-picker",
+					"court_selector":     ".court-widget",
+					"booking_selector":   "input.bookable",
+					"price_selector":     "[data-price]",
 					"available_selector": "span.button.available",
 				},
 			},
@@ -107,7 +107,7 @@ func main() {
 			URL:      "https://stratford.newhamparkstennis.org.uk/Booking/BookByDate#?date=2025-06-09&role=guest",
 			Location: models.Location{
 				Address:  "Stratford Park, London",
-				City:     "London", 
+				City:     "London",
 				PostCode: "E15 1DA",
 			},
 			Courts: []models.Court{
@@ -163,10 +163,10 @@ func main() {
 				WaitAfterLoadMs:    2000,
 				UseHeadlessBrowser: true,
 				CustomParameters: map[string]interface{}{
-					"date_selector":     ".day-picker",
-					"court_selector":    ".court-widget",
-					"booking_selector":  "input.bookable",
-					"price_selector":    "[data-price]",
+					"date_selector":      ".day-picker",
+					"court_selector":     ".court-widget",
+					"booking_selector":   "input.bookable",
+					"price_selector":     "[data-price]",
 					"available_selector": "span.button.available",
 				},
 			},
@@ -190,7 +190,7 @@ func main() {
 	log.Printf("🎾 Successfully seeded %d venues!", len(venues))
 	log.Println("Venues seeded:")
 	for _, venue := range venues {
-		log.Printf("  - %s (%d courts, %s provider, %d min intervals)", 
+		log.Printf("  - %s (%d courts, %s provider, %d min intervals)",
 			venue.Name, len(venue.Courts), venue.Provider, venue.ScrapingInterval)
 	}
-} 
+}

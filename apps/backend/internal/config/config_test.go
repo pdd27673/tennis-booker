@@ -28,7 +28,7 @@ func TestLoad(t *testing.T) {
 				assert.Equal(t, "Tennis Booker", config.App.Name)
 				assert.Equal(t, "development", config.App.Environment)
 				assert.Equal(t, 8080, config.API.Port)
-				assert.Equal(t, "debug", config.Logging.Level) // development override
+				assert.Equal(t, "debug", config.Logging.Level)     // development override
 				assert.True(t, config.Features["realtimeupdates"]) // development override
 			},
 		},
@@ -39,7 +39,7 @@ func TestLoad(t *testing.T) {
 				assert.Equal(t, "production", config.App.Environment)
 				assert.Equal(t, "info", config.Logging.Level)
 				assert.Equal(t, 200, config.API.RateLimit.RequestsPerMinute) // production override
-				assert.False(t, config.Logging.EnableConsole) // production override
+				assert.False(t, config.Logging.EnableConsole)                // production override
 			},
 		},
 		{
@@ -47,19 +47,19 @@ func TestLoad(t *testing.T) {
 			env:  "test",
 			validate: func(t *testing.T, config *Config) {
 				assert.Equal(t, "test", config.App.Environment)
-				assert.Equal(t, 0, config.API.Port) // test override
+				assert.Equal(t, 0, config.API.Port)            // test override
 				assert.Equal(t, "error", config.Logging.Level) // test override
-				assert.Equal(t, 1, config.Scraper.Interval) // test override
+				assert.Equal(t, 1, config.Scraper.Interval)    // test override
 			},
 		},
 		{
 			name: "environment variable overrides",
 			env:  "development",
 			envVars: map[string]string{
-				"API_PORT":                    "9000",
-				"LOG_LEVEL":                   "warn",
-				"SCRAPER_INTERVAL":            "600",
-				"FEATURE_ADVANCED_FILTERING":  "false",
+				"API_PORT":                      "9000",
+				"LOG_LEVEL":                     "warn",
+				"SCRAPER_INTERVAL":              "600",
+				"FEATURE_ADVANCED_FILTERING":    "false",
 				"NOTIFICATION_EMAIL_RATE_LIMIT": "25",
 			},
 			validate: func(t *testing.T, config *Config) {
@@ -419,4 +419,4 @@ func TestConfigHelperMethods(t *testing.T) {
 	assert.True(t, config.IsFeatureEnabled("advancedfiltering"))
 	assert.False(t, config.IsFeatureEnabled("smsnotifications"))
 	assert.False(t, config.IsFeatureEnabled("nonExistentFeature"))
-} 
+}

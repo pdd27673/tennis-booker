@@ -268,4 +268,4 @@ func TestJWTService_TokenSigningMethod(t *testing.T) {
 	assert.True(t, parsedToken.Valid)
 
 	mockSecretsProvider.AssertExpectations(t)
-} 
+}

@@ -366,11 +366,11 @@ func (h *AuthHandler) validateLoginRequest(req *LoginRequest) error {
 func (h *AuthHandler) writeErrorResponse(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	errorResp := ErrorResponse{
 		Error:   http.StatusText(statusCode),
 		Message: message,
 	}
-	
+
 	json.NewEncoder(w).Encode(errorResp)
-} 
+}

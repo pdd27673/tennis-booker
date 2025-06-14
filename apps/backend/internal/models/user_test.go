@@ -15,7 +15,7 @@ import (
 
 func TestNewInMemoryUserService(t *testing.T) {
 	service := NewInMemoryUserService()
-	
+
 	assert.NotNil(t, service)
 	assert.NotNil(t, service.users)
 	assert.NotNil(t, service.usersByEmail)
@@ -27,7 +27,7 @@ func TestNewInMemoryUserService(t *testing.T) {
 func TestNewInMemoryUserServiceWithPasswordService(t *testing.T) {
 	customPasswordService := auth.NewBcryptPasswordServiceWithCost(4) // Lower cost for faster tests
 	service := NewInMemoryUserServiceWithPasswordService(customPasswordService)
-	
+
 	assert.NotNil(t, service)
 	assert.NotNil(t, service.users)
 	assert.NotNil(t, service.usersByEmail)
@@ -278,7 +278,7 @@ func TestInMemoryUserService_UpdateUser(t *testing.T) {
 
 	t.Run("successful user update", func(t *testing.T) {
 		service := NewInMemoryUserServiceWithPasswordService(auth.NewBcryptPasswordServiceWithCost(4))
-		
+
 		// Create a test user
 		username := "updateuser"
 		email := "updateuser@example.com"
@@ -307,7 +307,7 @@ func TestInMemoryUserService_UpdateUser(t *testing.T) {
 
 	t.Run("update username", func(t *testing.T) {
 		service := NewInMemoryUserServiceWithPasswordService(auth.NewBcryptPasswordServiceWithCost(4))
-		
+
 		// Create another user for this test
 		user, err := service.CreateUser(ctx, "usernametest", "usernametest@example.com", "DEMO_PASSWORD")
 		require.NoError(t, err)
@@ -331,7 +331,7 @@ func TestInMemoryUserService_UpdateUser(t *testing.T) {
 
 	t.Run("update email", func(t *testing.T) {
 		service := NewInMemoryUserServiceWithPasswordService(auth.NewBcryptPasswordServiceWithCost(4))
-		
+
 		// Create another user for this test
 		user, err := service.CreateUser(ctx, "emailtest", "emailtest@example.com", "DEMO_PASSWORD")
 		require.NoError(t, err)
@@ -355,7 +355,7 @@ func TestInMemoryUserService_UpdateUser(t *testing.T) {
 
 	t.Run("update username conflict", func(t *testing.T) {
 		service := NewInMemoryUserServiceWithPasswordService(auth.NewBcryptPasswordServiceWithCost(4))
-		
+
 		// Create two users
 		user1, err := service.CreateUser(ctx, "conflict1", "conflict1@example.com", "DEMO_PASSWORD")
 		require.NoError(t, err)
@@ -372,7 +372,7 @@ func TestInMemoryUserService_UpdateUser(t *testing.T) {
 
 	t.Run("update email conflict", func(t *testing.T) {
 		service := NewInMemoryUserServiceWithPasswordService(auth.NewBcryptPasswordServiceWithCost(4))
-		
+
 		// Create two users
 		user1, err := service.CreateUser(ctx, "emailconflict1", "emailconflict1@example.com", "DEMO_PASSWORD")
 		require.NoError(t, err)
@@ -389,7 +389,7 @@ func TestInMemoryUserService_UpdateUser(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		service := NewInMemoryUserServiceWithPasswordService(auth.NewBcryptPasswordServiceWithCost(4))
-		
+
 		nonExistentUser := &User{
 			ID:       primitive.NewObjectID(),
 			Username: "nonexistent",
@@ -403,7 +403,7 @@ func TestInMemoryUserService_UpdateUser(t *testing.T) {
 
 	t.Run("invalid input - nil user", func(t *testing.T) {
 		service := NewInMemoryUserServiceWithPasswordService(auth.NewBcryptPasswordServiceWithCost(4))
-		
+
 		err := service.UpdateUser(ctx, nil)
 		assert.Error(t, err)
 		assert.Equal(t, ErrInvalidInput, err)
@@ -500,4 +500,4 @@ func TestInMemoryUserService_ConcurrentAccess(t *testing.T) {
 			assert.Equal(t, username, user.Username)
 		}
 	})
-} 
+}

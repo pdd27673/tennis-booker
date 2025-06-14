@@ -34,4 +34,4 @@ package auth
 
 // Note: The SecretsManager from the secrets package automatically implements
 // the JWTSecretsProvider interface because it has the GetJWTSecret() method.
-// This allows us to avoid import cycles while maintaining clean separation of concerns. 
+// This allows us to avoid import cycles while maintaining clean separation of concerns.

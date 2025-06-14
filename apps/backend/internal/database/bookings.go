@@ -284,4 +284,4 @@ func (r *BookingRepository) CreateIndexes(ctx context.Context) error {
 		bookingConstraintIndex,
 	})
 	return err
-} 
+}

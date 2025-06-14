@@ -57,27 +57,27 @@ func (cm *CredentialsManager) GetPlatformCredentials(platform string) (*Platform
 
 	// Convert to PlatformCredentials struct
 	creds := &PlatformCredentials{}
-	
+
 	if username, ok := secretData["username"].(string); ok {
 		creds.Username = username
 	}
-	
+
 	if password, ok := secretData["password"].(string); ok {
 		creds.Password = password
 	}
-	
+
 	if apiKey, ok := secretData["api_key"].(string); ok {
 		creds.APIKey = apiKey
 	}
-	
+
 	if baseURL, ok := secretData["base_url"].(string); ok {
 		creds.BaseURL = baseURL
 	}
-	
+
 	if loginURL, ok := secretData["login_url"].(string); ok {
 		creds.LoginURL = loginURL
 	}
-	
+
 	if bookingURL, ok := secretData["booking_url"].(string); ok {
 		creds.BookingURL = bookingURL
 	}
@@ -168,4 +168,4 @@ func InitializeCredentials(preloadPlatforms ...string) error {
 	}
 
 	return nil
-} 
+}

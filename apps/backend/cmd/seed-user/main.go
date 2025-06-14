@@ -14,15 +14,15 @@ import (
 
 // User represents user preferences for notifications
 type User struct {
-	ID                 primitive.ObjectID `bson:"_id"`
-	Email              string             `bson:"email"`
-	Name               string             `bson:"name"`
-	PreferredVenues    []string           `bson:"preferredVenues"`
-	TimePreferences    TimePreferences    `bson:"timePreferences"`
-	MaxPrice           float64            `bson:"maxPrice"`
-	NotificationEnabled bool              `bson:"notificationEnabled"`
-	CreatedAt          time.Time          `bson:"createdAt"`
-	UpdatedAt          time.Time          `bson:"updatedAt"`
+	ID                  primitive.ObjectID `bson:"_id"`
+	Email               string             `bson:"email"`
+	Name                string             `bson:"name"`
+	PreferredVenues     []string           `bson:"preferredVenues"`
+	TimePreferences     TimePreferences    `bson:"timePreferences"`
+	MaxPrice            float64            `bson:"maxPrice"`
+	NotificationEnabled bool               `bson:"notificationEnabled"`
+	CreatedAt           time.Time          `bson:"createdAt"`
+	UpdatedAt           time.Time          `bson:"updatedAt"`
 }
 
 type TimePreferences struct {
@@ -82,7 +82,7 @@ func main() {
 		Name:  "Tennis Player",
 		PreferredVenues: []string{
 			"Victoria Park",
-			"Stratford Park", 
+			"Stratford Park",
 			"Ropemakers Field",
 		},
 		TimePreferences: TimePreferences{
@@ -93,10 +93,10 @@ func main() {
 				{Start: "10:00", End: "20:00"},
 			},
 		},
-		MaxPrice:           1000.0, // No price limit
+		MaxPrice:            1000.0, // No price limit
 		NotificationEnabled: true,
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
+		CreatedAt:           time.Now(),
+		UpdatedAt:           time.Now(),
 	}
 
 	// Insert user
@@ -113,4 +113,4 @@ func main() {
 	log.Printf("   Weekend slots: %v", user.TimePreferences.WeekendSlots)
 	log.Printf("   Max price: £%.2f", user.MaxPrice)
 	log.Printf("   Notifications enabled: %v", user.NotificationEnabled)
-} 
+}

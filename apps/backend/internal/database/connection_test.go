@@ -11,7 +11,7 @@ import (
 func TestNewConnectionManager(t *testing.T) {
 	// Create a mock secrets manager
 	sm := &secrets.SecretsManager{}
-	
+
 	cm := NewConnectionManager(sm)
 	assert.NotNil(t, cm)
 	assert.Equal(t, sm, cm.secretsManager)
@@ -73,7 +73,7 @@ func TestConnectionManager_GetDatabaseName(t *testing.T) {
 func TestConnectionManager_LoadConfig_WithMockSecrets(t *testing.T) {
 	// Create a secrets manager with mock data
 	sm := &secrets.SecretsManager{}
-	
+
 	// We can't easily test this without a real secrets manager
 	// because the GetDBCredentials method would need to be mocked
 	// This test demonstrates the structure
@@ -124,4 +124,4 @@ func TestConnectionManager_Integration(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, dbName)
 	t.Logf("Database name: %s", dbName)
-} 
+}

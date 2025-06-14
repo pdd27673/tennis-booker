@@ -133,4 +133,4 @@ func (r *UserRepository) CreateIndexes(ctx context.Context) error {
 
 	_, err := r.collection.Indexes().CreateOne(ctx, indexModel)
 	return err
-} 
+}

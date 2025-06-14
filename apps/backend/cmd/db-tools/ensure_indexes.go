@@ -30,11 +30,11 @@ func main() {
 	}
 
 	var db *mongo.Database
-	
+
 	if *useVault {
 		// Try to use Vault for database connection
 		log.Println("Attempting to connect to database using Vault credentials...")
-		
+
 		connectionManager, err := database.NewConnectionManagerFromEnv()
 		if err != nil {
 			log.Printf("⚠️ Failed to create database connection manager: %v", err)
@@ -42,7 +42,7 @@ func main() {
 			db = connectWithFallback()
 		} else {
 			defer connectionManager.Close()
-			
+
 			database, err := connectionManager.ConnectWithFallback()
 			if err != nil {
 				log.Fatalf("Failed to connect to MongoDB: %v", err)
@@ -78,16 +78,16 @@ func main() {
 		// Print summary
 		fmt.Println("\nIndex Summary:")
 		fmt.Println("=============")
-		
+
 		for collection, indexes := range collectionIndexes {
 			fmt.Printf("\nCollection: %s\n", collection)
 			fmt.Printf("  Number of indexes: %d\n", len(indexes))
-			
+
 			if *verbose {
 				fmt.Println("  Indexes:")
 				for _, idx := range indexes {
 					fmt.Printf("    - %s\n", idx.IndexName)
-					
+
 					// Print keys
 					keys := []string{}
 					for field, direction := range idx.Keys {
@@ -98,7 +98,7 @@ func main() {
 						keys = append(keys, fmt.Sprintf("%s: %s", field, dir))
 					}
 					fmt.Printf("      Keys: %s\n", strings.Join(keys, ", "))
-					
+
 					// Print properties
 					if idx.Unique {
 						fmt.Println("      Unique: true")
@@ -142,15 +142,15 @@ func main() {
 			// Print summary
 			fmt.Println("\nCreated Indexes:")
 			fmt.Println("===============")
-			
+
 			for collection, indexes := range collectionIndexes {
 				fmt.Printf("\nCollection: %s\n", collection)
 				fmt.Printf("  Number of indexes: %d\n", len(indexes))
-				
+
 				fmt.Println("  Indexes:")
 				for _, idx := range indexes {
 					fmt.Printf("    - %s\n", idx.IndexName)
-					
+
 					// Print keys
 					keys := []string{}
 					for field, direction := range idx.Keys {
@@ -161,7 +161,7 @@ func main() {
 						keys = append(keys, fmt.Sprintf("%s: %s", field, dir))
 					}
 					fmt.Printf("      Keys: %s\n", strings.Join(keys, ", "))
-					
+
 					// Print properties
 					if idx.Unique {
 						fmt.Println("      Unique: true")
@@ -195,7 +195,7 @@ func connectWithFallback() *mongo.Database {
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-	
+
 	log.Println("✅ Connected to MongoDB using environment variables")
 	return db
-} 
+}

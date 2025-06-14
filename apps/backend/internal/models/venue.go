@@ -45,17 +45,17 @@ type Court struct {
 
 // ScraperConfig represents configuration for scraping a venue
 type ScraperConfig struct {
-	Type              string                 `bson:"type" json:"type"`                             // "clubspark", "courtsides", etc.
-	RequiresLogin     bool                   `bson:"requires_login" json:"requires_login"`         // Whether login is required to scrape
-	CredentialKey     string                 `bson:"credential_key,omitempty" json:"credential_key,omitempty"` // Key to retrieve credentials from Vault
-	CustomParameters  map[string]interface{} `bson:"custom_parameters,omitempty" json:"custom_parameters,omitempty"`
-	SelectorMappings  map[string]string      `bson:"selector_mappings,omitempty" json:"selector_mappings,omitempty"`
-	NavigationSteps   []string               `bson:"navigation_steps,omitempty" json:"navigation_steps,omitempty"`
-	RetryCount        int                    `bson:"retry_count" json:"retry_count"`
-	TimeoutSeconds    int                    `bson:"timeout_seconds" json:"timeout_seconds"`
-	WaitAfterLoadMs   int                    `bson:"wait_after_load_ms" json:"wait_after_load_ms"`
-	UserAgent         string                 `bson:"user_agent,omitempty" json:"user_agent,omitempty"`
-	UseHeadlessBrowser bool                  `bson:"use_headless_browser" json:"use_headless_browser"`
+	Type               string                 `bson:"type" json:"type"`                                         // "clubspark", "courtsides", etc.
+	RequiresLogin      bool                   `bson:"requires_login" json:"requires_login"`                     // Whether login is required to scrape
+	CredentialKey      string                 `bson:"credential_key,omitempty" json:"credential_key,omitempty"` // Key to retrieve credentials from Vault
+	CustomParameters   map[string]interface{} `bson:"custom_parameters,omitempty" json:"custom_parameters,omitempty"`
+	SelectorMappings   map[string]string      `bson:"selector_mappings,omitempty" json:"selector_mappings,omitempty"`
+	NavigationSteps    []string               `bson:"navigation_steps,omitempty" json:"navigation_steps,omitempty"`
+	RetryCount         int                    `bson:"retry_count" json:"retry_count"`
+	TimeoutSeconds     int                    `bson:"timeout_seconds" json:"timeout_seconds"`
+	WaitAfterLoadMs    int                    `bson:"wait_after_load_ms" json:"wait_after_load_ms"`
+	UserAgent          string                 `bson:"user_agent,omitempty" json:"user_agent,omitempty"`
+	UseHeadlessBrowser bool                   `bson:"use_headless_browser" json:"use_headless_browser"`
 }
 
 // VenueService provides methods for interacting with venues
@@ -66,4 +66,4 @@ type VenueService struct {
 // Collection returns the name of the MongoDB collection for venues
 func (VenueService) Collection() string {
 	return "venues"
-} 
+}

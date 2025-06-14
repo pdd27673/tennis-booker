@@ -26,29 +26,29 @@ func NewDeduplicationService(db *mongo.Database) *DeduplicationService {
 
 // DeduplicationRecord tracks sent notifications to prevent duplicates
 type DeduplicationRecord struct {
-	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	UserID           primitive.ObjectID `bson:"user_id" json:"user_id"`
-	SlotKey          string             `bson:"slot_key" json:"slot_key"`
-	ContentHash      string             `bson:"content_hash" json:"content_hash"`
-	VenueID          string             `bson:"venue_id" json:"venue_id"`
-	CourtID          string             `bson:"court_id" json:"court_id"`
-	SlotDate         string             `bson:"slot_date" json:"slot_date"`
-	SlotStartTime    string             `bson:"slot_start_time" json:"slot_start_time"`
-	Price            float64            `bson:"price" json:"price"`
-	FirstSentAt      time.Time          `bson:"first_sent_at" json:"first_sent_at"`
-	LastSentAt       time.Time          `bson:"last_sent_at" json:"last_sent_at"`
-	SendCount        int                `bson:"send_count" json:"send_count"`
-	ExpiresAt        time.Time          `bson:"expires_at" json:"expires_at"`
-	CreatedAt        time.Time          `bson:"created_at" json:"created_at"`
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	UserID        primitive.ObjectID `bson:"user_id" json:"user_id"`
+	SlotKey       string             `bson:"slot_key" json:"slot_key"`
+	ContentHash   string             `bson:"content_hash" json:"content_hash"`
+	VenueID       string             `bson:"venue_id" json:"venue_id"`
+	CourtID       string             `bson:"court_id" json:"court_id"`
+	SlotDate      string             `bson:"slot_date" json:"slot_date"`
+	SlotStartTime string             `bson:"slot_start_time" json:"slot_start_time"`
+	Price         float64            `bson:"price" json:"price"`
+	FirstSentAt   time.Time          `bson:"first_sent_at" json:"first_sent_at"`
+	LastSentAt    time.Time          `bson:"last_sent_at" json:"last_sent_at"`
+	SendCount     int                `bson:"send_count" json:"send_count"`
+	ExpiresAt     time.Time          `bson:"expires_at" json:"expires_at"`
+	CreatedAt     time.Time          `bson:"created_at" json:"created_at"`
 }
 
 // DuplicateCheckResult contains the result of a duplicate check
 type DuplicateCheckResult struct {
-	IsDuplicate       bool      `json:"is_duplicate"`
+	IsDuplicate       bool                 `json:"is_duplicate"`
 	ExistingRecord    *DeduplicationRecord `json:"existing_record,omitempty"`
-	ReasonCode        string    `json:"reason_code"`
-	ReasonDescription string    `json:"reason_description"`
-	TimeSinceLastSent time.Duration `json:"time_since_last_sent"`
+	ReasonCode        string               `json:"reason_code"`
+	ReasonDescription string               `json:"reason_description"`
+	TimeSinceLastSent time.Duration        `json:"time_since_last_sent"`
 }
 
 // CheckForDuplicate checks if a notification would be a duplicate
@@ -64,7 +64,7 @@ func (s *DeduplicationService) CheckForDuplicate(ctx context.Context, userID pri
 
 	if exactMatch != nil {
 		timeSince := time.Since(exactMatch.LastSentAt)
-		
+
 		// Allow resending after 24 hours for the same slot
 		if timeSince < 24*time.Hour {
 			return &DuplicateCheckResult{
@@ -85,7 +85,7 @@ func (s *DeduplicationService) CheckForDuplicate(ctx context.Context, userID pri
 
 	if similarMatch != nil {
 		timeSince := time.Since(similarMatch.LastSentAt)
-		
+
 		// Prevent spam of very similar notifications within 1 hour
 		if timeSince < 1*time.Hour {
 			return &DuplicateCheckResult{
@@ -114,8 +114,8 @@ func (s *DeduplicationService) CheckForDuplicate(ctx context.Context, userID pri
 
 	// Not a duplicate
 	return &DuplicateCheckResult{
-		IsDuplicate: false,
-		ReasonCode:  "NOT_DUPLICATE",
+		IsDuplicate:       false,
+		ReasonCode:        "NOT_DUPLICATE",
 		ReasonDescription: "Notification is unique and can be sent",
 	}, nil
 }
@@ -194,13 +194,13 @@ func (s *DeduplicationService) GetUserNotificationStats(ctx context.Context, use
 		},
 		{
 			"$group": bson.M{
-				"_id": nil,
+				"_id":                 nil,
 				"total_notifications": bson.M{"$sum": "$send_count"},
-				"unique_slots": bson.M{"$sum": 1},
-				"venues": bson.M{"$addToSet": "$venue_id"},
-				"avg_price": bson.M{"$avg": "$price"},
-				"min_price": bson.M{"$min": "$price"},
-				"max_price": bson.M{"$max": "$price"},
+				"unique_slots":        bson.M{"$sum": 1},
+				"venues":              bson.M{"$addToSet": "$venue_id"},
+				"avg_price":           bson.M{"$avg": "$price"},
+				"min_price":           bson.M{"$min": "$price"},
+				"max_price":           bson.M{"$max": "$price"},
 			},
 		},
 	}
@@ -225,24 +225,24 @@ func (s *DeduplicationService) GetUserNotificationStats(ctx context.Context, use
 
 	return &NotificationStats{
 		TotalNotifications: getInt64(result, "total_notifications"),
-		UniqueSlots:       getInt64(result, "unique_slots"),
-		UniqueVenues:      int64(len(venues)),
-		AveragePrice:      getFloat64(result, "avg_price"),
-		MinPrice:          getFloat64(result, "min_price"),
-		MaxPrice:          getFloat64(result, "max_price"),
-		Period:            time.Since(since),
+		UniqueSlots:        getInt64(result, "unique_slots"),
+		UniqueVenues:       int64(len(venues)),
+		AveragePrice:       getFloat64(result, "avg_price"),
+		MinPrice:           getFloat64(result, "min_price"),
+		MaxPrice:           getFloat64(result, "max_price"),
+		Period:             time.Since(since),
 	}, nil
 }
 
 // NotificationStats contains notification statistics
 type NotificationStats struct {
 	TotalNotifications int64         `json:"total_notifications"`
-	UniqueSlots       int64         `json:"unique_slots"`
-	UniqueVenues      int64         `json:"unique_venues"`
-	AveragePrice      float64       `json:"average_price"`
-	MinPrice          float64       `json:"min_price"`
-	MaxPrice          float64       `json:"max_price"`
-	Period            time.Duration `json:"period"`
+	UniqueSlots        int64         `json:"unique_slots"`
+	UniqueVenues       int64         `json:"unique_venues"`
+	AveragePrice       float64       `json:"average_price"`
+	MinPrice           float64       `json:"min_price"`
+	MaxPrice           float64       `json:"max_price"`
+	Period             time.Duration `json:"period"`
 }
 
 // findExactMatch finds an exact slot match for a user
@@ -271,7 +271,7 @@ func (s *DeduplicationService) findSimilarMatch(ctx context.Context, userID prim
 		"venue_id":        event.VenueID,
 		"court_id":        event.CourtID,
 		"slot_start_time": event.StartTime,
-		"slot_date":       bson.M{"$ne": event.Date}, // Different date
+		"slot_date":       bson.M{"$ne": event.Date},                      // Different date
 		"last_sent_at":    bson.M{"$gte": time.Now().Add(-1 * time.Hour)}, // Within last hour
 	}
 
@@ -302,7 +302,7 @@ func (s *DeduplicationService) getRecentVenueNotificationCount(ctx context.Conte
 
 // generateContentHash creates a hash of the notification content for similarity detection
 func (s *DeduplicationService) generateContentHash(event CourtAvailabilityEvent) string {
-	content := fmt.Sprintf("%s:%s:%s:%.2f", 
+	content := fmt.Sprintf("%s:%s:%s:%.2f",
 		event.VenueID, event.CourtID, event.StartTime, event.Price)
 	return fmt.Sprintf("%x", md5.Sum([]byte(content)))
 }
@@ -375,4 +375,4 @@ func (s *DeduplicationService) CreateIndexes(ctx context.Context) error {
 
 	_, err := s.collection.Indexes().CreateMany(ctx, indexes)
 	return err
-} 
+}

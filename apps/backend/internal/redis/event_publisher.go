@@ -36,14 +36,14 @@ func NewEventPublisher(redisClient *redis.Client, db *mongo.Database, logger *lo
 
 // CourtSlot represents a single court availability slot from scraping
 type CourtSlot struct {
-	Date         string  `json:"date"`          // YYYY-MM-DD
-	StartTime    string  `json:"start_time"`    // HH:MM
-	EndTime      string  `json:"end_time"`      // HH:MM  
-	CourtName    string  `json:"court_name"`
-	Price        float64 `json:"price"`
-	Currency     string  `json:"currency"`
-	BookingURL   string  `json:"booking_url"`
-	Available    bool    `json:"available"`
+	Date       string  `json:"date"`       // YYYY-MM-DD
+	StartTime  string  `json:"start_time"` // HH:MM
+	EndTime    string  `json:"end_time"`   // HH:MM
+	CourtName  string  `json:"court_name"`
+	Price      float64 `json:"price"`
+	Currency   string  `json:"currency"`
+	BookingURL string  `json:"booking_url"`
+	Available  bool    `json:"available"`
 }
 
 // ScrapingLogData represents the structure we expect from scraping logs
@@ -65,18 +65,18 @@ func (p *EventPublisher) StartScrapingLogListener(ctx context.Context) error {
 
 	// Use MongoDB Change Streams to watch for new scraping log inserts
 	collection := p.db.Collection("scraping_logs")
-	
+
 	// Create pipeline to watch only inserts of successful scrapes
 	pipeline := []bson.M{
 		{
 			"$match": bson.M{
-				"operationType": "insert",
-				"fullDocument.status": "success",
+				"operationType":            "insert",
+				"fullDocument.status":      "success",
 				"fullDocument.slots_found": bson.M{"$gt": 0},
 			},
 		},
 	}
-	
+
 	changeStream, err := collection.Watch(ctx, pipeline)
 	if err != nil {
 		return fmt.Errorf("failed to create change stream: %w", err)
@@ -138,9 +138,9 @@ func (p *EventPublisher) PublishManualAvailabilityEvent(ctx context.Context, eve
 		return fmt.Errorf("failed to publish to Redis: %w", err)
 	}
 
-	p.logger.Printf("Published manual court availability event: %s at %s %s-%s", 
+	p.logger.Printf("Published manual court availability event: %s at %s %s-%s",
 		event.CourtName, event.Date, event.StartTime, event.EndTime)
-	
+
 	return nil
 }
 
@@ -188,7 +188,7 @@ func (p *EventPublisher) generateCourtID(venueID, courtName string) string {
 func (p *EventPublisher) isNewAvailability(ctx context.Context, event *models.CourtAvailabilityEvent) bool {
 	// Use Redis to track recently seen slots
 	slotKey := fmt.Sprintf("recent_slot:%s", event.GenerateSlotKey())
-	
+
 	// Check if we've seen this slot in the last 30 minutes
 	exists := p.redisClient.Exists(ctx, slotKey).Val()
 	if exists > 0 {
@@ -231,7 +231,7 @@ func (p *EventPublisher) GetSubscriberCount(ctx context.Context) (int64, error) 
 	if count, exists := result[p.channel]; exists {
 		return count, nil
 	}
-	
+
 	return 0, nil
 }
 
@@ -239,7 +239,7 @@ func (p *EventPublisher) GetSubscriberCount(ctx context.Context) (int64, error) 
 // This is used when change streams are not available or as a backup
 func (p *EventPublisher) StartPollingFallback(ctx context.Context, interval time.Duration) error {
 	p.logger.Printf("Starting polling fallback every %v for new scraping logs...", interval)
-	
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -265,11 +265,11 @@ func (p *EventPublisher) StartPollingFallback(ctx context.Context, interval time
 // pollForNewLogs polls the scraping_logs collection for new successful logs
 func (p *EventPublisher) pollForNewLogs(ctx context.Context, since time.Time) (time.Time, error) {
 	collection := p.db.Collection("scraping_logs")
-	
+
 	// Find logs created after the last processed time
 	filter := bson.M{
-		"scraped_at": bson.M{"$gt": since},
-		"status": "success",
+		"scraped_at":  bson.M{"$gt": since},
+		"status":      "success",
 		"slots_found": bson.M{"$gt": 0},
 	}
 
@@ -304,4 +304,4 @@ func (p *EventPublisher) pollForNewLogs(ctx context.Context, since time.Time) (t
 	}
 
 	return newLastProcessed, nil
-} 
+}

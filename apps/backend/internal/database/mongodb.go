@@ -2,56 +2,65 @@ package database
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-// MongoClient represents the MongoDB client connection
+// MongoClient wraps the MongoDB client with additional functionality
 type MongoClient struct {
-	Client *mongo.Client
-	DB     *mongo.Database
+	client   *mongo.Client
+	database *mongo.Database
 }
 
-// NewMongoClient creates a new MongoDB client
-func NewMongoClient(uri, dbName string) (*MongoClient, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+// NewMongoClient creates a new MongoDB client connection
+func NewMongoClient(uri, databaseName string) (*MongoClient, error) {
 	// Set client options
 	clientOptions := options.Client().ApplyURI(uri)
 
 	// Connect to MongoDB
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	// Ping the MongoDB server to verify connection
-	if err = client.Ping(ctx, readpref.Primary()); err != nil {
+	// Check the connection
+	err = client.Ping(ctx, nil)
+	if err != nil {
 		return nil, err
 	}
 
-	log.Println("Connected to MongoDB!")
+	// Successfully connected to MongoDB
 
 	// Get a handle to the specified database
-	db := client.Database(dbName)
+	database := client.Database(databaseName)
 
 	return &MongoClient{
-		Client: client,
-		DB:     db,
+		client:   client,
+		database: database,
 	}, nil
 }
 
-// Close disconnects from MongoDB
+// GetClient returns the underlying MongoDB client
+func (m *MongoClient) GetClient() *mongo.Client {
+	return m.client
+}
+
+// GetDatabase returns the MongoDB database
+func (m *MongoClient) GetDatabase() *mongo.Database {
+	return m.database
+}
+
+// Close closes the MongoDB connection
 func (m *MongoClient) Close(ctx context.Context) error {
-	return m.Client.Disconnect(ctx)
+	return m.client.Disconnect(ctx)
 }
 
 // GetCollection returns a handle to the specified collection
 func (m *MongoClient) GetCollection(name string) *mongo.Collection {
-	return m.DB.Collection(name)
-} 
+	return m.database.Collection(name)
+}

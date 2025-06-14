@@ -97,7 +97,7 @@ func GetIndexSummary(db *mongo.Database) ([]IndexSummary, error) {
 	// For each collection, get its indexes
 	for _, collName := range collections {
 		coll := db.Collection(collName)
-		
+
 		// Get all indexes for the collection
 		cursor, err := coll.Indexes().List(ctx)
 		if err != nil {
@@ -114,7 +114,7 @@ func GetIndexSummary(db *mongo.Database) ([]IndexSummary, error) {
 			// Extract index information
 			name := idx["name"].(string)
 			keys := make(map[string]int)
-			
+
 			// Extract key information
 			if keyDoc, ok := idx["key"].(map[string]interface{}); ok {
 				for k, v := range keyDoc {
@@ -124,19 +124,19 @@ func GetIndexSummary(db *mongo.Database) ([]IndexSummary, error) {
 					}
 				}
 			}
-			
+
 			// Check if index is unique
 			unique := false
 			if u, ok := idx["unique"].(bool); ok {
 				unique = u
 			}
-			
+
 			// Check if index has TTL
 			ttl := 0
 			if expireAfterSeconds, ok := idx["expireAfterSeconds"].(float64); ok {
 				ttl = int(expireAfterSeconds)
 			}
-			
+
 			// Add to summaries
 			summaries = append(summaries, IndexSummary{
 				Collection: collName,
@@ -149,4 +149,4 @@ func GetIndexSummary(db *mongo.Database) ([]IndexSummary, error) {
 	}
 
 	return summaries, nil
-} 
+}

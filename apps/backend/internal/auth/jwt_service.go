@@ -111,4 +111,4 @@ func (js *JWTService) RefreshAccessToken(refreshToken string, accessTokenDuratio
 
 	// Generate new access token with the same user info
 	return js.GenerateToken(claims.UserID, claims.Username, accessTokenDuration)
-} 
+}

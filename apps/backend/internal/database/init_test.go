@@ -184,4 +184,4 @@ func TestGetIndexSummary(t *testing.T) {
 	// Clean up - drop the test database
 	err = client.Database(dbName).Drop(context.Background())
 	assert.NoError(t, err)
-} 
+}

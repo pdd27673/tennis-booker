@@ -84,8 +84,8 @@ func (m *MockRefreshTokenService) RevokeAllUserTokens(ctx context.Context, userI
 
 func (m *MockRefreshTokenService) CleanupExpiredTokens(ctx context.Context) error {
 	for token, refreshToken := range m.tokens {
-		if refreshToken.ExpiresAt.Before(time.Now()) || 
-		   (refreshToken.Revoked && refreshToken.RevokedAt != nil && refreshToken.RevokedAt.Before(time.Now().AddDate(0, 0, -30))) {
+		if refreshToken.ExpiresAt.Before(time.Now()) ||
+			(refreshToken.Revoked && refreshToken.RevokedAt != nil && refreshToken.RevokedAt.Before(time.Now().AddDate(0, 0, -30))) {
 			delete(m.tokens, token)
 		}
 	}
@@ -776,4 +776,4 @@ func TestAuthHandler_Integration(t *testing.T) {
 		_, err = refreshTokenService.ValidateRefreshToken(context.Background(), loginResp.RefreshToken)
 		assert.Error(t, err)
 	})
-} 
+}

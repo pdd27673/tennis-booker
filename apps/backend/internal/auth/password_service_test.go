@@ -14,7 +14,7 @@ import (
 
 func TestNewBcryptPasswordService(t *testing.T) {
 	service := NewBcryptPasswordService()
-	
+
 	assert.NotNil(t, service)
 	assert.Equal(t, bcrypt.DefaultCost, service.GetCost())
 }
@@ -22,7 +22,7 @@ func TestNewBcryptPasswordService(t *testing.T) {
 func TestNewBcryptPasswordServiceWithCost(t *testing.T) {
 	customCost := 12
 	service := NewBcryptPasswordServiceWithCost(customCost)
-	
+
 	assert.NotNil(t, service)
 	assert.Equal(t, customCost, service.GetCost())
 }
@@ -33,17 +33,17 @@ func TestBcryptPasswordService_HashPassword(t *testing.T) {
 
 	t.Run("successful password hashing", func(t *testing.T) {
 		password := "testDEMO_PASSWORD"
-		
+
 		hashedPassword, err := service.HashPassword(ctx, password)
 		require.NoError(t, err)
 		assert.NotEmpty(t, hashedPassword)
 		assert.NotEqual(t, password, hashedPassword)
-		
+
 		// Verify the hash starts with bcrypt prefix
-		assert.True(t, strings.HasPrefix(hashedPassword, "$2a$") || 
-					strings.HasPrefix(hashedPassword, "$2b$") || 
-					strings.HasPrefix(hashedPassword, "$2y$"))
-		
+		assert.True(t, strings.HasPrefix(hashedPassword, "$2a$") ||
+			strings.HasPrefix(hashedPassword, "$2b$") ||
+			strings.HasPrefix(hashedPassword, "$2y$"))
+
 		// Verify we can verify the password with the hash
 		err = service.VerifyPassword(ctx, hashedPassword, password)
 		assert.NoError(t, err)
@@ -52,32 +52,32 @@ func TestBcryptPasswordService_HashPassword(t *testing.T) {
 	t.Run("different passwords produce different hashes", func(t *testing.T) {
 		password1 := "password1"
 		password2 := "password2"
-		
+
 		hash1, err := service.HashPassword(ctx, password1)
 		require.NoError(t, err)
-		
+
 		hash2, err := service.HashPassword(ctx, password2)
 		require.NoError(t, err)
-		
+
 		assert.NotEqual(t, hash1, hash2)
 	})
 
 	t.Run("same password produces different hashes (salt)", func(t *testing.T) {
 		password := "samepassword"
-		
+
 		hash1, err := service.HashPassword(ctx, password)
 		require.NoError(t, err)
-		
+
 		hash2, err := service.HashPassword(ctx, password)
 		require.NoError(t, err)
-		
+
 		// Different hashes due to random salt
 		assert.NotEqual(t, hash1, hash2)
-		
+
 		// But both should verify correctly
 		err = service.VerifyPassword(ctx, hash1, password)
 		assert.NoError(t, err)
-		
+
 		err = service.VerifyPassword(ctx, hash2, password)
 		assert.NoError(t, err)
 	})
@@ -91,7 +91,7 @@ func TestBcryptPasswordService_HashPassword(t *testing.T) {
 	t.Run("context cancellation", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
-		
+
 		_, err := service.HashPassword(ctx, "password")
 		assert.Error(t, err)
 		assert.Equal(t, context.Canceled, err)
@@ -100,9 +100,9 @@ func TestBcryptPasswordService_HashPassword(t *testing.T) {
 	t.Run("context timeout", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 		defer cancel()
-		
+
 		time.Sleep(1 * time.Millisecond) // Ensure timeout
-		
+
 		_, err := service.HashPassword(ctx, "password")
 		assert.Error(t, err)
 		assert.Equal(t, context.DeadlineExceeded, err)
@@ -117,7 +117,7 @@ func TestBcryptPasswordService_VerifyPassword(t *testing.T) {
 		password := "correctpassword"
 		hashedPassword, err := service.HashPassword(ctx, password)
 		require.NoError(t, err)
-		
+
 		err = service.VerifyPassword(ctx, hashedPassword, password)
 		assert.NoError(t, err)
 	})
@@ -127,7 +127,7 @@ func TestBcryptPasswordService_VerifyPassword(t *testing.T) {
 		wrongPassword := "wrongpassword"
 		hashedPassword, err := service.HashPassword(ctx, password)
 		require.NoError(t, err)
-		
+
 		err = service.VerifyPassword(ctx, hashedPassword, wrongPassword)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid password")
@@ -156,7 +156,7 @@ func TestBcryptPasswordService_VerifyPassword(t *testing.T) {
 	t.Run("context cancellation", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
-		
+
 		hashedPassword := "$2a$10$validhashformat"
 		err := service.VerifyPassword(ctx, hashedPassword, "password")
 		assert.Error(t, err)
@@ -208,27 +208,27 @@ func TestBcryptPasswordService_DifferentCosts(t *testing.T) {
 	t.Run("different costs produce different hashes", func(t *testing.T) {
 		service1 := NewBcryptPasswordServiceWithCost(bcrypt.MinCost)
 		service2 := NewBcryptPasswordServiceWithCost(bcrypt.MinCost + 1)
-		
+
 		hash1, err := service1.HashPassword(ctx, password)
 		require.NoError(t, err)
-		
+
 		hash2, err := service2.HashPassword(ctx, password)
 		require.NoError(t, err)
-		
+
 		// Hashes should be different due to different costs
 		assert.NotEqual(t, hash1, hash2)
-		
+
 		// But each service should verify its own hash
 		err = service1.VerifyPassword(ctx, hash1, password)
 		assert.NoError(t, err)
-		
+
 		err = service2.VerifyPassword(ctx, hash2, password)
 		assert.NoError(t, err)
-		
+
 		// And cross-verification should also work (bcrypt is backward compatible)
 		err = service1.VerifyPassword(ctx, hash2, password)
 		assert.NoError(t, err)
-		
+
 		err = service2.VerifyPassword(ctx, hash1, password)
 		assert.NoError(t, err)
 	})
@@ -244,18 +244,18 @@ func TestBcryptPasswordService_Performance(t *testing.T) {
 
 	t.Run("hashing performance with different costs", func(t *testing.T) {
 		costs := []int{bcrypt.MinCost, bcrypt.DefaultCost, bcrypt.DefaultCost + 2}
-		
+
 		for _, cost := range costs {
 			t.Run(fmt.Sprintf("cost_%d", cost), func(t *testing.T) {
 				service := NewBcryptPasswordServiceWithCost(cost)
-				
+
 				start := time.Now()
 				_, err := service.HashPassword(ctx, password)
 				duration := time.Since(start)
-				
+
 				require.NoError(t, err)
 				t.Logf("Cost %d took %v", cost, duration)
-				
+
 				// Sanity check: higher cost should generally take longer
 				// (though this isn't a strict requirement for the test)
 				if cost == bcrypt.MinCost {
@@ -264,4 +264,4 @@ func TestBcryptPasswordService_Performance(t *testing.T) {
 			})
 		}
 	})
-} 
+}

@@ -73,12 +73,12 @@ var AppConfig *Config
 func Load() (*Config, error) {
 	viper.SetConfigName("default")
 	viper.SetConfigType("json")
-	
+
 	// Add config paths (search in multiple locations)
 	viper.AddConfigPath("./config")
 	viper.AddConfigPath("../config")
 	viper.AddConfigPath("../../config")
-	viper.AddConfigPath("../../../config") // For deeply nested services
+	viper.AddConfigPath("../../../config")    // For deeply nested services
 	viper.AddConfigPath("../../../../config") // For tests
 
 	// Read default config
@@ -102,7 +102,7 @@ func Load() (*Config, error) {
 	// Enable environment variable overrides
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	
+
 	// Bind specific environment variables to config keys
 	bindEnvVars()
 
@@ -258,4 +258,4 @@ func (c *Config) IsProduction() bool {
 // IsTest returns true if running in test environment
 func (c *Config) IsTest() bool {
 	return c.App.Environment == "test"
-} 
+}

@@ -27,16 +27,16 @@ type RefreshToken struct {
 type RefreshTokenService interface {
 	// CreateRefreshToken creates and stores a new refresh token for a user
 	CreateRefreshToken(ctx context.Context, userID primitive.ObjectID, token string, expiresAt time.Time) (*RefreshToken, error)
-	
+
 	// ValidateRefreshToken validates a refresh token and returns the associated token record
 	ValidateRefreshToken(ctx context.Context, token string) (*RefreshToken, error)
-	
+
 	// RevokeRefreshToken marks a refresh token as revoked
 	RevokeRefreshToken(ctx context.Context, token string) error
-	
+
 	// RevokeAllUserTokens revokes all refresh tokens for a specific user
 	RevokeAllUserTokens(ctx context.Context, userID primitive.ObjectID) error
-	
+
 	// CleanupExpiredTokens removes expired tokens from the database
 	CleanupExpiredTokens(ctx context.Context) error
 }
@@ -81,7 +81,7 @@ func (s *MongoRefreshTokenService) CreateRefreshToken(ctx context.Context, userI
 // ValidateRefreshToken validates a refresh token and returns the associated token record
 func (s *MongoRefreshTokenService) ValidateRefreshToken(ctx context.Context, token string) (*RefreshToken, error) {
 	tokenHash := s.hashToken(token)
-	
+
 	var refreshToken RefreshToken
 	filter := bson.M{
 		"token_hash": tokenHash,
@@ -104,7 +104,7 @@ func (s *MongoRefreshTokenService) ValidateRefreshToken(ctx context.Context, tok
 func (s *MongoRefreshTokenService) RevokeRefreshToken(ctx context.Context, token string) error {
 	tokenHash := s.hashToken(token)
 	now := time.Now()
-	
+
 	filter := bson.M{"token_hash": tokenHash}
 	update := bson.M{
 		"$set": bson.M{
@@ -128,7 +128,7 @@ func (s *MongoRefreshTokenService) RevokeRefreshToken(ctx context.Context, token
 // RevokeAllUserTokens revokes all refresh tokens for a specific user
 func (s *MongoRefreshTokenService) RevokeAllUserTokens(ctx context.Context, userID primitive.ObjectID) error {
 	now := time.Now()
-	
+
 	filter := bson.M{
 		"user_id": userID,
 		"revoked": false,
@@ -163,4 +163,4 @@ func (s *MongoRefreshTokenService) CleanupExpiredTokens(ctx context.Context) err
 	}
 
 	return nil
-} 
+}

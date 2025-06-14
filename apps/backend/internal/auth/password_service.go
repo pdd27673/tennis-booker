@@ -89,9 +89,9 @@ func (s *BcryptPasswordService) GetCost() int {
 // SetCost updates the bcrypt cost factor (for testing or configuration changes)
 func (s *BcryptPasswordService) SetCost(cost int) error {
 	if cost < bcrypt.MinCost || cost > bcrypt.MaxCost {
-		return fmt.Errorf("invalid bcrypt cost: %d (must be between %d and %d)", 
+		return fmt.Errorf("invalid bcrypt cost: %d (must be between %d and %d)",
 			cost, bcrypt.MinCost, bcrypt.MaxCost)
 	}
 	s.cost = cost
 	return nil
-} 
+}

@@ -11,6 +11,7 @@ require (
 	github.com/redis/go-redis/v9 v9.10.0
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
+	github.com/ulule/limiter/v3 v3.11.2
 	go.mongodb.org/mongo-driver v1.17.4
 	golang.org/x/crypto v0.36.0
 )
@@ -38,6 +39,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect

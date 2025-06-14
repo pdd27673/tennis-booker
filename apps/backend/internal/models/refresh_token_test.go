@@ -271,4 +271,4 @@ func TestMongoRefreshTokenService_TokenHashing(t *testing.T) {
 	// Test that the hash is not the original token
 	assert.NotEqual(t, token, hash1)
 	assert.NotEmpty(t, hash1)
-} 
+}
