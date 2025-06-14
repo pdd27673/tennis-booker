@@ -1,0 +1,191 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tennis-court-retention-service
+  namespace: tennis-booker
+  labels:
+    app: tennis-court-retention-service
+    component: data-retention
+    version: v1
+spec:
+  # Run daily at 3 AM UTC
+  schedule: "0 3 * * *"
+  
+  # Keep last 3 successful jobs and 1 failed job for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  
+  # Don't start new job if previous one is still running
+  concurrencyPolicy: Forbid
+  
+  # Allow 2 hours for completion before considering it failed
+  startingDeadlineSeconds: 7200
+  
+  jobTemplate:
+    metadata:
+      labels:
+        app: tennis-court-retention-service
+        component: data-retention
+    spec:
+      # Clean up completed jobs after 24 hours
+      ttlSecondsAfterFinished: 86400
+      
+      # Allow 2 hours for job completion
+      activeDeadlineSeconds: 7200
+      
+      # Don't restart on failure - let CronJob handle retries
+      backoffLimit: 0
+      
+      template:
+        metadata:
+          labels:
+            app: tennis-court-retention-service
+            component: data-retention
+        spec:
+          restartPolicy: Never
+          
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+          
+          containers:
+          - name: retention-service
+            image: tennis-booker/retention-service:latest
+            imagePullPolicy: IfNotPresent
+            
+            # Run once and exit
+            command: ["./retention-service"]
+            args: []
+            
+            env:
+            # Retention configuration
+            - name: RETENTION_RUN_ONCE
+              value: "true"
+            - name: RETENTION_WINDOW_HOURS
+              value: "168"  # 7 days
+            - name: RETENTION_BATCH_SIZE
+              value: "1000"
+            - name: RETENTION_DRY_RUN
+              value: "false"
+            - name: RETENTION_LOG_LEVEL
+              value: "info"
+            - name: RETENTION_LOG_FORMAT
+              value: "json"
+            - name: RETENTION_ENABLE_METRICS
+              value: "true"
+            - name: RETENTION_METRICS_FILE
+              value: "/var/metrics/retention-metrics.json"
+            
+            # Database configuration
+            - name: DATABASE_NAME
+              value: "tennis_booker"
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: tennis-booker-secrets
+                  key: mongo-uri
+            
+            # Vault configuration (if using Vault)
+            - name: VAULT_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: tennis-booker-config
+                  key: vault-addr
+                  optional: true
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tennis-booker-secrets
+                  key: vault-token
+                  optional: true
+            
+            # Resource limits
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+            
+            # Volume mounts for metrics and logs
+            volumeMounts:
+            - name: metrics-volume
+              mountPath: /var/metrics
+            - name: logs-volume
+              mountPath: /var/log
+            
+            # Liveness probe (for long-running operations)
+            livenessProbe:
+              exec:
+                command:
+                - pgrep
+                - retention-service
+              initialDelaySeconds: 30
+              periodSeconds: 60
+              timeoutSeconds: 10
+              failureThreshold: 3
+          
+          volumes:
+          # Persistent volume for metrics (optional - could use emptyDir for ephemeral)
+          - name: metrics-volume
+            persistentVolumeClaim:
+              claimName: retention-metrics-pvc
+          # EmptyDir for logs (will be collected by log aggregation system)
+          - name: logs-volume
+            emptyDir: {}
+          
+          # Node selector for specific node pools (optional)
+          nodeSelector:
+            workload-type: batch
+          
+          # Tolerations for dedicated batch nodes (optional)
+          tolerations:
+          - key: "batch-workload"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: retention-metrics-pvc
+  namespace: tennis-booker
+  labels:
+    app: tennis-court-retention-service
+    component: data-retention
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: retention-service-config
+  namespace: tennis-booker
+  labels:
+    app: tennis-court-retention-service
+    component: data-retention
+data:
+  # Retention policy configuration
+  retention-window-hours: "168"
+  batch-size: "1000"
+  log-level: "info"
+  
+  # Monitoring configuration
+  enable-metrics: "true"
+  metrics-file: "/var/metrics/retention-metrics.json"
+  
+  # Alerting thresholds
+  max-deletion-threshold: "10000"  # Alert if more than 10k slots would be deleted
+  min-deletion-threshold: "0"      # Alert if 0 slots deleted for multiple runs
+  max-runtime-minutes: "120"       # Alert if job runs longer than 2 hours 

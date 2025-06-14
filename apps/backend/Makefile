@@ -1,4 +1,4 @@
-.PHONY: build test clean run-notification run-auth-server run-seed-db run-seed-user run-db-tools format lint tidy check-deps
+.PHONY: build test clean run-notification run-retention run-retention-test run-retention-dry-run run-auth-server run-seed-db run-seed-user run-db-tools format lint tidy check-deps
 
 # Default target
 all: format tidy test build
@@ -8,6 +8,7 @@ build:
 	@echo "Building all backend services..."
 	@mkdir -p bin
 	go build -o bin/notification-service ./cmd/notification-service
+	go build -o bin/retention-service ./cmd/retention-service
 	go build -o bin/seed-db ./cmd/seed-db
 	go build -o bin/seed-user ./cmd/seed-user
 	go build -o bin/db-tools ./cmd/db-tools
@@ -78,6 +79,21 @@ run-notification:
 	@echo "Running notification service..."
 	go run ./cmd/notification-service/main.go
 
+# Run retention service
+run-retention:
+	@echo "Running retention service..."
+	go run ./cmd/retention-service/main.go
+
+# Run retention service in test mode
+run-retention-test:
+	@echo "Running retention service in test mode..."
+	go run ./cmd/retention-service/main.go test
+
+# Run retention service in dry-run mode
+run-retention-dry-run:
+	@echo "Running retention service in dry-run mode..."
+	go run ./cmd/retention-service/main.go dry-run
+
 # Run test auth server
 run-auth-server:
 	@echo "Running test auth server..."
@@ -125,20 +141,47 @@ dev-setup:
 check: format tidy lint test build
 	@echo "All checks passed!"
 
+# Docker builds
+docker-build-retention:
+	@echo "Building retention service Docker image..."
+	docker build -f Dockerfile.retention -t tennis-booker/retention-service:latest .
+
+docker-build-all:
+	@echo "Building all Docker images..."
+	docker build -f Dockerfile -t tennis-booker/backend:latest .
+	docker build -f Dockerfile.retention -t tennis-booker/retention-service:latest .
+
+# Kubernetes deployment
+k8s-deploy-retention:
+	@echo "Deploying retention service to Kubernetes..."
+	kubectl apply -f k8s/retention-service-cronjob.yaml
+	kubectl apply -f k8s/retention-service-monitoring.yaml
+
+k8s-test-retention:
+	@echo "Running retention service test job in Kubernetes..."
+	kubectl apply -f k8s/retention-service-monitoring.yaml
+	kubectl wait --for=condition=complete job/retention-service-test-job --timeout=300s
+	kubectl logs job/retention-service-test-job
+
 # Help
 help:
 	@echo "Available targets:"
-	@echo "  build          - Build all services"
-	@echo "  test           - Run all tests"
-	@echo "  test-short     - Run tests in short mode"
-	@echo "  test-coverage  - Run tests with coverage report"
-	@echo "  format         - Format code with gofmt"
-	@echo "  lint           - Lint code with golangci-lint"
-	@echo "  tidy           - Tidy go modules"
-	@echo "  security-check - Run security checks with gosec"
-	@echo "  check-deps     - Check dependencies for vulnerabilities"
-	@echo "  clean          - Clean build artifacts"
-	@echo "  dev-setup      - Set up development environment"
-	@echo "  check          - Run all checks (format, lint, test, build)"
-	@echo "  run-*          - Run specific services"
-	@echo "  help           - Show this help message" 
+	@echo "  build                  - Build all services"
+	@echo "  test                   - Run all tests"
+	@echo "  test-short             - Run tests in short mode"
+	@echo "  test-coverage          - Run tests with coverage report"
+	@echo "  format                 - Format code with gofmt"
+	@echo "  lint                   - Lint code with golangci-lint"
+	@echo "  tidy                   - Tidy go modules"
+	@echo "  security-check         - Run security checks with gosec"
+	@echo "  check-deps             - Check dependencies for vulnerabilities"
+	@echo "  clean                  - Clean build artifacts"
+	@echo "  dev-setup              - Set up development environment"
+	@echo "  check                  - Run all checks (format, lint, test, build)"
+	@echo "  run-*                  - Run specific services"
+	@echo "  run-retention-test     - Run retention service in test mode"
+	@echo "  run-retention-dry-run  - Run retention service in dry-run mode"
+	@echo "  docker-build-*         - Build Docker images"
+	@echo "  k8s-deploy-retention   - Deploy retention service to Kubernetes"
+	@echo "  k8s-test-retention     - Run retention service test in Kubernetes"
+	@echo "  help                   - Show this help message" 

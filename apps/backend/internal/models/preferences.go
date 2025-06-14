@@ -256,6 +256,113 @@ func (s *PreferenceService) DeleteUserPreferences(ctx context.Context, userID pr
 	return err
 }
 
+// GetActiveUserPreferences retrieves all active user preferences for the retention service
+// Active preferences are defined as preferences where:
+// 1. User has not unsubscribed from notifications
+// 2. User has at least one meaningful preference set (times, venues, days, or price limit)
+func (s *PreferenceService) GetActiveUserPreferences(ctx context.Context) ([]UserPreferences, error) {
+	// Build filter for active preferences
+	filter := bson.M{
+		"$and": []bson.M{
+			// User has not unsubscribed
+			{"notification_settings.unsubscribed": bson.M{"$ne": true}},
+			// User has at least one meaningful preference
+			{"$or": []bson.M{
+				{"times": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"preferred_venues": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"excluded_venues": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"preferred_days": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"max_price": bson.M{"$gt": 0}},
+			}},
+		},
+	}
+
+	cursor, err := s.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var preferences []UserPreferences
+	if err = cursor.All(ctx, &preferences); err != nil {
+		return nil, err
+	}
+
+	return preferences, nil
+}
+
+// CreateIndexes creates the necessary indexes for efficient preference queries
+func (s *PreferenceService) CreateIndexes(ctx context.Context) error {
+	indexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1},
+			},
+			Options: options.Index().SetName("user_id_1").SetUnique(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "notification_settings.unsubscribed", Value: 1},
+			},
+			Options: options.Index().SetName("notification_unsubscribed_1").SetSparse(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "preferred_venues", Value: 1},
+			},
+			Options: options.Index().SetName("preferred_venues_1").SetSparse(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "preferred_days", Value: 1},
+			},
+			Options: options.Index().SetName("preferred_days_1").SetSparse(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "updated_at", Value: 1},
+			},
+			Options: options.Index().SetName("updated_at_1"),
+		},
+	}
+
+	_, err := s.collection.Indexes().CreateMany(ctx, indexes)
+	return err
+}
+
+// IsActivePreference checks if a user preference is considered active for retention purposes
+func (s *PreferenceService) IsActivePreference(pref *UserPreferences) bool {
+	// Check if user has unsubscribed
+	if pref.NotificationSettings.Unsubscribed {
+		return false
+	}
+
+	// Check if user has at least one meaningful preference
+	return len(pref.Times) > 0 ||
+		len(pref.PreferredVenues) > 0 ||
+		len(pref.ExcludedVenues) > 0 ||
+		len(pref.PreferredDays) > 0 ||
+		pref.MaxPrice > 0
+}
+
+// GetActiveUserPreferencesCount returns the count of active user preferences
+func (s *PreferenceService) GetActiveUserPreferencesCount(ctx context.Context) (int64, error) {
+	filter := bson.M{
+		"$and": []bson.M{
+			{"notification_settings.unsubscribed": bson.M{"$ne": true}},
+			{"$or": []bson.M{
+				{"times": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"preferred_venues": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"excluded_venues": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"preferred_days": bson.M{"$exists": true, "$ne": []interface{}{}}},
+				{"max_price": bson.M{"$gt": 0}},
+			}},
+		},
+	}
+
+	return s.collection.CountDocuments(ctx, filter)
+}
+
 // Collection returns the name of the MongoDB collection for user preferences
 func (s *PreferenceService) Collection() string {
 	return "user_preferences"

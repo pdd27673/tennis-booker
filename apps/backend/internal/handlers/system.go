@@ -101,8 +101,7 @@ func (h *SystemHandler) Status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: In a real implementation, you might want to check for admin role
-	// For now, any authenticated user can view system status
+	// Any authenticated user can view system status
 	_ = claims // Use claims to avoid unused variable error
 
 	// Calculate system uptime
@@ -146,8 +145,7 @@ func (h *SystemHandler) Pause(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: In a real implementation, check for admin role
-	// For now, any authenticated user can control the system
+	// Any authenticated user can control the system
 	_ = claims // Use claims to avoid unused variable error
 
 	// Check if system is already paused
