@@ -18,7 +18,22 @@ import (
 	"tennis-booker/internal/secrets"
 
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/mongo"
 )
+
+// FallbackJWTProvider provides JWT secrets from environment variables as fallback
+type FallbackJWTProvider struct{}
+
+// GetJWTSecret returns a JWT secret from environment variables
+func (f *FallbackJWTProvider) GetJWTSecret() (string, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// Use a default secret for development (not recommended for production)
+		secret = "tennis-booker-default-jwt-secret-change-in-production"
+		log.Println("⚠️ Using default JWT secret - set JWT_SECRET environment variable for production")
+	}
+	return secret, nil
+}
 
 func main() {
 	// Load configuration
@@ -27,24 +42,58 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Initialize secrets manager
-	secretsManager, err := secrets.NewSecretsManagerFromEnv()
+	// Initialize database connection with fallback
+	var mongoDb *mongo.Database
+	var secretsManager *secrets.SecretsManager
+	
+	// Try to initialize secrets manager and database connection
+	sm, err := secrets.NewSecretsManagerFromEnv()
 	if err != nil {
-		log.Fatalf("Failed to create secrets manager: %v", err)
-	}
-	defer secretsManager.Close()
-
-	// Initialize database
-	mongoDb, err := database.InitDatabase(cfg.MongoDB.URI, cfg.MongoDB.Database)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Printf("⚠️ Failed to create secrets manager: %v", err)
+		log.Println("🔄 Using fallback database connection...")
+		
+		// Fallback to direct database connection using config
+		mongoURI := cfg.MongoDB.URI
+		if mongoURI == "" {
+			// Build URI from config components
+			if cfg.MongoDB.Username != "" && cfg.MongoDB.Password != "" {
+				mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s?authSource=admin", 
+					cfg.MongoDB.Username, cfg.MongoDB.Password, cfg.MongoDB.Host, cfg.MongoDB.Port)
+			} else {
+				mongoURI = fmt.Sprintf("mongodb://%s:%s", cfg.MongoDB.Host, cfg.MongoDB.Port)
+			}
+		}
+		
+		mongoDb, err = database.InitDatabase(mongoURI, cfg.MongoDB.Database)
+		if err != nil {
+			log.Fatalf("Failed to connect to database with fallback: %v", err)
+		}
+		log.Println("✅ Connected to database using fallback credentials")
+	} else {
+		secretsManager = sm
+		defer secretsManager.Close()
+		
+		// Use connection manager for Vault-based connection
+		connectionManager := database.NewConnectionManager(secretsManager)
+		mongoDb, err = connectionManager.ConnectWithFallback()
+		if err != nil {
+			log.Fatalf("Failed to connect to database: %v", err)
+		}
+		log.Println("✅ Connected to database using Vault credentials")
 	}
 	
 	// Wrap in our Database interface
 	db := database.NewMongoDB(mongoDb)
 
 	// Initialize JWT service
-	jwtService := auth.NewJWTService(secretsManager, cfg.JWT.Issuer)
+	var jwtService *auth.JWTService
+	if secretsManager != nil {
+		jwtService = auth.NewJWTService(secretsManager, cfg.JWT.Issuer)
+	} else {
+		// Create a fallback JWT service using environment variables
+		fallbackProvider := &FallbackJWTProvider{}
+		jwtService = auth.NewJWTService(fallbackProvider, cfg.JWT.Issuer)
+	}
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(jwtService, db)

@@ -40,7 +40,7 @@ fi
 export MONGO_ROOT_USERNAME="${MONGO_ROOT_USERNAME:-admin}"
 export MONGO_ROOT_PASSWORD="${MONGO_ROOT_PASSWORD:-}"
 export REDIS_PASSWORD="${REDIS_PASSWORD:-}"
-export MONGO_URI="${MONGO_URI:-mongodb://\${MONGO_ROOT_USERNAME}:\${MONGO_ROOT_PASSWORD}@localhost:27017/tennis_booking?authSource=admin}"
+export MONGO_URI="${MONGO_URI:-mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@localhost:27017/tennis_booking?authSource=admin}"
 export REDIS_ADDR="${REDIS_ADDR:-localhost:6379}"
 export DB_NAME="${DB_NAME:-tennis_booking}"
 
@@ -329,10 +329,10 @@ start_scraper() {
     mkdir -p "$PROJECT_ROOT/logs"
     
     # Set environment variables for scraper
-    export MONGO_URI="mongodb://admin:YOUR_PASSWORD@localhost:27017/tennis_booking?authSource=admin"
+    export MONGO_URI="${MONGO_URI}"
     export REDIS_HOST="localhost"
     export REDIS_PORT="6379"
-    export REDIS_PASSWORD="password"
+    export REDIS_PASSWORD="${REDIS_PASSWORD}"
     export SCRAPER_INTERVAL_MINUTES="5"  # 5 minutes for local development
     export LOG_LEVEL="INFO"
     

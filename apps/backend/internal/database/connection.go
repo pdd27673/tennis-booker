@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -152,10 +153,33 @@ func (cm *ConnectionManager) ConnectWithFallback() (*mongo.Database, error) {
 
 // connectFromEnv connects using environment variables as fallback
 func (cm *ConnectionManager) connectFromEnv() (*mongo.Database, error) {
-	// This would typically read from environment variables
-	// For now, we'll use the original InitDatabase with a default URI
-	uri := "mongodb://admin:YOUR_PASSWORD@localhost:27017"
-	dbName := "tennis_booking"
+	// Read from environment variables
+	uri := os.Getenv("MONGO_URI")
+	if uri == "" {
+		// Build from individual components
+		username := os.Getenv("MONGO_ROOT_USERNAME")
+		password := os.Getenv("MONGO_ROOT_PASSWORD")
+		host := os.Getenv("MONGO_HOST")
+		port := os.Getenv("MONGO_PORT")
+		
+		if host == "" {
+			host = "localhost"
+		}
+		if port == "" {
+			port = "27017"
+		}
+		
+		if username != "" && password != "" {
+			uri = fmt.Sprintf("mongodb://%s:%s@%s:%s?authSource=admin", username, password, host, port)
+		} else {
+			uri = fmt.Sprintf("mongodb://%s:%s", host, port)
+		}
+	}
+	
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "tennis_booking"
+	}
 
 	log.Printf("⚠️ Using fallback connection: %s", uri)
 

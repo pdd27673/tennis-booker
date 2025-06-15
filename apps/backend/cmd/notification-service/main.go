@@ -176,8 +176,11 @@ Price: £15.00`, time.Now().Format("2006-01-02"))
 }
 
 func main() {
-	// Load environment variables
+	// Load environment variables from multiple possible locations
 	godotenv.Load()
+	godotenv.Load(".env")
+	godotenv.Load("../.env")
+	godotenv.Load("../../.env")
 
 	// Configure logging
 	logger := log.New(os.Stdout, "[NOTIFICATION-SERVICE] ", log.LstdFlags|log.Lshortfile)
@@ -239,7 +242,20 @@ func main() {
 		logger.Println("🔄 Attempting fallback connection...")
 
 		// Fallback to environment variables
-		mongoURI := getEnvWithDefault("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017")
+		mongoURI := getEnvWithDefault("MONGO_URI", "")
+		if mongoURI == "" {
+			// Build from individual components
+			username := getEnvWithDefault("MONGO_ROOT_USERNAME", "")
+			password := getEnvWithDefault("MONGO_ROOT_PASSWORD", "")
+			host := getEnvWithDefault("MONGO_HOST", "localhost")
+			port := getEnvWithDefault("MONGO_PORT", "27017")
+			
+			if username != "" && password != "" {
+				mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s?authSource=admin", username, password, host, port)
+			} else {
+				mongoURI = fmt.Sprintf("mongodb://%s:%s", host, port)
+			}
+		}
 		dbName := getEnvWithDefault("DB_NAME", "tennis_booking")
 
 		db, err := database.InitDatabase(mongoURI, dbName)
@@ -343,6 +359,9 @@ func main() {
 
 // initializeServiceWithFallback initializes the service using fallback credentials
 func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
+	// Load environment variables again to ensure they're available
+	godotenv.Load("../../.env")
+	
 	// Get configuration from environment
 	redisAddr := getEnvWithDefault("REDIS_ADDR", "localhost:6379")
 	redisPassword := getEnvWithDefault("REDIS_PASSWORD", "password")
@@ -365,6 +384,8 @@ func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	// Initialize Gmail service from environment variables
 	email := os.Getenv("GMAIL_EMAIL")
 	password := os.Getenv("GMAIL_PASSWORD")
+
+
 
 	if email == "" || password == "" {
 		logger.Fatalf("❌ GMAIL_EMAIL and GMAIL_PASSWORD environment variables are required for fallback mode")
