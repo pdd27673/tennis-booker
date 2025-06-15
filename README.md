@@ -110,7 +110,7 @@ cd apps/backend
 ### Default Login Credentials
 
 After seeding, you can login with:
-- **Email**: `mvgnum@gmail.com`
+- **Email**: `demo@example.com`
 - **Password**: Use the register flow to create your account
 
 ## 🔧 Backend-Frontend Integration

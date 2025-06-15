@@ -116,7 +116,7 @@ func main() {
 	}{
 		{"demo@example.com", "DEMO_PASSWORD", "Demo User", "demo"},
 		{"test@example.com", "test123", "Test User", "test"},
-		{"demo@example.com", "DEMO_PASSWORD", "Tennis Player", "mvgnum"},
+		{"demo@example.com", "DEMO_PASSWORD", "Tennis Player", "demo"},
 	}
 
 	for _, demoUser := range demoUsers {

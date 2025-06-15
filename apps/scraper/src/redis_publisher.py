@@ -7,7 +7,7 @@ from datetime import datetime
 class RedisPublisher:
     """Redis publisher for sending slot notifications to the notification service"""
     
-    def __init__(self, redis_host='localhost', redis_port=6379, redis_password='password', redis_db=0):
+    def __init__(self, redis_host='localhost', redis_port=6379, redis_password=None, redis_db=0):
         self.redis_host = redis_host
         self.redis_port = redis_port
         self.redis_password = redis_password

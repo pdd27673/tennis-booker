@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds all configuration for the application
@@ -85,8 +87,15 @@ type VaultConfig struct {
 // Global configuration instance
 var AppConfig *Config
 
-// Load loads configuration from environment variables
+// Load loads configuration from environment variables and .env files
 func Load() (*Config, error) {
+	// Try to load .env file (silently fail if not found)
+	if err := godotenv.Load(); err != nil {
+		// Try loading from parent directories for different execution contexts
+		_ = godotenv.Load("../.env")
+		_ = godotenv.Load("../../.env")
+		// Don't fail if .env file is not found - it's optional
+	}
 	return &Config{
 		Server: ServerConfig{
 			Port:         getEnv("PORT", "8080"),
@@ -97,16 +106,16 @@ func Load() (*Config, error) {
 			Environment:  getEnv("ENVIRONMENT", "development"),
 		},
 		MongoDB: MongoDBConfig{
-			URI:      getEnv("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017/tennis_booking?authSource=admin"),
+			URI:      getEnv("MONGO_URI", ""),
 			Database: getEnv("DB_NAME", "tennis_booking"),
-			Username: getEnv("MONGO_ROOT_USERNAME", "admin"),
-			Password: getEnv("MONGO_ROOT_PASSWORD", "password"),
+			Username: getEnv("MONGO_ROOT_USERNAME", ""),
+			Password: getEnv("MONGO_ROOT_PASSWORD", ""),
 			Host:     getEnv("MONGO_HOST", "localhost"),
 			Port:     getEnv("MONGO_PORT", "27017"),
 		},
 		Redis: RedisConfig{
 			Address:  getEnv("REDIS_ADDR", "localhost:6379"),
-			Password: getEnv("REDIS_PASSWORD", "password"),
+			Password: getEnv("REDIS_PASSWORD", ""),
 			DB:       getEnvAsInt("REDIS_DB", 0),
 		},
 		JWT: JWTConfig{
@@ -117,9 +126,9 @@ func Load() (*Config, error) {
 		Email: EmailConfig{
 			SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
 			SMTPPort:     getEnv("SMTP_PORT", "587"),
-			SMTPUsername: getEnv("GMAIL_EMAIL", "demo@example.com"),
+			SMTPUsername: getEnv("GMAIL_EMAIL", ""),
 			SMTPPassword: getEnv("GMAIL_PASSWORD", ""),
-			FromEmail:    getEnv("FROM_EMAIL", "demo@example.com"),
+			FromEmail:    getEnv("FROM_EMAIL", ""),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: getEnvAsSlice("CORS_ALLOWED_ORIGINS", []string{

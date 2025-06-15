@@ -24,21 +24,34 @@ SCRAPER_DIR="$PROJECT_ROOT/apps/scraper"
 FRONTEND_DIR="$PROJECT_ROOT/apps/frontend"
 
 # Default environment variables for local development
-export MONGO_ROOT_USERNAME="admin"
-export MONGO_ROOT_PASSWORD="password"
-export REDIS_PASSWORD="password"
-export MONGO_URI="mongodb://admin:YOUR_PASSWORD@localhost:27017/tennis_booking?authSource=admin"
-export REDIS_ADDR="localhost:6379"
-export DB_NAME="tennis_booking"
+# Load environment variables from .env file if it exists
+if [ -f ".env" ]; then
+    echo "📄 Loading environment variables from .env file..."
+    set -a  # automatically export all variables
+    source .env
+    set +a  # disable automatic export
+else
+    echo "⚠️  No .env file found. Please copy .env-example to .env and configure your settings."
+    echo "   You can run: cp .env-example .env"
+    echo ""
+fi
+
+# Set default values for required variables if not already set
+export MONGO_ROOT_USERNAME="${MONGO_ROOT_USERNAME:-admin}"
+export MONGO_ROOT_PASSWORD="${MONGO_ROOT_PASSWORD:-}"
+export REDIS_PASSWORD="${REDIS_PASSWORD:-}"
+export MONGO_URI="${MONGO_URI:-mongodb://\${MONGO_ROOT_USERNAME}:\${MONGO_ROOT_PASSWORD}@localhost:27017/tennis_booking?authSource=admin}"
+export REDIS_ADDR="${REDIS_ADDR:-localhost:6379}"
+export DB_NAME="${DB_NAME:-tennis_booking}"
 
 # Vault configuration
-export VAULT_ADDR="http://localhost:8200"
-export VAULT_TOKEN="dev-token" # Dev token for local development
-export VAULT_DEV_ROOT_TOKEN_ID="dev-token" # For Vault container
+export VAULT_ADDR="${VAULT_ADDR:-http://localhost:8200}"
+export VAULT_TOKEN="${VAULT_TOKEN:-dev-token}"
+export VAULT_DEV_ROOT_TOKEN_ID="${VAULT_DEV_ROOT_TOKEN_ID:-dev-token}"
 
-# Email configuration for notifications
-export GMAIL_EMAIL="mvgnum@gmail.com"
-export GMAIL_PASSWORD="eswk jgaw zbet wgxo"
+# Email configuration for notifications (loaded from .env)
+export GMAIL_EMAIL="${GMAIL_EMAIL:-}"
+export GMAIL_PASSWORD="${GMAIL_PASSWORD:-}"
 
 # Check prerequisites
 check_prerequisites() {
@@ -173,7 +186,7 @@ seed_database() {
     success "Database seeded with venues"
     
     info "Seeding user preferences..."
-    export USER_EMAIL="mvgnum@gmail.com"
+    export USER_EMAIL="${USER_EMAIL:-demo@example.com}"
     ./bin/seed-user
     success "User preferences seeded"
 }

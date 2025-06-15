@@ -143,7 +143,7 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
-      - USER_EMAIL=${USER_EMAIL:-mvgnum@gmail.com}
+      - USER_EMAIL=${USER_EMAIL:-demo@example.com}
       - VAULT_ADDR=http://vault:8200
     depends_on:
       seed-db:
