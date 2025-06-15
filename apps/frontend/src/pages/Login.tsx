@@ -136,7 +136,7 @@ export default function Login() {
             </h4>
             <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
               <p><strong>Email:</strong> demo@example.com</p>
-              <p><strong>Password:</strong> password123</p>
+              <p><strong>Password:</strong> demo_password</p>
               <p className="mt-2 italic">Or try: test@example.com / test123</p>
             </div>
           </div>
