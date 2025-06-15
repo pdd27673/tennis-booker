@@ -5,7 +5,10 @@ go 1.23.0
 toolchain go1.23.10
 
 require (
+	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/cors v1.2.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/gorilla/sessions v1.4.0
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.10.0
@@ -26,6 +29,8 @@ require (
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
+	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect

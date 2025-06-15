@@ -411,15 +411,111 @@ func (s *NotificationService) loadUsers() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := s.db.Collection("users").Find(ctx, bson.M{"notificationEnabled": true})
+	// Query user_preferences collection for users with notifications enabled
+	filter := bson.M{
+		"notification_settings.email": true,
+		"notification_settings.unsubscribed": bson.M{"$ne": true},
+	}
+
+	cursor, err := s.db.Collection("user_preferences").Find(ctx, filter)
 	if err != nil {
 		return err
 	}
 	defer cursor.Close(ctx)
 
-	s.users = []User{}
-	if err := cursor.All(ctx, &s.users); err != nil {
+	// Load user preferences and convert to User struct
+	var userPrefs []struct {
+		ID                   primitive.ObjectID `bson:"_id"`
+		UserID               primitive.ObjectID `bson:"user_id"`
+		Times                []struct {
+			Start string `bson:"start"`
+			End   string `bson:"end"`
+		} `bson:"times"`
+		WeekdayTimes         []struct {
+			Start string `bson:"start"`
+			End   string `bson:"end"`
+		} `bson:"weekday_times"`
+		WeekendTimes         []struct {
+			Start string `bson:"start"`
+			End   string `bson:"end"`
+		} `bson:"weekend_times"`
+		MaxPrice             float64  `bson:"max_price"`
+		PreferredVenues      []string `bson:"preferred_venues"`
+		NotificationSettings struct {
+			Email        bool   `bson:"email"`
+			EmailAddress string `bson:"email_address"`
+		} `bson:"notification_settings"`
+	}
+
+	if err := cursor.All(ctx, &userPrefs); err != nil {
 		return err
+	}
+
+	// Convert to User structs and get user details
+	s.users = []User{}
+	for _, pref := range userPrefs {
+		// Get user details from users collection
+		var userDoc struct {
+			Email string `bson:"email"`
+			Name  string `bson:"name"`
+		}
+		
+		userFilter := bson.M{"_id": pref.UserID}
+		err := s.db.Collection("users").FindOne(ctx, userFilter).Decode(&userDoc)
+		if err != nil {
+			s.logger.Printf("⚠️ Failed to load user details for user_id %s: %v", pref.UserID.Hex(), err)
+			continue
+		}
+
+		// Convert time preferences to the expected format
+		var weekdaySlots, weekendSlots []TimeSlot
+		
+		// Use new weekday/weekend specific times if available
+		if len(pref.WeekdayTimes) > 0 || len(pref.WeekendTimes) > 0 {
+			// Use the new separate weekday/weekend times
+			for _, timeRange := range pref.WeekdayTimes {
+				weekdaySlots = append(weekdaySlots, TimeSlot{
+					Start: timeRange.Start,
+					End:   timeRange.End,
+				})
+			}
+			for _, timeRange := range pref.WeekendTimes {
+				weekendSlots = append(weekendSlots, TimeSlot{
+					Start: timeRange.Start,
+					End:   timeRange.End,
+				})
+			}
+		} else if len(pref.Times) > 0 {
+			// Fallback to legacy times field (treat as both weekday and weekend)
+			for _, timeRange := range pref.Times {
+				slot := TimeSlot{
+					Start: timeRange.Start,
+					End:   timeRange.End,
+				}
+				weekdaySlots = append(weekdaySlots, slot)
+				weekendSlots = append(weekendSlots, slot)
+			}
+		}
+
+		user := User{
+			ID:    pref.UserID,
+			Email: userDoc.Email,
+			Name:  userDoc.Name,
+			PreferredVenues: pref.PreferredVenues,
+			TimePreferences: TimePreferences{
+				WeekdaySlots: weekdaySlots,
+				WeekendSlots: weekendSlots,
+			},
+			MaxPrice:            pref.MaxPrice,
+			NotificationEnabled: true, // We already filtered for this
+		}
+
+		// Use email from notification settings if available, otherwise from user doc
+		if pref.NotificationSettings.EmailAddress != "" {
+			user.Email = pref.NotificationSettings.EmailAddress
+		}
+
+		s.users = append(s.users, user)
 	}
 
 	s.logger.Printf("✅ Loaded %d users with notifications enabled", len(s.users))

@@ -13,6 +13,7 @@ COPY internal/ ./internal/
 
 # Build all backend services
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o notification-service ./cmd/notification-service
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o retention-service ./cmd/retention-service
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o seed-db ./cmd/seed-db
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o seed-user ./cmd/seed-user
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o db-tools ./cmd/db-tools
@@ -26,6 +27,7 @@ WORKDIR /app
 
 # Copy the binaries from builder stage
 COPY --from=builder /app/notification-service .
+COPY --from=builder /app/retention-service .
 COPY --from=builder /app/seed-db .
 COPY --from=builder /app/seed-user .
 COPY --from=builder /app/db-tools .

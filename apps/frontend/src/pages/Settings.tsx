@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -16,192 +17,234 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { useAuth } from '@/hooks/useAuth'
-import { useAppStore } from '@/stores/appStore'
-import { 
-  useUpdateUserPreferences,
-  usePauseScraping,
-  useResumeScraping,
-  useRestartSystem,
-  useSystemStatus,
-  useUserPreferences,
-  useResetUserPreferences,
-  useSystemHealth
-} from '@/hooks/useSettingsQueries'
-import SystemStatusDisplay from '@/components/SystemStatusDisplay'
 import { useNavigate } from 'react-router-dom'
+import { useAppStore, type UserPreferences } from '@/stores/appStore'
+import { userApi } from '@/services/userApi'
 import { 
-  Clock, 
-  MapPin, 
-  Bell, 
-  Settings as SettingsIcon, 
-  Save, 
   ArrowLeft,
-  Play,
-  Pause,
-  RotateCcw,
-  Zap
+  Settings as SettingsIcon, 
+  Save,
+  Clock,
+  MapPin,
+  Bell,
+  DollarSign,
+  Calendar,
+  Loader2
 } from 'lucide-react'
-import { Separator } from '@/components/ui/separator'
 
-// Form validation schema
+// Form validation schema matching backend UserPreferences
 const userPreferencesSchema = z.object({
-  preferredClubs: z.array(z.string()).min(1, 'Select at least one club'),
-  preferredTimeSlots: z.array(z.string()).min(1, 'Select at least one time slot'),
-  notificationEmail: z.string().email('Please enter a valid email address'),
-  maxDistance: z.number().min(1, 'Distance must be at least 1 km').max(100, 'Distance cannot exceed 100 km'),
-  enableEmailNotifications: z.boolean(),
-  enablePushNotifications: z.boolean(),
-  enableAutoBooking: z.boolean(),
+  preferredVenues: z.array(z.string()).min(1, 'Select at least one venue'),
+  excludedVenues: z.array(z.string()),
+  times: z.array(z.object({
+    start: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format'),
+    end: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format')
+  })).optional(), // Legacy field for backward compatibility
+  weekdayTimes: z.array(z.object({
+    start: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format'),
+    end: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format')
+  })).min(1, 'Add at least one weekday time slot'),
+  weekendTimes: z.array(z.object({
+    start: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format'),
+    end: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format')
+  })).min(1, 'Add at least one weekend time slot'),
+  preferredDays: z.array(z.string()).min(1, 'Select at least one day'),
+  maxPrice: z.number().min(1, 'Price must be at least $1').max(1000, 'Price cannot exceed $1000'),
+  notificationSettings: z.object({
+    email: z.boolean(),
+    emailAddress: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
+    instantAlerts: z.boolean(),
+    maxAlertsPerHour: z.number().min(1).max(100),
+    maxAlertsPerDay: z.number().min(1).max(1000),
+    alertTimeWindowStart: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format'),
+    alertTimeWindowEnd: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be in HH:MM format'),
+    unsubscribed: z.boolean(),
+  }),
 })
 
 type UserPreferencesForm = z.infer<typeof userPreferencesSchema>
 
 const Settings: React.FC = () => {
-  const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { userProfile: user, clearAuthState, addNotification, userPreferences, setUserPreferences } = useAppStore()
   
-  // Zustand store state (for UI state and notifications)
-  const {
-    userPreferences,
-    systemControl,
-    preferencesError,
-    systemControlError,
-  } = useAppStore()
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [availableVenues, setAvailableVenues] = useState<string[]>([])
 
-  // React Query hooks
-  const userPreferencesQuery = useUserPreferences()
-  const systemStatusQuery = useSystemStatus()
-  const updateUserPreferencesMutation = useUpdateUserPreferences()
-  const resetUserPreferencesMutation = useResetUserPreferences()
-  const pauseScrapingMutation = usePauseScraping()
-  const resumeScrapingMutation = useResumeScraping()
-  const restartSystemMutation = useRestartSystem()
-  const systemHealthQuery = useSystemHealth()
+  // Available options
+  const daysOfWeek = [
+    { value: 'monday', label: 'Monday' },
+    { value: 'tuesday', label: 'Tuesday' },
+    { value: 'wednesday', label: 'Wednesday' },
+    { value: 'thursday', label: 'Thursday' },
+    { value: 'friday', label: 'Friday' },
+    { value: 'saturday', label: 'Saturday' },
+    { value: 'sunday', label: 'Sunday' },
+  ]
 
   const form = useForm<UserPreferencesForm>({
     resolver: zodResolver(userPreferencesSchema),
     defaultValues: {
-      preferredClubs: userPreferences?.preferredClubs || [],
-      preferredTimeSlots: userPreferences?.preferredTimeSlots || [],
-      notificationEmail: userPreferences?.notificationEmail || '',
-      maxDistance: userPreferences?.maxDistance || 10,
-      enableEmailNotifications: userPreferences?.enableEmailNotifications || true,
-      enablePushNotifications: userPreferences?.enablePushNotifications || false,
-      enableAutoBooking: userPreferences?.enableAutoBooking || false,
+      preferredVenues: [],
+      excludedVenues: [],
+      weekdayTimes: [{ start: '18:00', end: '20:00' }],
+      weekendTimes: [{ start: '09:00', end: '11:00' }],
+      preferredDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      maxPrice: 100,
+      notificationSettings: {
+        email: true,
+        emailAddress: user?.email || '',
+        instantAlerts: true,
+        maxAlertsPerHour: 10,
+        maxAlertsPerDay: 50,
+        alertTimeWindowStart: '07:00',
+        alertTimeWindowEnd: '22:00',
+        unsubscribed: false,
+      },
     },
   })
 
-  // Initialize form with store data
-  React.useEffect(() => {
-    if (userPreferences) {
-      form.reset({
-        preferredClubs: userPreferences.preferredClubs,
-        preferredTimeSlots: userPreferences.preferredTimeSlots,
-        notificationEmail: userPreferences.notificationEmail,
-        maxDistance: userPreferences.maxDistance,
-        enableEmailNotifications: userPreferences.enableEmailNotifications,
-        enablePushNotifications: userPreferences.enablePushNotifications,
-        enableAutoBooking: userPreferences.enableAutoBooking,
-      })
+  // Load user preferences and available venues
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      try {
+        console.log('🔄 Settings: Loading user preferences...')
+        
+        // Load user preferences with detailed logging
+        const prefs = await userApi.getUserPreferences()
+        console.log('📋 Settings: Loaded user preferences:', prefs)
+        setUserPreferences(prefs)
+        
+        // Load real venues from API
+        console.log('🏟️ Settings: Loading available venues from API...')
+        try {
+          const { courtApi } = await import('@/services/courtApi')
+          const venues = await courtApi.getVenues()
+          console.log('🏟️ Settings: Loaded venues from API:', venues)
+          const venueNames = venues.map(venue => venue.name)
+          setAvailableVenues(venueNames)
+          console.log('✅ Settings: Available venues set:', venueNames)
+        } catch (venueError) {
+          console.warn('⚠️ Settings: Failed to load venues from API, using fallback:', venueError)
+          // Fallback to hardcoded venues if API fails
+          const fallbackVenues = [
+            'Victoria Park Tennis Centre',
+            'Stratford Park Tennis Club', 
+            'Ropemakers Field Tennis Courts',
+            'Tennis Club Central',
+            'Riverside Tennis Club',
+            'Elite Tennis Academy',
+            'Community Recreation Center'
+          ]
+          setAvailableVenues(fallbackVenues)
+          console.log('🔄 Settings: Using fallback venues:', fallbackVenues)
+        }
+        
+        // Update form with loaded preferences
+        const formData = {
+          preferredVenues: prefs.preferredVenues || [],
+          excludedVenues: prefs.excludedVenues || [],
+          weekdayTimes: prefs.weekdayTimes || prefs.times || [{ start: '18:00', end: '20:00' }],
+          weekendTimes: prefs.weekendTimes || prefs.times || [{ start: '09:00', end: '11:00' }],
+          preferredDays: prefs.preferredDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+          maxPrice: prefs.maxPrice || 100,
+          notificationSettings: {
+            email: prefs.notificationSettings?.email ?? true,
+            emailAddress: prefs.notificationSettings?.emailAddress || user?.email || '',
+            instantAlerts: prefs.notificationSettings?.instantAlerts ?? true,
+            maxAlertsPerHour: prefs.notificationSettings?.maxAlertsPerHour || 10,
+            maxAlertsPerDay: prefs.notificationSettings?.maxAlertsPerDay || 50,
+            alertTimeWindowStart: prefs.notificationSettings?.alertTimeWindowStart || '07:00',
+            alertTimeWindowEnd: prefs.notificationSettings?.alertTimeWindowEnd || '22:00',
+            unsubscribed: prefs.notificationSettings?.unsubscribed ?? false,
+          },
+        }
+        console.log('📝 Settings: Form data to be set:', formData)
+        form.reset(formData)
+        
+      } catch (error) {
+        console.error('❌ Settings: Failed to load settings:', error)
+        addNotification({
+          title: 'Error Loading Settings',
+          message: 'Failed to load your preferences. Using defaults.',
+          type: 'error',
+        })
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [userPreferences, form])
 
-  const onSubmit = (data: UserPreferencesForm) => {
-    updateUserPreferencesMutation.mutate(data)
-  }
+    loadData()
+  }, [form, setUserPreferences, addNotification, user?.email])
 
-  // Reset preferences handler
-  const handleResetPreferences = () => {
-    resetUserPreferencesMutation.mutate()
-  }
-
-  // Format time for display
-  const formatTimeAgo = (date: Date | null) => {
-    if (!date) return 'Never'
-    
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMinutes = Math.floor(diffMs / (1000 * 60))
-    
-    if (diffMinutes < 1) return 'Just now'
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`
-    
-    const diffHours = Math.floor(diffMinutes / 60)
-    if (diffHours < 24) return `${diffHours} hours ago`
-    
-    const diffDays = Math.floor(diffHours / 24)
-    return `${diffDays} days ago`
-  }
-
-  const formatTimeUntil = (date: Date | null) => {
-    if (!date) return 'Unknown'
-    
-    const now = new Date()
-    const diffMs = date.getTime() - now.getTime()
-    const diffMinutes = Math.floor(diffMs / (1000 * 60))
-    
-    if (diffMinutes < 1) return 'Now'
-    if (diffMinutes < 60) return `in ${diffMinutes} minutes`
-    
-    const diffHours = Math.floor(diffMinutes / 60)
-    if (diffHours < 24) return `in ${diffHours} hours`
-    
-    const diffDays = Math.floor(diffHours / 24)
-    return `in ${diffDays} days`
-  }
-
-  // System control handlers - now using React Query mutations
-  const handlePauseScraping = () => {
-    console.log('Pause scraping requested')
-    pauseScrapingMutation.mutate()
-  }
-
-  const handleResumeScraping = () => {
-    console.log('Resume scraping requested')
-    resumeScrapingMutation.mutate()
-  }
-
-  const handleRestartSystem = () => {
-    console.log('System restart requested')
-    restartSystemMutation.mutate()
+  const onSubmit = async (data: UserPreferencesForm) => {
+    setIsSaving(true)
+    try {
+      console.log('💾 Settings: Saving form data:', data)
+      
+      const savedPreferences = await userApi.updateUserPreferences(data)
+      console.log('✅ Settings: Successfully saved preferences:', savedPreferences)
+      
+      setUserPreferences(savedPreferences)
+      addNotification({
+        title: 'Settings Saved',
+        message: 'Your preferences have been updated successfully.',
+        type: 'success',
+      })
+    } catch (error) {
+      console.error('❌ Settings: Failed to save preferences:', error)
+      addNotification({
+        title: 'Save Failed',
+        message: error instanceof Error ? error.message : 'Failed to save your preferences.',
+        type: 'error',
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleLogout = () => {
-    logout()
+    clearAuthState()
+    addNotification({
+      title: 'Logged Out',
+      message: 'You have been successfully logged out',
+      type: 'info',
+    })
+    navigate('/login')
   }
 
-  // Loading states from React Query
-  const isPreferencesLoading = updateUserPreferencesMutation.isPending || resetUserPreferencesMutation.isPending
-  const isSystemControlLoading = pauseScrapingMutation.isPending || 
-                                  resumeScrapingMutation.isPending || 
-                                  restartSystemMutation.isPending
+  const addWeekdayTimeSlot = () => {
+    const currentTimes = form.getValues('weekdayTimes') || []
+    form.setValue('weekdayTimes', [...currentTimes, { start: '18:00', end: '20:00' }])
+  }
 
-  // Available options
-  const availableClubs = [
-    'Tennis Club Central',
-    'City Sports Complex',
-    'Riverside Tennis Center',
-    'Elite Tennis Academy',
-    'Community Recreation Center'
-  ]
+  const removeWeekdayTimeSlot = (index: number) => {
+    const currentTimes = form.getValues('weekdayTimes') || []
+    if (currentTimes.length > 1) {
+      form.setValue('weekdayTimes', currentTimes.filter((_, i) => i !== index))
+    }
+  }
 
-  const availableTimeSlots = [
-    '06:00-08:00',
-    '08:00-10:00',
-    '10:00-12:00',
-    '12:00-14:00',
-    '14:00-16:00',
-    '16:00-18:00',
-    '18:00-20:00',
-    '20:00-22:00'
-  ]
+  const addWeekendTimeSlot = () => {
+    const currentTimes = form.getValues('weekendTimes') || []
+    form.setValue('weekendTimes', [...currentTimes, { start: '09:00', end: '11:00' }])
+  }
 
-  if (isPreferencesLoading || isSystemControlLoading) {
+  const removeWeekendTimeSlot = (index: number) => {
+    const currentTimes = form.getValues('weekendTimes') || []
+    if (currentTimes.length > 1) {
+      form.setValue('weekendTimes', currentTimes.filter((_, i) => i !== index))
+    }
+  }
+
+  if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading settings...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading settings...</p>
         </div>
       </div>
     )
@@ -230,7 +273,7 @@ const Settings: React.FC = () => {
                     Settings
                   </h1>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Manage your preferences and system settings
+                    Manage your tennis court monitoring preferences
                   </p>
                 </div>
               </div>
@@ -253,412 +296,491 @@ const Settings: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="space-y-8">
-          
-          {/* Error Display */}
-          {(preferencesError || systemControlError) && (
-            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center space-x-2 text-red-800 dark:text-red-200">
-                  <Bell className="w-5 h-5" />
-                  <p className="font-medium">
-                    {preferencesError || systemControlError}
-                  </p>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            
+            {/* Preferred Venues */}
+            <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                    <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900 dark:text-white">
+                      Venue Preferences
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                      Select which tennis venues you'd like to monitor
+                    </CardDescription>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="preferredVenues"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preferred Venues</FormLabel>
+                      <FormControl>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {availableVenues.map((venue) => (
+                            <div key={venue} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={venue}
+                                checked={field.value?.includes(venue) || false}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    field.onChange([...(field.value || []), venue])
+                                  } else {
+                                    field.onChange((field.value || []).filter((v) => v !== venue))
+                                  }
+                                }}
+                              />
+                              <label htmlFor={venue} className="text-sm font-medium cursor-pointer">
+                                {venue}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Select the venues you want to monitor for available courts
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
-          )}
 
-          {/* Loading Indicator */}
-          {(userPreferencesQuery.isLoading || systemStatusQuery.isLoading) && (
-            <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center space-x-2 text-blue-800 dark:text-blue-200">
-                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="font-medium">Loading settings...</p>
+            {/* Time Preferences */}
+            <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                    <Clock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900 dark:text-white">
+                      Time Preferences
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                      Set your preferred playing times and days
+                    </CardDescription>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Weekday Time Slots */}
+                <FormField
+                  control={form.control}
+                  name="weekdayTimes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weekday Time Slots (Monday - Friday)</FormLabel>
+                      <FormControl>
+                        <div className="space-y-3">
+                          {field.value?.map((timeSlot, index) => (
+                            <div key={index} className="flex items-center space-x-3">
+                              <Input
+                                type="time"
+                                value={timeSlot.start || ''}
+                                onChange={(e) => {
+                                  const newTimes = [...(field.value || [])]
+                                  newTimes[index] = { 
+                                    start: e.target.value,
+                                    end: newTimes[index]?.end || '20:00'
+                                  }
+                                  field.onChange(newTimes)
+                                }}
+                                className="w-32"
+                              />
+                              <span className="text-gray-500">to</span>
+                              <Input
+                                type="time"
+                                value={timeSlot.end || ''}
+                                onChange={(e) => {
+                                  const newTimes = [...(field.value || [])]
+                                  newTimes[index] = { 
+                                    start: newTimes[index]?.start || '18:00',
+                                    end: e.target.value
+                                  }
+                                  field.onChange(newTimes)
+                                }}
+                                className="w-32"
+                              />
+                              {(field.value?.length || 0) > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeWeekdayTimeSlot(index)}
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addWeekdayTimeSlot}
+                          >
+                            Add Weekday Time Slot
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Add your preferred playing time slots for weekdays
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Weekend Time Slots */}
+                <FormField
+                  control={form.control}
+                  name="weekendTimes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weekend Time Slots (Saturday - Sunday)</FormLabel>
+                      <FormControl>
+                        <div className="space-y-3">
+                          {field.value?.map((timeSlot, index) => (
+                            <div key={index} className="flex items-center space-x-3">
+                              <Input
+                                type="time"
+                                value={timeSlot.start || ''}
+                                onChange={(e) => {
+                                  const newTimes = [...(field.value || [])]
+                                  newTimes[index] = { 
+                                    start: e.target.value,
+                                    end: newTimes[index]?.end || '11:00'
+                                  }
+                                  field.onChange(newTimes)
+                                }}
+                                className="w-32"
+                              />
+                              <span className="text-gray-500">to</span>
+                              <Input
+                                type="time"
+                                value={timeSlot.end || ''}
+                                onChange={(e) => {
+                                  const newTimes = [...(field.value || [])]
+                                  newTimes[index] = { 
+                                    start: newTimes[index]?.start || '09:00',
+                                    end: e.target.value
+                                  }
+                                  field.onChange(newTimes)
+                                }}
+                                className="w-32"
+                              />
+                              {(field.value?.length || 0) > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeWeekendTimeSlot(index)}
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addWeekendTimeSlot}
+                          >
+                            Add Weekend Time Slot
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Add your preferred playing time slots for weekends
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* <FormField
+                  control={form.control}
+                  name="preferredDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preferred Days</FormLabel>
+                      <FormControl>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {daysOfWeek.map((day) => (
+                            <div key={day.value} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={day.value}
+                                checked={field.value?.includes(day.value) || false}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    field.onChange([...(field.value || []), day.value])
+                                  } else {
+                                    field.onChange((field.value || []).filter((d) => d !== day.value))
+                                  }
+                                }}
+                              />
+                              <label htmlFor={day.value} className="text-sm font-medium cursor-pointer">
+                                {day.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Select the days you prefer to play
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                /> */}
               </CardContent>
             </Card>
-          )}
 
-          {/* User Preferences Section */}
-          <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
-            <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            {/* Price Preferences */}
+            <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900 dark:text-white">
+                      Price Preferences
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                      Set your maximum budget for court bookings
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-xl text-gray-900 dark:text-white">
-                    User Preferences
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400">
-                    Configure your tennis court monitoring preferences
-                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FormField
+                  control={form.control}
+                  name="maxPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Maximum Price per Hour ($)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          className="w-32"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Only show courts within your budget
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Notification Settings */}
+            <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                    <Bell className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900 dark:text-white">
+                      Notification Settings
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                      Configure how you want to be notified about available courts
+                    </CardDescription>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  
-                  {/* Preferred Clubs */}
-                  <FormField
-                    control={form.control}
-                    name="preferredClubs"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center space-x-2">
-                          <MapPin className="w-4 h-4" />
-                          <span>Preferred Tennis Clubs</span>
-                        </FormLabel>
-                        <FormControl>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {availableClubs.map((club) => (
-                              <div key={club} className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id={club}
-                                  checked={field.value.includes(club)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      field.onChange([...field.value, club])
-                                    } else {
-                                      field.onChange(field.value.filter((c) => c !== club))
-                                    }
-                                  }}
-                                  className="rounded border-gray-300"
-                                />
-                                <label htmlFor={club} className="text-sm font-medium">
-                                  {club}
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        </FormControl>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="notificationSettings.email"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Email Notifications</FormLabel>
                         <FormDescription>
-                          Select the clubs you'd like to monitor for available courts
+                          Receive email alerts when courts become available
                         </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
-                  {/* Preferred Time Slots */}
-                  <FormField
-                    control={form.control}
-                    name="preferredTimeSlots"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4" />
-                          <span>Preferred Time Slots</span>
-                        </FormLabel>
-                        <FormControl>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                            {availableTimeSlots.map((slot) => (
-                              <div key={slot} className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id={slot}
-                                  checked={field.value.includes(slot)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      field.onChange([...field.value, slot])
-                                    } else {
-                                      field.onChange(field.value.filter((s) => s !== slot))
-                                    }
-                                  }}
-                                  className="rounded border-gray-300"
-                                />
-                                <label htmlFor={slot} className="text-sm font-medium text-center">
-                                  {slot}
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        </FormControl>
+                <FormField
+                  control={form.control}
+                  name="notificationSettings.emailAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email Address</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="your.email@example.com"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Email address for notifications
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="notificationSettings.instantAlerts"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Instant Alerts</FormLabel>
                         <FormDescription>
-                          Select your preferred playing times
+                          Get immediate notifications for urgent availability
                         </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
-                  {/* Notification Email */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="notificationEmail"
+                    name="notificationSettings.maxAlertsPerHour"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Notification Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="your.email@example.com"
-                            {...field}
-                            className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Email address for court availability notifications
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Max Distance */}
-                  <FormField
-                    control={form.control}
-                    name="maxDistance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Maximum Distance (km)</FormLabel>
+                        <FormLabel>Max Alerts per Hour</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             min="1"
                             max="100"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="notificationSettings.maxAlertsPerDay"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Alerts per Day</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="1000"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="notificationSettings.alertTimeWindowStart"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Alert Window Start</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            {...field}
                           />
                         </FormControl>
                         <FormDescription>
-                          Maximum distance from your location to search for courts
+                          Start time for receiving alerts
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Notification Settings */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Notification Settings</h3>
-                    
-                    <FormField
-                      control={form.control}
-                      name="enableEmailNotifications"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Email Notifications</FormLabel>
-                            <FormDescription>
-                              Receive email alerts when courts become available
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="enablePushNotifications"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Push Notifications</FormLabel>
-                            <FormDescription>
-                              Receive browser push notifications for immediate alerts
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Auto Booking */}
                   <FormField
                     control={form.control}
-                    name="enableAutoBooking"
+                    name="notificationSettings.alertTimeWindowEnd"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Auto-Booking</FormLabel>
-                          <FormDescription>
-                            Automatically book courts when they match your preferences
-                          </FormDescription>
-                        </div>
+                      <FormItem>
+                        <FormLabel>Alert Window End</FormLabel>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                          <Input
+                            type="time"
+                            {...field}
                           />
                         </FormControl>
+                        <FormDescription>
+                          End time for receiving alerts
+                        </FormDescription>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
+                </div>
+              </CardContent>
+            </Card>
 
-                  {/* Form Actions */}
-                  <div className="flex space-x-4 pt-6">
-                    <Button
-                      type="submit"
-                      disabled={isPreferencesLoading}
-                      className="hover:scale-105 transition-transform duration-200 min-w-[120px]"
-                    >
-                      {updateUserPreferencesMutation.isPending ? (
-                        <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Saving...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          <Save className="w-4 h-4" />
-                          <span>Save Preferences</span>
-                        </div>
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleResetPreferences}
-                      disabled={isPreferencesLoading}
-                      className="hover:scale-105 transition-transform duration-200 min-w-[120px]"
-                    >
-                      {resetUserPreferencesMutation.isPending ? (
-                        <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
-                          <span>Resetting...</span>
-                        </div>
-                      ) : (
-                        <span>Reset to Defaults</span>
-                      )}
-                    </Button>
+            {/* Save Button */}
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="submit"
+                disabled={isSaving}
+                className="hover:scale-105 transition-transform duration-200 min-w-[120px]"
+              >
+                {isSaving ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
                   </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-
-          <Separator />
-
-          {/* System Control Section */}
-          <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
-            <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                  <Zap className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl text-gray-900 dark:text-white">
-                    System Control
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400">
-                    Monitor and control the tennis court scraping system
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              
-              {/* System Status Display */}
-              <SystemStatusDisplay 
-                status={systemControl.systemStatus} 
-                lastUpdate={systemControl.lastUpdate || undefined}
-              />
-              
-              {/* Control Buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button
-                  variant="outline"
-                  onClick={handlePauseScraping}
-                  className="flex items-center space-x-2 hover:scale-105 transition-transform duration-200 h-12"
-                  disabled={systemControl.systemStatus === 'PAUSED' || isSystemControlLoading}
-                >
-                  <Pause className="w-4 h-4" />
-                  <span>Pause Monitoring</span>
-                </Button>
-                
-                <Button
-                  variant="default"
-                  onClick={handleResumeScraping}
-                  className="flex items-center space-x-2 hover:scale-105 transition-transform duration-200 h-12"
-                  disabled={systemControl.systemStatus === 'RUNNING' || isSystemControlLoading}
-                >
-                  <Play className="w-4 h-4" />
-                  <span>Resume Monitoring</span>
-                </Button>
-                
-                <Button
-                  variant="secondary"
-                  onClick={handleRestartSystem}
-                  className="flex items-center space-x-2 hover:scale-105 transition-transform duration-200 h-12"
-                  disabled={isSystemControlLoading}
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Restart System</span>
-                </Button>
-              </div>
-              
-              {/* System Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900 dark:text-white">System Information</h4>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                    <p>• Monitoring {systemControl.systemInfo.monitoredClubs} tennis clubs</p>
-                    <p>• Last scan: {formatTimeAgo(systemControl.systemInfo.lastScan)}</p>
-                    <p>• Next scan: {formatTimeUntil(systemControl.systemInfo.nextScan)}</p>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Save className="w-4 h-4" />
+                    <span>Save Preferences</span>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900 dark:text-white">Performance</h4>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                    <p>• Average response time: {systemControl.systemInfo.averageResponseTime}s</p>
-                    <p>• Success rate: {systemControl.systemInfo.successRate}%</p>
-                    <p>• Courts found today: {systemControl.systemInfo.courtsFoundToday}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* System Health */}
-          {systemHealthQuery.data && (
-            <div>
-              <h3 className="text-lg font-medium mb-4">System Health</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">CPU Usage</p>
-                    <Badge variant={systemHealthQuery.data.cpuUsage > 80 ? 'destructive' : 'secondary'}>
-                      {systemHealthQuery.data.cpuUsage}%
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Memory Usage</p>
-                    <Badge variant={systemHealthQuery.data.memoryUsage > 80 ? 'destructive' : 'secondary'}>
-                      {systemHealthQuery.data.memoryUsage}%
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Active Connections</p>
-                    <Badge variant="secondary">
-                      {systemHealthQuery.data.activeConnections}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
+                )}
+              </Button>
             </div>
-          )}
 
-        </div>
+          </form>
+        </Form>
       </main>
     </div>
   )

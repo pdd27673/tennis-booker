@@ -324,7 +324,7 @@ func (r *ScrapingLogRepository) GetAvailableCourtSlots(ctx context.Context, limi
 	// Query for recent successful scraping logs with available slots
 	filter := bson.M{
 		"success":     true,
-		"slots_found": bson.M{"$gt": 0},
+		"slots_found": bson.M{"$exists": true, "$ne": []interface{}{}}, // Check array exists and is not empty
 		"scrape_timestamp": bson.M{
 			"$gte": time.Now().Add(-24 * time.Hour), // Only last 24 hours
 		},
@@ -396,7 +396,7 @@ func (r *ScrapingLogRepository) GetAvailableCourtSlotsByVenue(ctx context.Contex
 	filter := bson.M{
 		"venue_id":    venueID,
 		"success":     true,
-		"slots_found": bson.M{"$gt": 0},
+		"slots_found": bson.M{"$exists": true, "$ne": []interface{}{}}, // Check array exists and is not empty
 		"scrape_timestamp": bson.M{
 			"$gte": time.Now().Add(-24 * time.Hour), // Only last 24 hours
 		},
@@ -478,7 +478,7 @@ func (r *ScrapingLogRepository) GetAvailableCourtSlotsWithFilters(ctx context.Co
 	// Build MongoDB filter
 	mongoFilter := bson.M{
 		"success":     true,
-		"slots_found": bson.M{"$gt": 0},
+		"slots_found": bson.M{"$exists": true, "$ne": []interface{}{}}, // Check array exists and is not empty
 		"scrape_timestamp": bson.M{
 			"$gte": time.Now().Add(-24 * time.Hour), // Only last 24 hours
 		},

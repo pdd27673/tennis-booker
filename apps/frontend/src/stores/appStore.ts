@@ -20,15 +20,38 @@ export interface AuthState {
   refreshToken: string | null
 }
 
-// User preferences interface
+// Time range interface to match backend
+export interface TimeRange {
+  start: string // Format: "HH:MM"
+  end: string   // Format: "HH:MM"
+}
+
+// Notification settings interface to match backend
+export interface NotificationSettings {
+  email: boolean
+  emailAddress?: string
+  instantAlerts: boolean
+  maxAlertsPerHour: number
+  maxAlertsPerDay: number
+  alertTimeWindowStart: string
+  alertTimeWindowEnd: string
+  unsubscribed: boolean
+}
+
+// User preferences interface to match backend
 export interface UserPreferences {
-  preferredClubs: string[]
-  preferredTimeSlots: string[]
-  notificationEmail: string
-  enableEmailNotifications: boolean
-  enablePushNotifications: boolean
-  maxDistance: number
-  enableAutoBooking: boolean
+  id?: string
+  userId?: string
+  times?: TimeRange[]           // Legacy field for backward compatibility
+  weekdayTimes?: TimeRange[]    // Monday-Friday preferred times
+  weekendTimes?: TimeRange[]    // Saturday-Sunday preferred times
+  preferredVenues: string[]
+  excludedVenues: string[]
+  preferredDays: string[]
+  maxPrice: number
+  notificationSettings: NotificationSettings
+  createdAt?: string
+  updatedAt?: string
 }
 
 // System control interface
@@ -116,13 +139,25 @@ interface AppState {
 
 // Default user preferences
 const defaultUserPreferences: UserPreferences = {
-  preferredClubs: ['Tennis Club Central', 'Riverside Tennis Club'],
-  preferredTimeSlots: ['18:00-20:00', '09:00-11:00'],
-  notificationEmail: '',
-  enableEmailNotifications: true,
-  enablePushNotifications: false,
-  maxDistance: 10,
-  enableAutoBooking: false,
+  weekdayTimes: [
+    { start: '18:00', end: '20:00' }
+  ],
+  weekendTimes: [
+    { start: '09:00', end: '11:00' }
+  ],
+  preferredVenues: ['Tennis Club Central', 'Riverside Tennis Club'],
+  excludedVenues: [],
+  preferredDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+  maxPrice: 100.0,
+  notificationSettings: {
+    email: true,
+    instantAlerts: true,
+    maxAlertsPerHour: 10,
+    maxAlertsPerDay: 50,
+    alertTimeWindowStart: '07:00',
+    alertTimeWindowEnd: '22:00',
+    unsubscribed: false,
+  },
 }
 
 // Default system control state
@@ -186,7 +221,10 @@ export const useAppStore = create<AppState>()(
               // Update notification email with user's email
               userPreferences: {
                 ...get().userPreferences,
-                notificationEmail: authData.user.email,
+                notificationSettings: {
+                  ...get().userPreferences.notificationSettings,
+                  emailAddress: authData.user.email,
+                },
               },
             },
             false,
@@ -431,7 +469,10 @@ export const useAppStore = create<AppState>()(
               // Update notification email with user's email
               userPreferences: {
                 ...get().userPreferences,
-                notificationEmail: profile.email,
+                notificationSettings: {
+                  ...get().userPreferences.notificationSettings,
+                  emailAddress: profile.email,
+                },
               },
             },
             false,

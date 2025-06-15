@@ -21,6 +21,9 @@ RUN playwright install --with-deps chromium
 # Copy source code
 COPY apps/scraper/src/ ./src/
 
+# Copy config files from project root
+COPY config/ ./config/
+
 # Create logs directory
 RUN mkdir -p logs
 

@@ -1,123 +1,343 @@
-# 🎾 Tennis Booking System
+# Tennis Booker
 
-A comprehensive system for monitoring tennis court availability, sending notifications for available slots, and managing booking preferences.
+A full-stack tennis court booking and monitoring system with real-time availability tracking, user authentication, and system control features.
 
-## 📋 Project Overview
+## 🏗️ Architecture Overview
 
-This system monitors tennis court availability across multiple platforms (ClubSpark, Courtside), notifies users based on their preferences, and provides a modern dashboard for managing preferences and viewing availability.
+This project consists of multiple integrated applications:
 
-## 🏗️ Monorepo Structure
+- **Frontend** (`apps/frontend/`) - React/TypeScript SPA with modern UI components
+- **Backend** (`apps/backend/`) - Go REST API with JWT authentication and court monitoring
+- **Scraper** (`apps/scraper/`) - Court availability monitoring service
 
-This project is organized as a monorepo with the following structure:
-
-```
-tennis-booking-system/
-├── apps/                      # Application code
-│   ├── backend/               # Go backend services (includes notification service)
-│   └── scraper/               # Python scraping services
-├── infrastructure/            # Deployment & infrastructure
-│   ├── vault/                 # HashiCorp Vault configuration & integration
-│   └── terraform/             # OCI infrastructure as code
-├── scripts/                   # Utility scripts
-├── .github/                   # CI/CD workflows
-└── .taskmaster/               # Project management and tasks
-```
-
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Go 1.21+
-- Python 3.10+
-- Node.js 18+
-- Docker & Docker Compose
-- MongoDB
-- Redis
+- **Docker & Docker Compose** (for MongoDB, Redis, Vault)
+- **Node.js** (v18 or higher)
+- **Go** (v1.19 or higher)
+- **Python 3** (for scraper)
+- **npm** or **yarn**
 
-### Development Setup
+### Option 1: One-Command Start (Recommended)
 
-1. Clone the repository
+```bash
+git clone <repository-url>
+cd tennis-booker
+
+# Start all services with one command
+./scripts/run_local.sh
+
+# Or use available commands:
+./scripts/run_local.sh start    # Start all services (default)
+./scripts/run_local.sh status   # Check service status
+./scripts/run_local.sh logs     # View recent logs
+./scripts/run_local.sh stop     # Stop all services
+./scripts/run_local.sh restart  # Restart all services
+```
+
+This will automatically:
+- Start MongoDB, Redis, and Vault in Docker
+- Build and start the integrated backend server
+- Build and start the notification service
+- Set up and start the Python scraper
+- Start the React frontend
+- Configure all environment variables
+- Seed the database with test data
+
+### Option 2: Manual Setup
+
+If you prefer to run services individually:
+
+#### 1. Clone & Install
+
+```bash
+git clone <repository-url>
+cd tennis-booker
+
+# Install frontend dependencies
+cd apps/frontend
+npm install
+cd ../..
+
+# Install backend dependencies
+cd apps/backend
+go mod download
+make build
+cd ../..
+
+# Setup scraper
+cd apps/scraper
+make setup
+cd ../..
+```
+
+#### 2. Start Infrastructure Services
+
+```bash
+# Start MongoDB, Redis, and Vault
+docker-compose up -d mongodb redis vault
+```
+
+#### 3. Start Application Services
+
+```bash
+# Terminal 1 - Integrated Backend Server
+cd apps/backend
+./bin/server
+
+# Terminal 2 - Frontend
+cd apps/frontend
+npm run dev
+
+# Terminal 3 - Scraper (optional)
+cd apps/scraper
+make run
+
+# Terminal 4 - Notification Service (optional)
+cd apps/backend
+./bin/notification-service
+```
+
+### Access the Application
+
+- **Frontend**: http://localhost:5173 (or as shown in terminal output)
+- **Backend API**: http://localhost:8080
+- **API Health**: http://localhost:8080/api/health
+- **Vault UI**: http://localhost:8200 (token: `dev-token`)
+
+### Default Login Credentials
+
+After seeding, you can login with:
+- **Email**: `mvgnum@gmail.com`
+- **Password**: Use the register flow to create your account
+
+## 🔧 Backend-Frontend Integration
+
+### ✅ Completed Integration Features
+
+1. **🔐 Authentication Flow**
+   - Real JWT-based login/register
+   - Token refresh mechanism
+   - Secure logout with token cleanup
+
+2. **📊 Dashboard Data**
+   - Live court availability from real API
+   - Real-time system status monitoring
+   - Dashboard statistics (active courts, available slots, venues)
+
+3. **⚙️ User Settings**
+   - User preferences connected to backend
+   - Profile management with real API calls
+
+4. **🎛️ System Control**
+   - Pause/Resume scraping system
+   - Real-time system status updates
+   - Visual system state indicators
+
+5. **🌐 Environment Configuration**
+   - Configurable API base URL
+   - Feature flags for mock/real API switching
+   - Development vs production settings
+
+### API Endpoints Integration
+
+| Frontend Service | Backend Endpoint | Status |
+|------------------|------------------|---------|
+| `authApi.login()` | `POST /api/auth/login` | ✅ |
+| `authApi.register()` | `POST /api/auth/register` | ✅ |
+| `authApi.refreshToken()` | `POST /api/auth/refresh` | ✅ |
+| `authApi.getMe()` | `GET /api/auth/me` | ✅ |
+| `courtApi.getVenues()` | `GET /api/venues` | ✅ |
+| `courtApi.getCourtSlots()` | `GET /api/courts` | ✅ |
+| `systemApi.getSystemStatus()` | `GET /api/system/status` | ✅ |
+| `systemApi.pauseScraping()` | `POST /api/system/pause` | ✅ |
+| `systemApi.resumeScraping()` | `POST /api/system/resume` | ✅ |
+| `systemApi.restartScraping()` | `POST /api/system/restart` | ✅ |
+| `userApi.getUserPreferences()` | `GET /api/users/preferences` | ✅ |
+| `userApi.updateUserPreferences()` | `PUT /api/users/preferences` | ✅ |
+
+## 🧪 Testing the Integration
+
+### 1. Authentication Test
+
+```bash
+# Register a new user
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test@example.com","email":"test@example.com","password":"password123"}'
+
+# Login
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test@example.com","password":"password123"}'
+```
+
+### 2. System Control Test
+
    ```bash
-   git clone https://github.com/yourusername/tennis-booking-system.git
-   cd tennis-booking-system
-   ```
+# Get system status
+curl -H "Authorization: Bearer <token>" http://localhost:8080/api/system/status
 
-2. Set up environment variables
+# Pause system
+curl -X POST -H "Authorization: Bearer <token>" http://localhost:8080/api/system/pause
+
+# Resume system
+curl -X POST -H "Authorization: Bearer <token>" http://localhost:8080/api/system/resume
+```
+
+### 3. Frontend Integration Test
+
+1. Navigate to http://localhost:5173
+2. Register/Login with credentials
+3. Verify Dashboard shows real data
+4. Test pause/resume system controls
+5. Check Settings page functionality
+
+## 🔄 Development Workflow
+
+### Frontend Development
+
    ```bash
-   cp .env-example .env
-   # Edit .env with your configuration
-   ```
+cd apps/frontend
 
-3. Start development services
+# Start development server
+npm run dev
+
+# Run type checking
+npm run type-check
+
+# Build for production
+npm run build
+```
+
+### Backend Development
+
    ```bash
-   # Complete local development (recommended for development)
-   make local
-   
-   # Or basic Docker services only
-   make dev
-   
-   # Or with Vault integration (production-like setup)
-   make vault-up
-   ```
+cd apps/backend
 
-## 📦 Applications
+# Run in development mode
+make run
 
-### Backend (Go)
+# Run tests
+make test
 
-The backend provides:
-- REST API for court data and user preferences
-- Authentication and user management
-- Notification service
-- Database management
+# Build for production
+make build
+```
 
-### Scraper (Python)
+### Switching Between Mock and Real APIs
 
-The scraper service:
-- Monitors tennis court availability
-- Supports multiple platforms (ClubSpark, Courtside)
-- Publishes availability data to Redis
+Set in `apps/frontend/.env.local`:
 
-## 🔐 Security & Vault Integration
+```bash
+# Use real backend APIs (default)
+VITE_MOCK_API_ENABLED=false
 
-This project uses HashiCorp Vault for secure secret management:
+# Use mock data for development
+VITE_MOCK_API_ENABLED=true
+```
 
-- **No hardcoded secrets**: All sensitive data managed by Vault
-- **Vault Agent integration**: Automatic secret injection for all services
-- **Non-root containers**: Enhanced security posture
-- **Production-ready**: Enterprise-grade security controls
+## 🚨 Troubleshooting
 
-See [infrastructure/vault/README.md](infrastructure/vault/README.md) for detailed setup and usage.
+### Common Issues
 
-## 🛠️ Available Commands
+1. **CORS Errors**
+   - Ensure backend is running on correct port (8080)
+   - Check CORS configuration in backend
 
-### Development Commands
-- `make setup` - Set up all applications
-- `make local` - Start complete local development (MongoDB, Redis, notification, scraper)
-- `make dev` - Start basic Docker services only
-- `make build` - Build all applications
-- `make test` - Run all tests
+2. **Authentication Failures**
+   - Verify JWT secret is set in backend `.env`
+   - Check token expiration settings
 
-### Vault Integration Commands
-- `make vault-up` - Start all services with Vault integration
-- `make vault-down` - Stop all Vault-integrated services
-- `make vault-status` - Show status of all services
-- `make vault-test` - Test Vault Agent integration
-- `make vault-logs` - Show logs for all services
-- `make vault-clean` - Clean up volumes and containers
+3. **API Connection Issues**
+   - Confirm `VITE_API_URL` points to correct backend URL
+   - Ensure backend health endpoint responds: `curl http://localhost:8080/api/health`
 
-### Service-Specific Commands
-- `make backend-build` - Build Go backend services
-- `make backend-test` - Run Go backend tests
-- `make scraper-setup` - Set up Python scraper environment
-- `make scraper-run` - Run the scraper
-- `make scraper-test` - Run scraper tests
+4. **Mock vs Real API Confusion**
+   - Check `VITE_MOCK_API_ENABLED` flag in frontend `.env.local`
+   - Use browser dev tools to inspect network requests
 
-## 📚 Documentation
+### Debug Mode
 
-- [Vault Integration Guide](infrastructure/vault/README.md)
-- [Backend Security Notes](apps/backend/SECURITY_NOTES.md)
-- [Scraper Documentation](apps/scraper/README.md)
+Enable debug logging:
+
+```bash
+# Frontend
+VITE_DEBUG_MODE=true
+VITE_LOG_LEVEL=debug
+
+# Backend  
+LOG_LEVEL=debug
+```
+
+## 📁 Project Structure
+
+```
+tennis-booker/
+├── apps/
+│   ├── frontend/          # React TypeScript SPA
+│   │   ├── src/
+│   │   │   ├── services/  # API integration layer
+│   │   │   ├── hooks/     # Custom React hooks
+│   │   │   ├── pages/     # Page components
+│   │   │   └── config/    # Environment configuration
+│   │   └── env.local.example
+│   ├── backend/           # Go REST API
+│   │   ├── internal/
+│   │   │   ├── handlers/  # HTTP handlers
+│   │   │   ├── auth/      # Authentication logic
+│   │   │   └── models/    # Data models
+│   │   └── env.example
+│   └── scraper/           # Court monitoring service
+└── README.md
+```
+
+## 🚀 Deployment
+
+### Frontend Deployment
+
+```bash
+cd apps/frontend
+npm run build
+# Deploy dist/ folder to your hosting provider
+```
+
+### Backend Deployment
+
+```bash
+cd apps/backend
+make build
+# Deploy the binary with appropriate environment variables
+```
+
+### Environment Variables for Production
+
+Ensure these are set in production:
+
+- `VITE_API_URL` - Production API URL
+- `VITE_MOCK_API_ENABLED=false` - Disable mock APIs
+- Backend JWT secrets and database connections
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test both frontend and backend integration
+5. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For issues and questions:
+
+1. Check the troubleshooting section above
+2. Review the individual app READMEs:
+   - [Frontend README](apps/frontend/README.md)
+   - [Backend README](apps/backend/README.md)
+3. Open an issue with full error details and reproduction steps 

@@ -1,5 +1,23 @@
 {
-  "dependencies": {
+  "name": "tennis-booker",
+  "version": "1.0.0",
+  "description": "Tennis court booking automation system",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd apps/frontend && npm install",
+    "build": "make build-all",
+    "start": "make run-local",
+    "test": "make test-all",
+    "clean": "make clean"
+  },
+  "devDependencies": {
     "task-master-ai": "^0.16.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }

@@ -1,4 +1,5 @@
-# Multi-stage build for Tennis Court Data Retention Service
+# Specialized build for Tennis Court Data Retention Service
+# Use the main Dockerfile for general builds, this is for retention-specific deployment
 FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
@@ -7,11 +8,11 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
+# Copy source code (only what's needed for retention service)
 COPY cmd/retention-service/ ./cmd/retention-service/
 COPY internal/ ./internal/
 
-# Build the retention service
+# Build only the retention service
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o retention-service ./cmd/retention-service
 
 # Final stage

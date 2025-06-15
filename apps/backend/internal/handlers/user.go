@@ -1,98 +1,307 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"tennis-booker/internal/auth"
+	"tennis-booker/internal/database"
 	"tennis-booker/internal/models"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// UserPreferences represents the user preferences that can be updated
-type UserPreferences struct {
-	PreferredCourts []string           `json:"preferred_courts,omitempty"`
-	PreferredDays   []string           `json:"preferred_days,omitempty"`
-	PreferredTimes  []models.TimeRange `json:"preferred_times,omitempty"`
-	NotifyBy        []string           `json:"notify_by,omitempty"`
-}
 
-// UserHandler handles user-related endpoints
+
+// UserHandler handles user-related requests
 type UserHandler struct {
-	userService models.UserService
+	db         database.Database
+	jwtService *auth.JWTService
 }
 
-// NewUserHandler creates a new UserHandler instance
-func NewUserHandler(userService models.UserService) *UserHandler {
+// NewUserHandler creates a new user handler
+func NewUserHandler(db database.Database, jwtService *auth.JWTService) *UserHandler {
 	return &UserHandler{
-		userService: userService,
+		db:         db,
+		jwtService: jwtService,
 	}
 }
 
-// UpdatePreferences handles PUT /api/users/preferences - updates user preferences
+// UserPreferencesResponse represents user preferences for API responses
+type UserPreferencesResponse struct {
+	ID                   string                      `json:"id"`
+	UserID               string                      `json:"userId"`
+	Times                []models.TimeRange          `json:"times"`                // Legacy field for backward compatibility
+	WeekdayTimes         []models.TimeRange          `json:"weekdayTimes"`         // Monday-Friday preferred times
+	WeekendTimes         []models.TimeRange          `json:"weekendTimes"`         // Saturday-Sunday preferred times
+	PreferredVenues      []string                    `json:"preferredVenues"`
+	ExcludedVenues       []string                    `json:"excludedVenues"`
+	PreferredDays        []string                    `json:"preferredDays"`
+	MaxPrice             float64                     `json:"maxPrice"`
+	NotificationSettings models.NotificationSettings `json:"notificationSettings"`
+	CreatedAt            time.Time                   `json:"createdAt"`
+	UpdatedAt            time.Time                   `json:"updatedAt"`
+}
+
+// UpdatePreferencesRequest represents a request to update user preferences
+type UpdatePreferencesRequest struct {
+	Times                []models.TimeRange           `json:"times"`                // Legacy field for backward compatibility
+	WeekdayTimes         []models.TimeRange           `json:"weekdayTimes"`         // Monday-Friday preferred times
+	WeekendTimes         []models.TimeRange           `json:"weekendTimes"`         // Saturday-Sunday preferred times
+	PreferredVenues      []string                     `json:"preferredVenues"`
+	ExcludedVenues       []string                     `json:"excludedVenues"`
+	PreferredDays        []string                     `json:"preferredDays"`
+	MaxPrice             float64                      `json:"maxPrice"`
+	NotificationSettings *models.NotificationSettings `json:"notificationSettings"`
+}
+
+// GetPreferences handles GET /api/users/preferences
+func (h *UserHandler) GetPreferences(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by JWT middleware)
+	userIDStr, ok := r.Context().Value("userID").(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusInternalServerError)
+		return
+	}
+
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := h.db.Collection("user_preferences")
+	var preferences models.UserPreferences
+	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&preferences)
+	
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// Create default preferences if none exist
+			preferences = models.UserPreferences{
+				ID:              primitive.NewObjectID(),
+				UserID:          userID,
+				Times:           []models.TimeRange{},
+				PreferredVenues: []string{},
+				ExcludedVenues:  []string{},
+				PreferredDays:   []string{},
+				MaxPrice:        100.0,
+				NotificationSettings: models.NotificationSettings{
+					Email:                true,
+					InstantAlerts:        true,
+					MaxAlertsPerHour:     10,
+					MaxAlertsPerDay:      50,
+					AlertTimeWindowStart: "07:00",
+					AlertTimeWindowEnd:   "22:00",
+					Unsubscribed:         false,
+				},
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+
+			// Insert default preferences
+			_, err = collection.InsertOne(ctx, preferences)
+			if err != nil {
+				http.Error(w, "Failed to create default preferences", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			http.Error(w, "Failed to fetch preferences", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Convert to response format
+	response := UserPreferencesResponse{
+		ID:                   preferences.ID.Hex(),
+		UserID:               preferences.UserID.Hex(),
+		Times:                preferences.Times,
+		WeekdayTimes:         preferences.WeekdayTimes,
+		WeekendTimes:         preferences.WeekendTimes,
+		PreferredVenues:      preferences.PreferredVenues,
+		ExcludedVenues:       preferences.ExcludedVenues,
+		PreferredDays:        preferences.PreferredDays,
+		MaxPrice:             preferences.MaxPrice,
+		NotificationSettings: preferences.NotificationSettings,
+		CreatedAt:            preferences.CreatedAt,
+		UpdatedAt:            preferences.UpdatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// UpdatePreferences handles PUT /api/users/preferences
 func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
-	// Only allow PUT method
-	if r.Method != http.MethodPut {
-		w.Header().Set("Allow", "PUT")
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// Get user ID from context (set by JWT middleware)
+	userIDStr, ok := r.Context().Value("userID").(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusInternalServerError)
 		return
 	}
 
-	// Extract user claims from context (set by JWT middleware)
-	claims, err := auth.GetUserClaimsFromContext(r.Context())
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
 	if err != nil {
-		h.writeErrorResponse(w, "User not authenticated", http.StatusUnauthorized)
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
 
-	// Parse request body
-	var preferences UserPreferences
-	if err := json.NewDecoder(r.Body).Decode(&preferences); err != nil {
-		h.writeErrorResponse(w, "Invalid request body", http.StatusBadRequest)
+	var req UpdatePreferencesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// Validate preferences
-	if err := h.validatePreferences(&preferences); err != nil {
-		h.writeErrorResponse(w, err.Error(), http.StatusBadRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := h.db.Collection("user_preferences")
+
+	// Check if preferences exist
+	var existingPreferences models.UserPreferences
+	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&existingPreferences)
+	
+	if err != nil && err != mongo.ErrNoDocuments {
+		http.Error(w, "Failed to check existing preferences", http.StatusInternalServerError)
 		return
 	}
 
-	// Get current user
-	user, err := h.userService.FindByID(r.Context(), claims.UserID)
+	if err == mongo.ErrNoDocuments {
+		// Create new preferences
+		preferences := models.UserPreferences{
+			ID:              primitive.NewObjectID(),
+			UserID:          userID,
+			Times:           req.Times,
+			WeekdayTimes:    req.WeekdayTimes,
+			WeekendTimes:    req.WeekendTimes,
+			PreferredVenues: req.PreferredVenues,
+			ExcludedVenues:  req.ExcludedVenues,
+			PreferredDays:   req.PreferredDays,
+			MaxPrice:        req.MaxPrice,
+			NotificationSettings: func() models.NotificationSettings {
+				if req.NotificationSettings != nil {
+					return *req.NotificationSettings
+				}
+				return models.NotificationSettings{
+					Email:                true,
+					InstantAlerts:        true,
+					MaxAlertsPerHour:     10,
+					MaxAlertsPerDay:      50,
+					AlertTimeWindowStart: "07:00",
+					AlertTimeWindowEnd:   "22:00",
+					Unsubscribed:         false,
+				}
+			}(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+
+		_, err = collection.InsertOne(ctx, preferences)
+		if err != nil {
+			http.Error(w, "Failed to create preferences", http.StatusInternalServerError)
+			return
+		}
+
+		// Return created preferences
+		response := UserPreferencesResponse{
+			ID:                   preferences.ID.Hex(),
+			UserID:               preferences.UserID.Hex(),
+			Times:                preferences.Times,
+			WeekdayTimes:         preferences.WeekdayTimes,
+			WeekendTimes:         preferences.WeekendTimes,
+			PreferredVenues:      preferences.PreferredVenues,
+			ExcludedVenues:       preferences.ExcludedVenues,
+			PreferredDays:        preferences.PreferredDays,
+			MaxPrice:             preferences.MaxPrice,
+			NotificationSettings: preferences.NotificationSettings,
+			CreatedAt:            preferences.CreatedAt,
+			UpdatedAt:            preferences.UpdatedAt,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Update existing preferences
+	updateFields := bson.M{
+		"updatedAt": time.Now(),
+	}
+	
+	// Only update fields that are provided
+	if req.Times != nil {
+		updateFields["times"] = req.Times
+	}
+	if req.WeekdayTimes != nil {
+		updateFields["weekday_times"] = req.WeekdayTimes
+	}
+	if req.WeekendTimes != nil {
+		updateFields["weekend_times"] = req.WeekendTimes
+	}
+	if req.PreferredVenues != nil {
+		updateFields["preferred_venues"] = req.PreferredVenues
+	}
+	if req.ExcludedVenues != nil {
+		updateFields["excluded_venues"] = req.ExcludedVenues
+	}
+	if req.PreferredDays != nil {
+		updateFields["preferred_days"] = req.PreferredDays
+	}
+	updateFields["max_price"] = req.MaxPrice
+	if req.NotificationSettings != nil {
+		updateFields["notification_settings"] = *req.NotificationSettings
+	}
+	
+	update := bson.M{"$set": updateFields}
+
+	result, err := collection.UpdateOne(ctx, bson.M{"userId": userID}, update)
 	if err != nil {
-		h.writeErrorResponse(w, "User not found", http.StatusNotFound)
+		http.Error(w, "Failed to update preferences", http.StatusInternalServerError)
 		return
 	}
 
-	// Update user preferences
-	user.PreferredCourts = preferences.PreferredCourts
-	user.PreferredDays = preferences.PreferredDays
-	user.PreferredTimes = preferences.PreferredTimes
-	user.NotifyBy = preferences.NotifyBy
-	user.UpdatedAt = time.Now()
+	if result.MatchedCount == 0 {
+		http.Error(w, "Preferences not found", http.StatusNotFound)
+		return
+	}
 
-	// Save updated user
-	if err := h.userService.UpdateUser(r.Context(), user); err != nil {
-		h.writeErrorResponse(w, "Failed to update preferences", http.StatusInternalServerError)
+	// Fetch updated preferences
+	var updatedPreferences models.UserPreferences
+	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&updatedPreferences)
+	if err != nil {
+		http.Error(w, "Failed to fetch updated preferences", http.StatusInternalServerError)
 		return
 	}
 
 	// Return updated preferences
-	response := UserPreferences{
-		PreferredCourts: user.PreferredCourts,
-		PreferredDays:   user.PreferredDays,
-		PreferredTimes:  user.PreferredTimes,
-		NotifyBy:        user.NotifyBy,
+	response := UserPreferencesResponse{
+		ID:                   updatedPreferences.ID.Hex(),
+		UserID:               updatedPreferences.UserID.Hex(),
+		Times:                updatedPreferences.Times,
+		WeekdayTimes:         updatedPreferences.WeekdayTimes,
+		WeekendTimes:         updatedPreferences.WeekendTimes,
+		PreferredVenues:      updatedPreferences.PreferredVenues,
+		ExcludedVenues:       updatedPreferences.ExcludedVenues,
+		PreferredDays:        updatedPreferences.PreferredDays,
+		MaxPrice:             updatedPreferences.MaxPrice,
+		NotificationSettings: updatedPreferences.NotificationSettings,
+		CreatedAt:            updatedPreferences.CreatedAt,
+		UpdatedAt:            updatedPreferences.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
 // validatePreferences validates the preferences data
-func (h *UserHandler) validatePreferences(prefs *UserPreferences) error {
+func (h *UserHandler) validatePreferences(prefs *models.UserPreferences) error {
 	// Validate preferred days
 	validDays := map[string]bool{
 		"monday": true, "tuesday": true, "wednesday": true, "thursday": true,
@@ -104,18 +313,8 @@ func (h *UserHandler) validatePreferences(prefs *UserPreferences) error {
 		}
 	}
 
-	// Validate notification methods
-	validNotifyMethods := map[string]bool{
-		"email": true, "sms": true,
-	}
-	for _, method := range prefs.NotifyBy {
-		if !validNotifyMethods[method] {
-			return &ValidationError{Field: "notify_by", Message: "invalid notification method: " + method}
-		}
-	}
-
 	// Validate time ranges
-	for i, timeRange := range prefs.PreferredTimes {
+	for i, timeRange := range prefs.Times {
 		if err := h.validateTimeRange(&timeRange); err != nil {
 			return &ValidationError{
 				Field:   "preferred_times",
@@ -171,9 +370,9 @@ func (h *UserHandler) writeErrorResponse(w http.ResponseWriter, message string, 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
-	errorResp := ErrorResponse{
-		Error:   http.StatusText(statusCode),
-		Message: message,
+	errorResp := map[string]string{
+		"error":   http.StatusText(statusCode),
+		"message": message,
 	}
 
 	json.NewEncoder(w).Encode(errorResp)

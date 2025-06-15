@@ -1,237 +1,267 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
-	"tennis-booker/internal/auth"
-)
+	"tennis-booker/internal/database"
 
-// HealthResponse represents the response structure for the health endpoint
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version,omitempty"`
-}
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
 
 // SystemStatusResponse represents the response structure for the system status endpoint
 type SystemStatusResponse struct {
-	ScrapingStatus   string     `json:"scraping_status"`
-	LastRunTimestamp *time.Time `json:"last_run_timestamp,omitempty"`
-	ItemsProcessed   int        `json:"items_processed"`
-	ErrorCount       int        `json:"error_count"`
-	SystemUptime     string     `json:"system_uptime"`
-	Timestamp        time.Time  `json:"timestamp"`
+	Status         string     `json:"status"`
+	ScrapingStatus string     `json:"scrapingStatus"`
+	LastUpdate     time.Time  `json:"lastUpdate"`
+	LastScrapeTime *time.Time `json:"lastScrapeTime,omitempty"`
+	ActiveJobs     int        `json:"activeJobs"`
+	QueuedJobs     int        `json:"queuedJobs"`
+	CompletedJobs  int        `json:"completedJobs"`
+	ErroredJobs    int        `json:"erroredJobs"`
+	SystemHealth   string     `json:"systemHealth"`
+	Message        string     `json:"message"`
 }
 
-// SystemControlResponse represents the response structure for system control endpoints
+// SystemControlRequest represents system control requests
+type SystemControlRequest struct {
+	Action string `json:"action"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// SystemControlResponse represents system control responses
 type SystemControlResponse struct {
-	Message   string    `json:"message"`
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Status  string `json:"status"`
 }
 
-// SystemHandler handles system-related endpoints
+// SystemHandler handles system control requests
 type SystemHandler struct {
-	version   string
-	startTime time.Time
-	// In a real implementation, these would be injected dependencies
-	// For now, we'll simulate the scraping system state
-	scrapingStatus string
-	lastRunTime    *time.Time
-	itemsProcessed int
-	errorCount     int
+	db database.Database
 }
 
-// NewSystemHandler creates a new SystemHandler instance
-func NewSystemHandler(version string) *SystemHandler {
+// NewSystemHandler creates a new system handler
+func NewSystemHandler(db database.Database) *SystemHandler {
 	return &SystemHandler{
-		version:        version,
-		startTime:      time.Now(),
-		scrapingStatus: "running", // Default status
-		itemsProcessed: 0,
-		errorCount:     0,
+		db: db,
 	}
 }
 
-// Health handles GET /api/health - returns the health status of the service
-func (h *SystemHandler) Health(w http.ResponseWriter, r *http.Request) {
-	// Only allow GET method
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", "GET")
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+// GetStatus handles GET /api/system/status
+func (h *SystemHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	// Create health response
-	response := HealthResponse{
-		Status:    "UP",
-		Timestamp: time.Now().UTC(),
-		Version:   h.version,
-	}
-
-	// Set content type
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Encode and send response
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// If we can't encode the response, something is seriously wrong
-		// But at this point we've already written the status code, so we can't change it
-		// Log the error if we had a logger available
-		return
-	}
-}
-
-// Status handles GET /api/system/status - returns the current status of the scraping system
-func (h *SystemHandler) Status(w http.ResponseWriter, r *http.Request) {
-	// Only allow GET method
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", "GET")
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Extract user claims from context (set by JWT middleware)
-	claims, err := auth.GetUserClaimsFromContext(r.Context())
-	if err != nil {
-		h.writeErrorResponse(w, "User not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Any authenticated user can view system status
-	_ = claims // Use claims to avoid unused variable error
-
-	// Calculate system uptime
-	uptime := time.Since(h.startTime)
-	uptimeStr := formatDuration(uptime)
-
-	// Create status response
+	// Get system status from database
+	statusCollection := h.db.Collection("system_status")
+	var systemStatus bson.M
+	err := statusCollection.FindOne(ctx, bson.M{}).Decode(&systemStatus)
+	
+	// Default status if no record exists
 	response := SystemStatusResponse{
-		ScrapingStatus:   h.scrapingStatus,
-		LastRunTimestamp: h.lastRunTime,
-		ItemsProcessed:   h.itemsProcessed,
-		ErrorCount:       h.errorCount,
-		SystemUptime:     uptimeStr,
-		Timestamp:        time.Now().UTC(),
+		Status:         "running",
+		ScrapingStatus: "active",
+		LastUpdate:     time.Now(),
+		LastScrapeTime: nil,
+		ActiveJobs:     0,
+		QueuedJobs:     0,
+		CompletedJobs:  0,
+		ErroredJobs:    0,
+		SystemHealth:   "healthy",
+		Message:        "System is operational",
 	}
 
-	// Set content type
+	if err == nil {
+		// Parse existing status
+		if status, ok := systemStatus["status"].(string); ok {
+			response.Status = status
+		}
+		if scrapingStatus, ok := systemStatus["scrapingStatus"].(string); ok {
+			response.ScrapingStatus = scrapingStatus
+		}
+		if lastUpdate, ok := systemStatus["lastUpdate"].(primitive.DateTime); ok {
+			response.LastUpdate = lastUpdate.Time()
+		}
+		if activeJobs, ok := systemStatus["activeJobs"].(int32); ok {
+			response.ActiveJobs = int(activeJobs)
+		}
+		if queuedJobs, ok := systemStatus["queuedJobs"].(int32); ok {
+			response.QueuedJobs = int(queuedJobs)
+		}
+		if completedJobs, ok := systemStatus["completedJobs"].(int32); ok {
+			response.CompletedJobs = int(completedJobs)
+		}
+		if erroredJobs, ok := systemStatus["erroredJobs"].(int32); ok {
+			response.ErroredJobs = int(erroredJobs)
+		}
+		if systemHealth, ok := systemStatus["systemHealth"].(string); ok {
+			response.SystemHealth = systemHealth
+		}
+		if message, ok := systemStatus["message"].(string); ok {
+			response.Message = message
+		}
+	}
+
+	// Get last scrape time from scraper status
+	var scraperStatus bson.M
+	err = statusCollection.FindOne(ctx, bson.M{"_id": "scraper_status"}).Decode(&scraperStatus)
+	if err == nil {
+		if lastScrapeTime, ok := scraperStatus["last_scrape_time"].(primitive.DateTime); ok {
+			t := lastScrapeTime.Time()
+			response.LastScrapeTime = &t
+		}
+	}
+
+	// Update job counts from actual collections
+	h.updateJobCounts(ctx, &response)
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Encode and send response
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		h.writeErrorResponse(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(response)
 }
 
-// Pause handles POST /api/system/pause - pauses the scraping system
-func (h *SystemHandler) Pause(w http.ResponseWriter, r *http.Request) {
-	// Only allow POST method
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", "POST")
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+// PauseScraping handles POST /api/system/pause
+func (h *SystemHandler) PauseScraping(w http.ResponseWriter, r *http.Request) {
+	var req SystemControlRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// If no body provided, just use default action
+		req.Action = "pause"
+		req.Reason = "Manual pause requested"
 	}
 
-	// Extract user claims from context (set by JWT middleware)
-	claims, err := auth.GetUserClaimsFromContext(r.Context())
-	if err != nil {
-		h.writeErrorResponse(w, "User not authenticated", http.StatusUnauthorized)
-		return
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Update system status
+	statusCollection := h.db.Collection("system_status")
+	update := bson.M{
+		"$set": bson.M{
+			"status":         "paused",
+			"scrapingStatus": "paused",
+			"lastUpdate":     time.Now(),
+			"message":        "Scraping paused: " + req.Reason,
+		},
 	}
 
-	// Any authenticated user can control the system
-	_ = claims // Use claims to avoid unused variable error
+	_, err := statusCollection.UpdateOne(
+		ctx,
+		bson.M{},
+		update,
+		&options.UpdateOptions{Upsert: &[]bool{true}[0]},
+	)
 
-	// Check if system is already paused
-	if h.scrapingStatus == "paused" {
-		h.writeErrorResponse(w, "System is already paused", http.StatusBadRequest)
-		return
-	}
-
-	// Pause the system
-	h.scrapingStatus = "paused"
-
-	// In a real implementation, this would trigger actual pause logic:
-	// - Stop scraping workers
-	// - Cancel ongoing operations
-	// - Update database state
-	// - Send signals to background processes
-
-	// Create response
 	response := SystemControlResponse{
-		Message:   "System pausing initiated",
-		Status:    h.scrapingStatus,
-		Timestamp: time.Now().UTC(),
+		Success: err == nil,
+		Status:  "paused",
 	}
 
-	// Set content type
+	if err != nil {
+		response.Message = "Failed to pause scraping: " + err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		response.Message = "Scraping paused successfully"
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Encode and send response
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		h.writeErrorResponse(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(response)
 }
 
-// Resume handles POST /api/system/resume - resumes the scraping system
-func (h *SystemHandler) Resume(w http.ResponseWriter, r *http.Request) {
-	// Only allow POST method
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", "POST")
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+// ResumeScraping handles POST /api/system/resume
+func (h *SystemHandler) ResumeScraping(w http.ResponseWriter, r *http.Request) {
+	var req SystemControlRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// If no body provided, just use default action
+		req.Action = "resume"
+		req.Reason = "Manual resume requested"
 	}
 
-	// Extract user claims from context (set by JWT middleware)
-	claims, err := auth.GetUserClaimsFromContext(r.Context())
-	if err != nil {
-		h.writeErrorResponse(w, "User not authenticated", http.StatusUnauthorized)
-		return
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Update system status
+	statusCollection := h.db.Collection("system_status")
+	update := bson.M{
+		"$set": bson.M{
+			"status":         "running",
+			"scrapingStatus": "active",
+			"lastUpdate":     time.Now(),
+			"message":        "Scraping resumed: " + req.Reason,
+		},
 	}
 
-	// TODO: In a real implementation, check for admin role
-	// For now, any authenticated user can control the system
-	_ = claims // Use claims to avoid unused variable error
+	_, err := statusCollection.UpdateOne(
+		ctx,
+		bson.M{},
+		update,
+		&options.UpdateOptions{Upsert: &[]bool{true}[0]},
+	)
 
-	// Check if system is already running
-	if h.scrapingStatus == "running" {
-		h.writeErrorResponse(w, "System is already running", http.StatusBadRequest)
-		return
-	}
-
-	// Resume the system
-	h.scrapingStatus = "running"
-
-	// In a real implementation, this would trigger actual resume logic:
-	// - Start scraping workers
-	// - Resume scheduled operations
-	// - Update database state
-	// - Send signals to background processes
-
-	// Create response
 	response := SystemControlResponse{
-		Message:   "System resuming initiated",
-		Status:    h.scrapingStatus,
-		Timestamp: time.Now().UTC(),
+		Success: err == nil,
+		Status:  "running",
 	}
 
-	// Set content type
+	if err != nil {
+		response.Message = "Failed to resume scraping: " + err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		response.Message = "Scraping resumed successfully"
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
 
-	// Encode and send response
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		h.writeErrorResponse(w, "Failed to encode response", http.StatusInternalServerError)
-		return
+// RestartSystem handles POST /api/system/restart
+func (h *SystemHandler) RestartSystem(w http.ResponseWriter, r *http.Request) {
+	var req SystemControlRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// If no body provided, just use default action
+		req.Action = "restart"
+		req.Reason = "Manual restart requested"
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Update system status
+	statusCollection := h.db.Collection("system_status")
+	update := bson.M{
+		"$set": bson.M{
+			"status":         "restarting",
+			"scrapingStatus": "restarting",
+			"lastUpdate":     time.Now(),
+			"message":        "System restart initiated: " + req.Reason,
+		},
+	}
+
+	_, err := statusCollection.UpdateOne(
+		ctx,
+		bson.M{},
+		update,
+		&options.UpdateOptions{Upsert: &[]bool{true}[0]},
+	)
+
+	response := SystemControlResponse{
+		Success: err == nil,
+		Status:  "restarting",
+	}
+
+	if err != nil {
+		response.Message = "Failed to restart system: " + err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		response.Message = "System restart initiated successfully"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // formatDuration formats a duration into a human-readable string
@@ -252,15 +282,157 @@ func formatDuration(d time.Duration) string {
 	}
 }
 
-// writeErrorResponse writes an error response in JSON format
-func (h *SystemHandler) writeErrorResponse(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+// updateJobCounts updates job counts from database collections
+func (h *SystemHandler) updateJobCounts(ctx context.Context, response *SystemStatusResponse) {
+	// Count scraping jobs
+	scrapingLogsCollection := h.db.Collection("scraping_logs")
 
-	errorResp := ErrorResponse{
-		Error:   http.StatusText(statusCode),
-		Message: message,
+	// Active jobs (running status)
+	activeCount, err := scrapingLogsCollection.CountDocuments(ctx, bson.M{"status": "running"})
+	if err == nil {
+		response.ActiveJobs = int(activeCount)
 	}
 
-	json.NewEncoder(w).Encode(errorResp)
+	// Queued jobs (pending status)
+	queuedCount, err := scrapingLogsCollection.CountDocuments(ctx, bson.M{"status": "pending"})
+	if err == nil {
+		response.QueuedJobs = int(queuedCount)
+	}
+
+	// Completed jobs (completed status)
+	completedCount, err := scrapingLogsCollection.CountDocuments(ctx, bson.M{"status": "completed"})
+	if err == nil {
+		response.CompletedJobs = int(completedCount)
+	}
+
+	// Errored jobs (error status)
+	erroredCount, err := scrapingLogsCollection.CountDocuments(ctx, bson.M{"status": "error"})
+	if err == nil {
+		response.ErroredJobs = int(erroredCount)
+	}
+}
+
+// GetScrapingLogs returns recent scraping logs for monitoring
+func (h *SystemHandler) GetScrapingLogs(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Get query parameters
+	query := r.URL.Query()
+	limitStr := query.Get("limit")
+	offsetStr := query.Get("offset")
+	venueID := query.Get("venueId")
+
+	// Parse limit and offset
+	limit := int64(50) // Default limit
+	if limitStr != "" {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 64); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	offset := int64(0)
+	if offsetStr != "" {
+		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 64); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	// Query the database directly to handle the current schema
+	scrapingLogsCollection := h.db.Collection("scraping_logs")
+	
+	// Build filter
+	filter := bson.M{}
+	if venueID != "" {
+		venueObjectID, err := primitive.ObjectIDFromHex(venueID)
+		if err != nil {
+			http.Error(w, "Invalid venue ID", http.StatusBadRequest)
+			return
+		}
+		filter["venue_id"] = venueObjectID
+	}
+
+	// Set up options
+	opts := options.Find().
+		SetSort(bson.D{{Key: "scrape_timestamp", Value: -1}}).
+		SetSkip(offset).
+		SetLimit(limit)
+
+	cursor, err := scrapingLogsCollection.Find(ctx, filter, opts)
+	if err != nil {
+		fmt.Printf("Error fetching scraping logs: %v\n", err)
+		http.Error(w, fmt.Sprintf("Failed to fetch scraping logs: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	// Transform logs for frontend consumption
+	type ScrapingLogResponse struct {
+		ID               string    `json:"id"`
+		VenueID          string    `json:"venueId"`
+		VenueName        string    `json:"venueName"`
+		Provider         string    `json:"provider"`
+		Platform         string    `json:"platform"`
+		ScrapeTimestamp  time.Time `json:"scrapeTimestamp"`
+		Success          bool      `json:"success"`
+		SlotsFound       int       `json:"slotsFound"`
+		ScrapeDurationMs int       `json:"scrapeDurationMs"`
+		Errors           []string  `json:"errors"`
+		CreatedAt        time.Time `json:"createdAt"`
+	}
+
+	var response []ScrapingLogResponse
+	for cursor.Next(ctx) {
+		var rawLog bson.M
+		if err := cursor.Decode(&rawLog); err != nil {
+			continue // Skip invalid logs
+		}
+
+		// Extract fields safely
+		id, _ := rawLog["_id"].(primitive.ObjectID)
+		venueID, _ := rawLog["venue_id"].(primitive.ObjectID)
+		venueName, _ := rawLog["venue_name"].(string)
+		provider, _ := rawLog["provider"].(string)
+		platform, _ := rawLog["platform"].(string)
+		scrapeTimestamp, _ := rawLog["scrape_timestamp"].(primitive.DateTime)
+		success, _ := rawLog["success"].(bool)
+		slotsFound, _ := rawLog["slots_found"].(int32)
+		scrapeDurationMs, _ := rawLog["scrape_duration_ms"].(int32)
+		createdAt, _ := rawLog["created_at"].(primitive.DateTime)
+		
+		// Handle errors field
+		var errors []string
+		if errorsInterface, ok := rawLog["errors"]; ok {
+			if errorsArray, ok := errorsInterface.(primitive.A); ok {
+				for _, err := range errorsArray {
+					if errStr, ok := err.(string); ok {
+						errors = append(errors, errStr)
+					}
+				}
+			}
+		}
+
+		response = append(response, ScrapingLogResponse{
+			ID:               id.Hex(),
+			VenueID:          venueID.Hex(),
+			VenueName:        venueName,
+			Provider:         provider,
+			Platform:         platform,
+			ScrapeTimestamp:  scrapeTimestamp.Time(),
+			Success:          success,
+			SlotsFound:       int(slotsFound),
+			ScrapeDurationMs: int(scrapeDurationMs),
+			Errors:           errors,
+			CreatedAt:        createdAt.Time(),
+		})
+	}
+
+	if err := cursor.Err(); err != nil {
+		fmt.Printf("Cursor error: %v\n", err)
+		http.Error(w, fmt.Sprintf("Error reading scraping logs: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

@@ -14,6 +14,9 @@ go.work
 /dist/
 *.log
 */bin/
+*.prof
+*.pprof
+__debug_bin
 
 # Python
 __pycache__/
@@ -132,6 +135,7 @@ temp/
 tmp/
 logs/
 *.log
+*.pid
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

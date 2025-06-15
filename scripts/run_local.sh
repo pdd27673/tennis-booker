@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 🎾 Tennis Booker - Local Development Script
-# Starts MongoDB, Redis, notification service, and scraper for local development
+# Starts MongoDB, Redis, Vault, notification service, test-auth-server, and frontend for local development
 
 set -e
 
@@ -21,6 +21,7 @@ error() { echo -e "${RED}❌ $1${NC}"; }
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/apps/backend"
 SCRAPER_DIR="$PROJECT_ROOT/apps/scraper"
+FRONTEND_DIR="$PROJECT_ROOT/apps/frontend"
 
 # Default environment variables for local development
 export MONGO_ROOT_USERNAME="admin"
@@ -29,6 +30,11 @@ export REDIS_PASSWORD="password"
 export MONGO_URI="mongodb://admin:YOUR_PASSWORD@localhost:27017/tennis_booking?authSource=admin"
 export REDIS_ADDR="localhost:6379"
 export DB_NAME="tennis_booking"
+
+# Vault configuration
+export VAULT_ADDR="http://localhost:8200"
+export VAULT_TOKEN="dev-token" # Dev token for local development
+export VAULT_DEV_ROOT_TOKEN_ID="dev-token" # For Vault container
 
 # Email configuration for notifications
 export GMAIL_EMAIL="mvgnum@gmail.com"
@@ -58,16 +64,43 @@ check_prerequisites() {
         exit 1
     fi
     
+    if ! command -v npm &> /dev/null; then
+        error "npm is required but not installed"
+        exit 1
+    fi
+    
     success "Prerequisites check passed"
 }
 
-# Start Docker services (MongoDB and Redis only)
+# Start Docker services (MongoDB, Redis, and Vault)
 start_docker_services() {
-    info "Starting Docker services (MongoDB, Redis)..."
+    info "Starting Docker services (MongoDB, Redis, Vault)..."
     cd "$PROJECT_ROOT"
     
-    # Start only MongoDB and Redis
-    docker-compose up -d mongodb redis
+    # Create a docker-compose.override.yml file to add Vault if it doesn't exist in the original
+    if ! grep -q "vault:" docker-compose.yml; then
+        cat > docker-compose.override.yml << EOF
+version: '3'
+
+services:
+  vault:
+    image: vault:1.12.0
+    container_name: tennis-vault
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=dev-token
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    command: server -dev -dev-root-token-id=dev-token
+    restart: unless-stopped
+EOF
+        info "Created docker-compose.override.yml with Vault configuration"
+    fi
+    
+    # Start MongoDB, Redis, and Vault
+    docker-compose up -d mongodb redis vault
     
     # Wait for services to be ready
     info "Waiting for services to be ready..."
@@ -80,6 +113,10 @@ start_docker_services() {
         fi
         echo -n "."
         sleep 2
+        if [ $i -eq 30 ]; then
+            error "MongoDB failed to start in time"
+            exit 1
+        fi
     done
     
     # Wait for Redis
@@ -90,6 +127,33 @@ start_docker_services() {
         fi
         echo -n "."
         sleep 2
+        if [ $i -eq 30 ]; then
+            error "Redis failed to start in time"
+            exit 1
+        fi
+    done
+    
+    # Wait for Vault
+    for i in {1..30}; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8200/v1/sys/health | grep -q "^200"; then
+            success "Vault is ready"
+            
+            # Add JWT secret at the path the app expects: kv/data/tennisapp/prod/jwt
+            # In Vault, the kv v2 engine is already mounted at 'secret/'
+            # For KV v2, we need to use /v1/secret/data/... in the API call
+            curl -s -X POST -H "X-Vault-Token: dev-token" \
+                -d '{"data":{"secret":"super-secret-jwt-key-for-local-development"}}' \
+                http://localhost:8200/v1/secret/data/tennisapp/prod/jwt > /dev/null
+                
+            success "Vault initialized with JWT secret"
+            break
+        fi
+        echo -n "."
+        sleep 2
+        if [ $i -eq 30 ]; then
+            error "Vault failed to start in time"
+            exit 1
+        fi
     done
 }
 
@@ -127,6 +191,92 @@ setup_scraper() {
     fi
 }
 
+# Start integrated backend server
+start_backend_server() {
+    info "Starting integrated backend server..."
+    cd "$BACKEND_DIR"
+    
+    # Kill existing backend server if running
+    pkill -f "bin/server" || true
+    
+    # Create logs directory if it doesn't exist
+    mkdir -p "$PROJECT_ROOT/logs"
+    
+    # Build the server first
+    make build-server
+    
+    # Start integrated backend server in background
+    nohup ./bin/server > "$PROJECT_ROOT/logs/backend-server.log" 2>&1 &
+    BACKEND_SERVER_PID=$!
+    echo $BACKEND_SERVER_PID > "$PROJECT_ROOT/logs/backend-server.pid"
+    
+    sleep 3
+    if kill -0 $BACKEND_SERVER_PID 2>/dev/null; then
+        success "Backend server started (PID: $BACKEND_SERVER_PID)"
+    else
+        error "Backend server failed to start"
+        cat "$PROJECT_ROOT/logs/backend-server.log"
+        exit 1
+    fi
+    
+    # Check if the server is responding
+    for i in {1..10}; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health | grep -q "^200"; then
+            success "Backend server is responding"
+            break
+        fi
+        echo -n "."
+        sleep 2
+        if [ $i -eq 10 ]; then
+            warn "Backend server is not responding to health check (this could be normal during startup)"
+            tail -n 10 "$PROJECT_ROOT/logs/backend-server.log"
+        fi
+    done
+}
+
+# Start frontend in background
+start_frontend() {
+    info "Starting frontend..."
+    cd "$FRONTEND_DIR"
+    
+    # Create .env.local if it doesn't exist
+    if [ ! -f ".env.local" ]; then
+        cat > .env.local << EOF
+VITE_API_URL=http://localhost:8080
+VITE_MOCK_API_ENABLED=false
+EOF
+        success "Created .env.local with API configuration"
+    fi
+    
+    # Kill existing frontend process if running
+    pkill -f "vite.*$FRONTEND_DIR" || true
+    
+    # Create logs directory if it doesn't exist
+    mkdir -p "$PROJECT_ROOT/logs"
+    
+    # Start frontend in background
+    nohup npm run dev > "$PROJECT_ROOT/logs/frontend.log" 2>&1 &
+    FRONTEND_PID=$!
+    echo $FRONTEND_PID > "$PROJECT_ROOT/logs/frontend.pid"
+    
+    sleep 5
+    if kill -0 $FRONTEND_PID 2>/dev/null; then
+        success "Frontend started (PID: $FRONTEND_PID)"
+    else
+        error "Frontend failed to start"
+        cat "$PROJECT_ROOT/logs/frontend.log"
+        exit 1
+    fi
+    
+    # Extract the frontend URL from the logs
+    FRONTEND_URL=$(grep -o 'http://[a-zA-Z0-9.:]*' "$PROJECT_ROOT/logs/frontend.log" | head -n 1)
+    if [ ! -z "$FRONTEND_URL" ]; then
+        success "Frontend available at $FRONTEND_URL"
+    else
+        warn "Frontend started but URL could not be detected"
+    fi
+}
+
 # Start notification service in background
 start_notification_service() {
     info "Starting notification service..."
@@ -153,28 +303,37 @@ start_notification_service() {
     fi
 }
 
-# Start scraper in background
+# Start scraper scheduler in background
 start_scraper() {
-    info "Starting scraper..."
+    info "Starting scraper scheduler..."
     cd "$SCRAPER_DIR"
     
-    # Kill existing scraper if running
+    # Kill existing scraper processes if running
+    pkill -f "scheduler.py" || true
     pkill -f "scraper_orchestrator.py" || true
     
     # Create logs directory if it doesn't exist
     mkdir -p "$PROJECT_ROOT/logs"
     
-    # Start scraper in background (set PYTHONPATH to fix imports)
+    # Set environment variables for scraper
+    export MONGO_URI="mongodb://admin:YOUR_PASSWORD@localhost:27017/tennis_booking?authSource=admin"
+    export REDIS_HOST="localhost"
+    export REDIS_PORT="6379"
+    export REDIS_PASSWORD="password"
+    export SCRAPER_INTERVAL_MINUTES="5"  # 5 minutes for local development
+    export LOG_LEVEL="INFO"
+    
+    # Start scraper scheduler in background (set PYTHONPATH to fix imports)
     export PYTHONPATH="$SCRAPER_DIR:$PYTHONPATH"
-    nohup venv/bin/python src/scrapers/scraper_orchestrator.py > "$PROJECT_ROOT/logs/scraper.log" 2>&1 &
+    nohup venv/bin/python src/scheduler.py > "$PROJECT_ROOT/logs/scraper.log" 2>&1 &
     SCRAPER_PID=$!
     echo $SCRAPER_PID > "$PROJECT_ROOT/logs/scraper.pid"
     
-    sleep 2
+    sleep 3
     if kill -0 $SCRAPER_PID 2>/dev/null; then
-        success "Scraper started (PID: $SCRAPER_PID)"
+        success "Scraper scheduler started (PID: $SCRAPER_PID, interval: 5 minutes)"
     else
-        error "Scraper failed to start"
+        error "Scraper scheduler failed to start"
         cat "$PROJECT_ROOT/logs/scraper.log"
         exit 1
     fi
@@ -195,6 +354,22 @@ stop_services() {
         SCRAPER_PID=$(cat "$PROJECT_ROOT/logs/scraper.pid")
         kill $SCRAPER_PID 2>/dev/null || true
         rm -f "$PROJECT_ROOT/logs/scraper.pid"
+    fi
+    
+    # Also kill any remaining scraper processes
+    pkill -f "scheduler.py" || true
+    pkill -f "scraper_orchestrator.py" || true
+    
+    if [ -f "$PROJECT_ROOT/logs/backend-server.pid" ]; then
+        BACKEND_SERVER_PID=$(cat "$PROJECT_ROOT/logs/backend-server.pid")
+        kill $BACKEND_SERVER_PID 2>/dev/null || true
+        rm -f "$PROJECT_ROOT/logs/backend-server.pid"
+    fi
+    
+    if [ -f "$PROJECT_ROOT/logs/frontend.pid" ]; then
+        FRONTEND_PID=$(cat "$PROJECT_ROOT/logs/frontend.pid")
+        kill $FRONTEND_PID 2>/dev/null || true
+        rm -f "$PROJECT_ROOT/logs/frontend.pid"
     fi
     
     # Stop Docker services
@@ -227,28 +402,73 @@ show_status() {
         echo "  ❌ Notification Service (not started)"
     fi
     
-    # Check scraper
+    # Check scraper scheduler
     if [ -f "$PROJECT_ROOT/logs/scraper.pid" ]; then
         SCRAPER_PID=$(cat "$PROJECT_ROOT/logs/scraper.pid")
         if kill -0 $SCRAPER_PID 2>/dev/null; then
-            echo "  ✅ Scraper (PID: $SCRAPER_PID)"
+            echo "  ✅ Scraper Scheduler (PID: $SCRAPER_PID)"
         else
-            echo "  ❌ Scraper (not running)"
+            echo "  ❌ Scraper Scheduler (not running)"
         fi
     else
-        echo "  ❌ Scraper (not started)"
+        echo "  ❌ Scraper Scheduler (not started)"
+    fi
+    
+    # Check backend server
+    if [ -f "$PROJECT_ROOT/logs/backend-server.pid" ]; then
+        BACKEND_SERVER_PID=$(cat "$PROJECT_ROOT/logs/backend-server.pid")
+        if kill -0 $BACKEND_SERVER_PID 2>/dev/null; then
+            echo "  ✅ Backend Server (PID: $BACKEND_SERVER_PID)"
+        else
+            echo "  ❌ Backend Server (not running)"
+        fi
+    else
+        echo "  ❌ Backend Server (not started)"
+    fi
+    
+    # Check frontend
+    if [ -f "$PROJECT_ROOT/logs/frontend.pid" ]; then
+        FRONTEND_PID=$(cat "$PROJECT_ROOT/logs/frontend.pid")
+        if kill -0 $FRONTEND_PID 2>/dev/null; then
+            FRONTEND_URL=$(grep -o 'http://[a-zA-Z0-9.:]*' "$PROJECT_ROOT/logs/frontend.log" | head -n 1)
+            echo "  ✅ Frontend (PID: $FRONTEND_PID, URL: $FRONTEND_URL)"
+        else
+            echo "  ❌ Frontend (not running)"
+        fi
+    else
+        echo "  ❌ Frontend (not started)"
+    fi
+    
+    # Check API health
+    echo ""
+    echo "API Health:"
+    HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health 2>/dev/null || echo "failed")
+    if [ "$HEALTH_STATUS" == "200" ]; then
+        echo "  ✅ API Health: OK"
+    else
+        echo "  ❌ API Health: Not responding (status: $HEALTH_STATUS)"
     fi
 }
 
 # Show logs
 show_logs() {
     info "Recent logs:"
+    
+    echo ""
+    echo "=== Backend Server Logs ==="
+    tail -n 20 "$PROJECT_ROOT/logs/backend-server.log" 2>/dev/null || echo "No backend server logs found"
+    
+    echo ""
+    echo "=== Frontend Logs ==="
+    tail -n 20 "$PROJECT_ROOT/logs/frontend.log" 2>/dev/null || echo "No frontend logs found"
+    
     echo ""
     echo "=== Notification Service Logs ==="
     tail -n 20 "$PROJECT_ROOT/logs/notification-service.log" 2>/dev/null || echo "No notification logs found"
+    
     echo ""
-    echo "=== Scraper Logs ==="
-    tail -n 20 "$PROJECT_ROOT/logs/scraper.log" 2>/dev/null || echo "No scraper logs found"
+    echo "=== Scraper Scheduler Logs ==="
+    tail -n 20 "$PROJECT_ROOT/logs/scraper.log" 2>/dev/null || echo "No scraper scheduler logs found"
 }
 
 # Main function
@@ -261,10 +481,14 @@ main() {
             build_backend
             seed_database
             setup_scraper
+            start_backend_server
             start_notification_service
             start_scraper
+            start_frontend
             echo ""
             success "🎾 Tennis Booker is running locally!"
+            echo ""
+            show_status
             echo ""
             info "📋 Useful commands:"
             echo "  $0 status    - Check service status"
@@ -272,8 +496,10 @@ main() {
             echo "  $0 stop      - Stop all services"
             echo ""
             info "📁 Log files:"
+            echo "  Backend Server: logs/backend-server.log"
+            echo "  Frontend: logs/frontend.log"
             echo "  Notification: logs/notification-service.log"
-            echo "  Scraper: logs/scraper.log"
+            echo "  Scraper Scheduler: logs/scraper.log"
             ;;
         stop)
             stop_services

@@ -45,6 +45,28 @@ services:
     networks:
       - tennis-network
 
+  scraper:
+    build:
+      context: .
+      dockerfile: ./apps/scraper/Dockerfile
+    container_name: tennis-scraper
+    environment:
+      - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017
+      - MONGO_DB_NAME=tennis_booking
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SCRAPER_INTERVAL_MINUTES=5
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    networks:
+      - tennis-network
+    # Run the scheduler for continuous scraping
+    command: python -m src.scheduler
+
 volumes:
   mongodb_data:
   redis_data:

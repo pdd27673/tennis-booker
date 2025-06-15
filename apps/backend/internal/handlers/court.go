@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"tennis-booker/internal/database"
 	"tennis-booker/internal/models"
 )
@@ -24,154 +26,308 @@ type ScrapingLogRepositoryInterface interface {
 	GetAvailableCourtSlotsWithFilters(ctx context.Context, filter models.CourtSlotFilter, limit int64) ([]*models.CourtSlot, error)
 }
 
-// CourtHandler handles court and venue related HTTP requests
+// SlotsRepositoryInterface defines the interface for slots repository operations
+type SlotsRepositoryInterface interface {
+	GetAvailableSlots(ctx context.Context, limit int64) ([]*models.CourtSlot, error)
+	GetAvailableSlotsByVenue(ctx context.Context, venueID primitive.ObjectID, limit int64) ([]*models.CourtSlot, error)
+	GetAvailableSlotsByDate(ctx context.Context, date string, limit int64) ([]*models.CourtSlot, error)
+	CountAvailableSlots(ctx context.Context) (int64, error)
+	CountSlotsByDate(ctx context.Context, date string) (int64, error)
+	GetActivePlatforms(ctx context.Context) ([]string, error)
+}
+
+// CourtHandler handles court and venue related requests
 type CourtHandler struct {
-	venueRepo       VenueRepositoryInterface
-	scrapingLogRepo ScrapingLogRepositoryInterface
+	db               database.Database
+	scrapingLogRepo  ScrapingLogRepositoryInterface
+	slotsRepo        SlotsRepositoryInterface
 }
 
 // NewCourtHandler creates a new court handler
-func NewCourtHandler(venueRepo VenueRepositoryInterface, scrapingLogRepo ScrapingLogRepositoryInterface) *CourtHandler {
+func NewCourtHandler(db database.Database) *CourtHandler {
+	// Create repositories
+	scrapingLogRepo := database.NewScrapingLogRepository(db.GetMongoDB())
+	slotsRepo := database.NewSlotsRepository(db.GetMongoDB())
+	
 	return &CourtHandler{
-		venueRepo:       venueRepo,
+		db:              db,
 		scrapingLogRepo: scrapingLogRepo,
+		slotsRepo:       slotsRepo,
 	}
 }
 
-// NewCourtHandlerWithDB creates a new court handler with database connections
-func NewCourtHandlerWithDB(venueRepo *database.VenueRepository, scrapingLogRepo *database.ScrapingLogRepository) *CourtHandler {
-	return &CourtHandler{
-		venueRepo:       venueRepo,
-		scrapingLogRepo: scrapingLogRepo,
+// VenueResponse represents venue data for API responses
+type VenueResponse struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Address     string  `json:"address"`
+	City        string  `json:"city"`
+	PostCode    string  `json:"postCode"`
+	Phone       string  `json:"phone"`
+	Email       string  `json:"email"`
+	Website     string  `json:"website"`
+	Platform    string  `json:"platform"`
+	PlatformID  string  `json:"platformId"`
+	Coordinates struct {
+		Lat float64 `json:"lat"`
+		Lng float64 `json:"lng"`
+	} `json:"coordinates"`
+	TotalCourts int `json:"totalCourts"`
 	}
+
+// CourtSlotResponse represents court slot data for API responses
+type CourtSlotResponse struct {
+	ID       string    `json:"id"`
+	VenueID  string    `json:"venueId"`
+	VenueName string  `json:"venueName"`
+	CourtID  string    `json:"courtId"`
+	CourtName string  `json:"courtName"`
+	Date     string    `json:"date"`
+	StartTime string   `json:"startTime"`
+	EndTime   string   `json:"endTime"`
+	Duration  int       `json:"duration"`
+	Price     float64   `json:"price"`
+	Currency  string    `json:"currency"`
+	Available bool      `json:"available"`
+	Platform  string    `json:"platform"`
+	BookingURL string   `json:"bookingUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	}
+
+// DashboardStatsResponse represents dashboard statistics
+type DashboardStatsResponse struct {
+	TotalVenues      int `json:"totalVenues"`
+	TotalCourtSlots  int `json:"totalCourtSlots"`
+	AvailableSlots   int `json:"availableSlots"`
+	TodaySlots      int `json:"todaySlots"`
+	WeekSlots       int `json:"weekSlots"`
+	ActivePlatforms  int `json:"activePlatforms"`
 }
 
-// ListVenues handles GET /api/venues - returns list of all venues
-func (h *CourtHandler) ListVenues(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+// GetVenues handles the GET /api/venues endpoint
+func (h *CourtHandler) GetVenues(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	// Get venues from database
-	venues, err := h.venueRepo.ListActive(r.Context())
-	if err != nil {
-		http.Error(w, "Failed to retrieve venues", http.StatusInternalServerError)
-		return
-	}
-
-	// Return venues as JSON
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(venues)
-}
-
-// ListCourts handles GET /api/courts - returns list of available court slots
-func (h *CourtHandler) ListCourts(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse query parameters for filtering
+	// Get query parameters
 	query := r.URL.Query()
-	filter := models.CourtSlotFilter{}
-	hasFilters := false
+	platform := query.Get("platform")
+	city := query.Get("city")
+	limitStr := query.Get("limit")
+	offsetStr := query.Get("offset")
 
-	// Parse venue ID filter
-	if venueIDStr := query.Get("venueId"); venueIDStr != "" {
-		if venueID, err := primitive.ObjectIDFromHex(venueIDStr); err == nil {
-			filter.VenueID = &venueID
-			hasFilters = true
-		} else {
-			http.Error(w, "Invalid venueId format", http.StatusBadRequest)
-			return
+	// Build filter
+	filter := bson.M{}
+	if platform != "" {
+		filter["platform"] = platform
+	}
+	if city != "" {
+		filter["city"] = bson.M{"$regex": city, "$options": "i"}
+	}
+
+	// Set up options
+	opts := options.Find()
+	if limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			opts.SetLimit(int64(limit))
+		}
+	}
+	if offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			opts.SetSkip(int64(offset))
 		}
 	}
 
-	// Parse date filter (YYYY-MM-DD format)
-	if dateStr := query.Get("date"); dateStr != "" {
-		// Validate date format
-		if _, err := time.Parse("2006-01-02", dateStr); err != nil {
-			http.Error(w, "Invalid date format. Use YYYY-MM-DD", http.StatusBadRequest)
+	// Sort by name
+	opts.SetSort(bson.D{{Key: "name", Value: 1}})
+
+	// Query venues
+	collection := h.db.Collection("venues")
+	cursor, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		http.Error(w, "Failed to fetch venues", http.StatusInternalServerError)
 			return
 		}
-		filter.Date = &dateStr
-		hasFilters = true
+	defer cursor.Close(ctx)
+
+	var venues []models.Venue
+	if err := cursor.All(ctx, &venues); err != nil {
+		http.Error(w, "Failed to decode venues", http.StatusInternalServerError)
+		return
 	}
 
-	// Parse start time filter (HH:MM format)
-	if startTimeStr := query.Get("startTime"); startTimeStr != "" {
-		// Validate time format
-		if _, err := time.Parse("15:04", startTimeStr); err != nil {
-			http.Error(w, "Invalid startTime format. Use HH:MM", http.StatusBadRequest)
-			return
-		}
-		filter.StartTime = &startTimeStr
-		hasFilters = true
-	}
-
-	// Parse end time filter (HH:MM format)
-	if endTimeStr := query.Get("endTime"); endTimeStr != "" {
-		// Validate time format
-		if _, err := time.Parse("15:04", endTimeStr); err != nil {
-			http.Error(w, "Invalid endTime format. Use HH:MM", http.StatusBadRequest)
-			return
-		}
-		filter.EndTime = &endTimeStr
-		hasFilters = true
-	}
-
-	// Parse provider filter
-	if providerStr := query.Get("provider"); providerStr != "" {
-		filter.Provider = &providerStr
-		hasFilters = true
-	}
-
-	// Parse price filters
-	if minPriceStr := query.Get("minPrice"); minPriceStr != "" {
-		if minPrice, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
-			filter.MinPrice = &minPrice
-			hasFilters = true
-		} else {
-			http.Error(w, "Invalid minPrice format", http.StatusBadRequest)
-			return
+	// Convert to response format
+	response := make([]VenueResponse, len(venues))
+	for i, venue := range venues {
+		response[i] = VenueResponse{
+			ID:         venue.ID.Hex(),
+			Name:       venue.Name,
+			Address:    venue.Location.Address,
+			City:       venue.Location.City,
+			PostCode:   venue.Location.PostCode,
+			Phone:      "", // Not available in current model
+			Email:      "", // Not available in current model
+			Website:    venue.URL,
+			Platform:   venue.Provider,
+			PlatformID: venue.ID.Hex(), // Use venue ID as platform ID
+			Coordinates: struct {
+				Lat float64 `json:"lat"`
+				Lng float64 `json:"lng"`
+			}{
+				Lat: venue.Location.Latitude,
+				Lng: venue.Location.Longitude,
+			},
+			TotalCourts: len(venue.Courts),
 		}
 	}
 
-	if maxPriceStr := query.Get("maxPrice"); maxPriceStr != "" {
-		if maxPrice, err := strconv.ParseFloat(maxPriceStr, 64); err == nil {
-			filter.MaxPrice = &maxPrice
-			hasFilters = true
-		} else {
-			http.Error(w, "Invalid maxPrice format", http.StatusBadRequest)
-			return
-		}
-	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
 
-	// Parse limit parameter (optional, defaults to 100)
-	limit := int64(100)
-	if limitStr := query.Get("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 64); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
+// GetCourtSlots handles the GET /api/courts endpoint
+func (h *CourtHandler) GetCourtSlots(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Get query parameters
+	query := r.URL.Query()
+	venueID := query.Get("venueId")
+	date := query.Get("date")
+	limitStr := query.Get("limit")
+
+	// Parse limit
+	limit := int64(100) // Default limit
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = int64(parsedLimit)
 		}
 	}
 
 	var courtSlots []*models.CourtSlot
 	var err error
 
-	// Use filtering method if filters are provided, otherwise use the basic method
-	if hasFilters {
-		courtSlots, err = h.scrapingLogRepo.GetAvailableCourtSlotsWithFilters(r.Context(), filter, limit)
+	// If venue ID is specified, use venue-specific query
+	if venueID != "" {
+		venueObjID, err := primitive.ObjectIDFromHex(venueID)
+		if err != nil {
+			http.Error(w, "Invalid venue ID", http.StatusBadRequest)
+			return
+		}
+		courtSlots, err = h.slotsRepo.GetAvailableSlotsByVenue(ctx, venueObjID, limit)
+	} else if date != "" {
+		// If date is specified, use date-specific query
+		courtSlots, err = h.slotsRepo.GetAvailableSlotsByDate(ctx, date, limit)
 	} else {
-		courtSlots, err = h.scrapingLogRepo.GetAvailableCourtSlots(r.Context(), limit)
+		// General query for all available slots
+		courtSlots, err = h.slotsRepo.GetAvailableSlots(ctx, limit)
 	}
 
 	if err != nil {
-		http.Error(w, "Failed to retrieve court slots", http.StatusInternalServerError)
+		http.Error(w, "Failed to fetch court slots", http.StatusInternalServerError)
 		return
 	}
 
-	// Return court slots as JSON
+	// Convert to response format
+	response := make([]CourtSlotResponse, len(courtSlots))
+	for i, slot := range courtSlots {
+		response[i] = CourtSlotResponse{
+			ID:         slot.ID,
+			VenueID:    slot.VenueID.Hex(),
+			VenueName:  slot.VenueName,
+			CourtID:    slot.CourtID,
+			CourtName:  slot.CourtName,
+			Date:       slot.Date,
+			StartTime:  slot.StartTime,
+			EndTime:    slot.EndTime,
+			Duration:   calculateDuration(slot.StartTime, slot.EndTime),
+			Price:      slot.Price,
+			Currency:   slot.Currency,
+			Available:  slot.Available,
+			Platform:   slot.Provider,
+			BookingURL: slot.BookingURL,
+			CreatedAt:  slot.LastScraped,
+			UpdatedAt:  slot.LastScraped,
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(courtSlots)
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetDashboardStats provides statistics for the dashboard
+func (h *CourtHandler) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	stats := DashboardStatsResponse{}
+
+	// Count total venues
+	venueCollection := h.db.Collection("venues")
+	totalVenues, err := venueCollection.CountDocuments(ctx, bson.M{})
+	if err == nil {
+		stats.TotalVenues = int(totalVenues)
+	}
+
+	// Get available court slots count
+	availableCount, err := h.slotsRepo.CountAvailableSlots(ctx)
+	if err == nil {
+		stats.TotalCourtSlots = int(availableCount)
+		stats.AvailableSlots = int(availableCount) // All counted slots are available
+
+		// Count today's slots
+		today := time.Now().Format("2006-01-02")
+		todayCount, todayErr := h.slotsRepo.CountSlotsByDate(ctx, today)
+		if todayErr == nil {
+			stats.TodaySlots = int(todayCount)
+		}
+
+		// Count this week's slots (approximate by getting all slots and filtering)
+		allSlots, weekErr := h.slotsRepo.GetAvailableSlots(ctx, 10000) // Large limit to get all
+		if weekErr == nil {
+			now := time.Now()
+			weekStart := now.AddDate(0, 0, -int(now.Weekday()))
+			weekEnd := weekStart.AddDate(0, 0, 7)
+			weekCount := 0
+			for _, slot := range allSlots {
+				slotDate, parseErr := time.Parse("2006-01-02", slot.Date)
+				if parseErr == nil && slotDate.After(weekStart) && slotDate.Before(weekEnd) {
+					weekCount++
+				}
+			}
+			stats.WeekSlots = weekCount
+		}
+
+		// Count active platforms
+		platforms, platformErr := h.slotsRepo.GetActivePlatforms(ctx)
+		if platformErr == nil {
+			stats.ActivePlatforms = len(platforms)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}
+
+// calculateDuration calculates the duration in minutes between start and end time
+func calculateDuration(startTime, endTime string) int {
+	// Parse time format "HH:MM"
+	start, err := time.Parse("15:04", startTime)
+	if err != nil {
+		return 0
+	}
+	
+	end, err := time.Parse("15:04", endTime)
+	if err != nil {
+		return 0
+	}
+	
+	// Handle case where end time is next day (e.g., 23:00 to 01:00)
+	if end.Before(start) {
+		end = end.Add(24 * time.Hour)
+	}
+	
+	duration := end.Sub(start)
+	return int(duration.Minutes())
 }

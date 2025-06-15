@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from '@/stores/appStore'
+import { useTokenInitialization } from '@/hooks/useTokenInitialization'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -12,22 +13,40 @@ export function ProtectedRoute({
   children, 
   redirectTo = '/login' 
 }: ProtectedRouteProps) {
-  const { isAuthenticated, accessToken } = useAppStore()
+  const { isAuthenticated, accessToken, refreshToken } = useAppStore()
+  const { isInitializing } = useTokenInitialization()
   const location = useLocation()
 
   // Check if user is authenticated
-  // We check both isAuthenticated flag and presence of accessToken
-  const isUserAuthenticated = isAuthenticated && accessToken
+  // We check isAuthenticated flag OR if we have both access and refresh tokens
+  const hasValidTokens = accessToken && refreshToken
+  const isUserAuthenticated = isAuthenticated || hasValidTokens
 
+  // IMPORTANT: All hooks must be called before any conditional returns
   useEffect(() => {
-    // Log authentication check for debugging
-    console.log('ProtectedRoute check:', {
-      path: location.pathname,
-      isAuthenticated,
-      hasAccessToken: !!accessToken,
-      willRedirect: !isUserAuthenticated,
-    })
-  }, [location.pathname, isAuthenticated, accessToken, isUserAuthenticated])
+    // Log authentication check for debugging (only when not initializing)
+    if (!isInitializing) {
+      console.log('ProtectedRoute check:', {
+        path: location.pathname,
+        isAuthenticated,
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        willRedirect: !isUserAuthenticated,
+      })
+    }
+  }, [location.pathname, isAuthenticated, accessToken, refreshToken, isUserAuthenticated, isInitializing])
+
+  // Show loading while initializing tokens
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Initializing...</p>
+        </div>
+      </div>
+    )
+  }
 
   // If not authenticated, redirect to login with return URL
   if (!isUserAuthenticated) {

@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useAppStore } from '@/stores/appStore'
 import { tokenStorage } from '@/lib/tokenStorage'
-import { mockAuthApi } from './mockAuthApi'
+import { authApi } from './authApi'
 
 // Create a separate axios instance for API calls
 export const apiClient = axios.create({
@@ -79,18 +79,18 @@ apiClient.interceptors.response.use(
         console.log('🔄 Attempting token refresh...')
         
         // Call the refresh token endpoint
-        const refreshResponse = await mockAuthApi.refreshTokenEndpoint(refreshToken)
+        const refreshResponse = await authApi.refreshToken(refreshToken)
         
         if (refreshResponse.success && refreshResponse.data) {
-          const { tokens } = refreshResponse.data
+          const { accessToken: token, refreshToken: newRefreshToken } = refreshResponse.data
           
           // Update tokens in storage and store
-          tokenStorage.setAccessToken(tokens.accessToken)
-          tokenStorage.setRefreshToken(tokens.refreshToken)
+          tokenStorage.setAccessToken(token)
+          tokenStorage.setRefreshToken(newRefreshToken)
           
           // Update Zustand store
           const { updateTokens, addNotification } = useAppStore.getState()
-          updateTokens(tokens.accessToken, tokens.refreshToken)
+          updateTokens(token, newRefreshToken)
           
           console.log('✅ Token refresh successful')
           
@@ -101,10 +101,10 @@ apiClient.interceptors.response.use(
           })
           
           // Process queued requests
-          processQueue(null, tokens.accessToken)
+          processQueue(null, token)
           
           // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`
+          originalRequest.headers.Authorization = `Bearer ${token}`
           return apiClient(originalRequest)
         } else {
           throw new Error(refreshResponse.error || 'Token refresh failed')
@@ -181,8 +181,12 @@ export const testProtectedEndpoint = async (): Promise<{
       }
     }
     
-    const response = await mockAuthApi.getProtectedData(accessToken)
-    return response
+    // Test with a simple authenticated API call
+    const response = await apiGet('/api/auth/me')
+    return {
+      success: true,
+      data: response
+    }
   } catch (error) {
     return {
       success: false,
@@ -198,8 +202,12 @@ export const testExpiredTokenEndpoint = async (): Promise<{
   error?: string
 }> => {
   try {
-    const response = await mockAuthApi.getProtectedDataWithExpiredToken()
-    return response
+    // This will trigger the refresh mechanism if token is expired
+    const response = await apiGet('/api/auth/me')
+    return {
+      success: true,
+      data: response
+    }
   } catch (error) {
     return {
       success: false,

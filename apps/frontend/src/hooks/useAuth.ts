@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/stores/appStore'
-import { mockAuthApi } from '@/services/mockAuthApi'
+import { authApi } from '@/services/authApi'
 import type { LoginFormData, RegisterFormData } from '@/lib/auth-schemas'
 
 export interface UseAuthReturn {
@@ -53,27 +53,37 @@ export function useAuth(): UseAuthReturn {
   // Login function with enhanced user information fetching
   const login = useCallback(async (credentials: LoginFormData) => {
     try {
-      const response = await mockAuthApi.login(credentials)
+      const response = await authApi.login(credentials)
       
       if (response.success && response.data) {
-        const { user: userData, tokens } = response.data
+        const { user: userData, accessToken, refreshToken } = response.data
         
         // Set authentication state
         setAuthState({
-          user: userData,
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
+          user: {
+            id: userData.id,
+            name: userData.name || userData.username,
+            email: userData.email,
+            avatar: undefined,
+          },
+          accessToken,
+          refreshToken,
         })
         
         // Fetch additional user information using the access token
         try {
-          const userInfoResponse = await mockAuthApi.getMe(tokens.accessToken)
+          const userInfoResponse = await authApi.getMe(accessToken)
           if (userInfoResponse.success && userInfoResponse.data) {
             // Update user information if we got more details
             setAuthState({
-              user: userInfoResponse.data.user,
-              accessToken: tokens.accessToken,
-              refreshToken: tokens.refreshToken,
+                user: {
+                  id: userInfoResponse.data.user.id,
+                  name: userInfoResponse.data.user.name || userInfoResponse.data.user.username,
+                  email: userInfoResponse.data.user.email,
+                  avatar: undefined,
+                },
+                accessToken,
+                refreshToken,
             })
           }
         } catch (error) {
@@ -118,16 +128,21 @@ export function useAuth(): UseAuthReturn {
   // Register function
   const register = useCallback(async (userData: RegisterFormData) => {
     try {
-      const response = await mockAuthApi.register(userData)
+      const response = await authApi.register(userData)
       
       if (response.success && response.data) {
-        const { user: newUser, tokens } = response.data
+          const { user: newUser, accessToken, refreshToken } = response.data
         
         // Set authentication state
         setAuthState({
-          user: newUser,
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
+            user: {
+              id: newUser.id,
+              name: newUser.name || newUser.username,
+              email: newUser.email,
+              avatar: undefined,
+            },
+            accessToken,
+            refreshToken,
         })
         
         addNotification({
@@ -185,12 +200,17 @@ export function useAuth(): UseAuthReturn {
     }
     
     try {
-      const response = await mockAuthApi.getMe(accessToken)
+      const response = await authApi.getMe(accessToken)
       
       if (response.success && response.data) {
         // Update user information while preserving tokens
         setAuthState({
-          user: response.data.user,
+            user: {
+              id: response.data.user.id,
+              name: response.data.user.name || response.data.user.username,
+              email: response.data.user.email,
+              avatar: undefined,
+            },
           accessToken,
           refreshToken: refreshToken || '',
         })

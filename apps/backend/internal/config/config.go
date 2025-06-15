@@ -3,259 +3,352 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/spf13/viper"
 )
 
-// Config represents the application configuration
+// Config holds all configuration for the application
 type Config struct {
-	App struct {
-		Name        string `mapstructure:"name"`
-		Version     string `mapstructure:"version"`
-		Environment string `mapstructure:"environment"`
-	} `mapstructure:"app"`
+	Server   ServerConfig
+	MongoDB  MongoDBConfig
+	Redis    RedisConfig
+	JWT      JWTConfig
+	Email    EmailConfig
+	CORS     CORSConfig
+	Scraper  ScraperConfig
+	Vault    VaultConfig
+}
 
-	API struct {
-		Port      int    `mapstructure:"port"`
-		Timeout   string `mapstructure:"timeout"`
-		RateLimit struct {
-			Enabled           bool `mapstructure:"enabled"`
-			RequestsPerMinute int  `mapstructure:"requestsPerMinute"`
-		} `mapstructure:"rateLimit"`
-	} `mapstructure:"api"`
+// ServerConfig holds server-specific configuration
+type ServerConfig struct {
+	Port         string
+	Host         string
+	ReadTimeout  int
+	WriteTimeout int
+	IdleTimeout  int
+	Environment  string
+}
 
-	Database struct {
-		PoolSize      int    `mapstructure:"poolSize"`
-		Timeout       string `mapstructure:"timeout"`
-		RetryAttempts int    `mapstructure:"retryAttempts"`
-	} `mapstructure:"database"`
+// MongoDBConfig holds MongoDB configuration
+type MongoDBConfig struct {
+	URI      string
+	Database string
+	Username string
+	Password string
+	Host     string
+	Port     string
+}
 
-	Scraper struct {
-		Interval   int `mapstructure:"interval"`
-		Timeout    int `mapstructure:"timeout"`
-		MaxRetries int `mapstructure:"maxRetries"`
-		DaysAhead  int `mapstructure:"daysAhead"`
-		Platforms  struct {
-			Clubspark struct {
-				Enabled bool   `mapstructure:"enabled"`
-				BaseURL string `mapstructure:"baseUrl"`
-			} `mapstructure:"clubspark"`
-			Courtsides struct {
-				Enabled bool   `mapstructure:"enabled"`
-				BaseURL string `mapstructure:"baseUrl"`
-			} `mapstructure:"courtsides"`
-		} `mapstructure:"platforms"`
-	} `mapstructure:"scraper"`
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	Address  string
+	Password string
+	DB       int
+}
 
-	Notification struct {
-		Port           int `mapstructure:"port"`
-		EmailRateLimit int `mapstructure:"emailRateLimit"`
-		BatchSize      int `mapstructure:"batchSize"`
-		RetryAttempts  int `mapstructure:"retryAttempts"`
-	} `mapstructure:"notification"`
+// JWTConfig holds JWT configuration
+type JWTConfig struct {
+	Issuer           string
+	AccessTokenTTL   int // in hours
+	RefreshTokenTTL  int // in hours
+}
 
-	Logging struct {
-		Level         string `mapstructure:"level"`
-		Format        string `mapstructure:"format"`
-		EnableConsole bool   `mapstructure:"enableConsole"`
-		EnableFile    bool   `mapstructure:"enableFile"`
-	} `mapstructure:"logging"`
+// EmailConfig holds email configuration
+type EmailConfig struct {
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUsername string
+	SMTPPassword string
+	FromEmail    string
+}
 
-	Features map[string]bool `mapstructure:"features"`
+// CORSConfig holds CORS configuration
+type CORSConfig struct {
+	AllowedOrigins []string
+	AllowedMethods []string
+	AllowedHeaders []string
+}
+
+// ScraperConfig holds scraper configuration
+type ScraperConfig struct {
+	Enabled  bool
+	Interval int // in minutes
+}
+
+// VaultConfig holds Vault configuration
+type VaultConfig struct {
+	Address string
+	Token   string
 }
 
 // Global configuration instance
 var AppConfig *Config
 
-// Load loads the configuration from files and environment variables
+// Load loads configuration from environment variables
 func Load() (*Config, error) {
-	viper.SetConfigName("default")
-	viper.SetConfigType("json")
-
-	// Add config paths (search in multiple locations)
-	viper.AddConfigPath("./config")
-	viper.AddConfigPath("../config")
-	viper.AddConfigPath("../../config")
-	viper.AddConfigPath("../../../config")    // For deeply nested services
-	viper.AddConfigPath("../../../../config") // For tests
-
-	// Read default config
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read default config: %w", err)
-	}
-
-	// Get environment
-	env := os.Getenv("APP_ENV")
-	if env == "" {
-		env = "development"
-	}
-
-	// Merge environment-specific config
-	viper.SetConfigName(env)
-	if err := viper.MergeInConfig(); err != nil {
-		// Environment-specific config is optional
-		fmt.Printf("No %s config found, using defaults\n", env)
-	}
-
-	// Enable environment variable overrides
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// Bind specific environment variables to config keys
-	bindEnvVars()
-
-	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-
-	// Validate configuration
-	if err := validateConfig(&config); err != nil {
-		return nil, fmt.Errorf("configuration validation failed: %w", err)
-	}
-
-	// Set global config
-	AppConfig = &config
-
-	return &config, nil
+	return &Config{
+		Server: ServerConfig{
+			Port:         getEnv("PORT", "8080"),
+			Host:         getEnv("HOST", "0.0.0.0"),
+			ReadTimeout:  getEnvAsInt("READ_TIMEOUT", 30),
+			WriteTimeout: getEnvAsInt("WRITE_TIMEOUT", 30),
+			IdleTimeout:  getEnvAsInt("IDLE_TIMEOUT", 120),
+			Environment:  getEnv("ENVIRONMENT", "development"),
+		},
+		MongoDB: MongoDBConfig{
+			URI:      getEnv("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017/tennis_booking?authSource=admin"),
+			Database: getEnv("DB_NAME", "tennis_booking"),
+			Username: getEnv("MONGO_ROOT_USERNAME", "admin"),
+			Password: getEnv("MONGO_ROOT_PASSWORD", "password"),
+			Host:     getEnv("MONGO_HOST", "localhost"),
+			Port:     getEnv("MONGO_PORT", "27017"),
+		},
+		Redis: RedisConfig{
+			Address:  getEnv("REDIS_ADDR", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", "password"),
+			DB:       getEnvAsInt("REDIS_DB", 0),
+		},
+		JWT: JWTConfig{
+			Issuer:          getEnv("JWT_ISSUER", "tennis-booker"),
+			AccessTokenTTL:  getEnvAsInt("JWT_ACCESS_TTL", 24),   // 24 hours
+			RefreshTokenTTL: getEnvAsInt("JWT_REFRESH_TTL", 168), // 7 days
+		},
+		Email: EmailConfig{
+			SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
+			SMTPPort:     getEnv("SMTP_PORT", "587"),
+			SMTPUsername: getEnv("GMAIL_EMAIL", "demo@example.com"),
+			SMTPPassword: getEnv("GMAIL_PASSWORD", ""),
+			FromEmail:    getEnv("FROM_EMAIL", "demo@example.com"),
+		},
+		CORS: CORSConfig{
+			AllowedOrigins: getEnvAsSlice("CORS_ALLOWED_ORIGINS", []string{
+				"http://localhost:3000",
+				"http://localhost:5173",
+				"http://127.0.0.1:3000",
+				"http://127.0.0.1:5173",
+			}),
+			AllowedMethods: getEnvAsSlice("CORS_ALLOWED_METHODS", []string{
+				"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH",
+			}),
+			AllowedHeaders: getEnvAsSlice("CORS_ALLOWED_HEADERS", []string{
+				"Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin",
+			}),
+		},
+		Scraper: ScraperConfig{
+			Enabled:  getEnvAsBool("SCRAPER_ENABLED", true),
+			Interval: getEnvAsInt("SCRAPER_INTERVAL", 30), // 30 minutes
+		},
+		Vault: VaultConfig{
+			Address: getEnv("VAULT_ADDR", "http://localhost:8200"),
+			Token:   getEnv("VAULT_TOKEN", "dev-token"),
+		},
+	}, nil
 }
 
-// bindEnvVars binds environment variables to configuration keys
-func bindEnvVars() {
-	// App settings
-	viper.BindEnv("app.environment", "APP_ENV")
-
-	// API settings
-	viper.BindEnv("api.port", "API_PORT", "BACKEND_API_PORT")
-	viper.BindEnv("api.timeout", "API_TIMEOUT", "BACKEND_API_TIMEOUT")
-	viper.BindEnv("api.rateLimit.enabled", "API_RATE_LIMIT_ENABLED")
-	viper.BindEnv("api.rateLimit.requestsPerMinute", "API_RATE_LIMIT_RPM")
-
-	// Database settings
-	viper.BindEnv("database.poolSize", "DB_POOL_SIZE", "BACKEND_DB_POOL_SIZE")
-	viper.BindEnv("database.timeout", "DB_TIMEOUT", "BACKEND_DB_TIMEOUT")
-	viper.BindEnv("database.retryAttempts", "DB_RETRY_ATTEMPTS")
-
-	// Scraper settings
-	viper.BindEnv("scraper.interval", "SCRAPER_INTERVAL")
-	viper.BindEnv("scraper.timeout", "SCRAPER_TIMEOUT")
-	viper.BindEnv("scraper.maxRetries", "SCRAPER_MAX_RETRIES")
-	viper.BindEnv("scraper.daysAhead", "SCRAPER_DAYS_AHEAD")
-
-	// Notification settings
-	viper.BindEnv("notification.port", "NOTIFICATION_PORT")
-	viper.BindEnv("notification.emailRateLimit", "NOTIFICATION_EMAIL_RATE_LIMIT")
-	viper.BindEnv("notification.batchSize", "NOTIFICATION_BATCH_SIZE")
-	viper.BindEnv("notification.retryAttempts", "NOTIFICATION_RETRY_ATTEMPTS")
-
-	// Logging settings
-	viper.BindEnv("logging.level", "LOG_LEVEL")
-	viper.BindEnv("logging.format", "LOG_FORMAT")
-	viper.BindEnv("logging.enableConsole", "LOG_ENABLE_CONSOLE")
-	viper.BindEnv("logging.enableFile", "LOG_ENABLE_FILE")
-
-	// Feature flags
-	viper.BindEnv("features.advancedFiltering", "FEATURE_ADVANCED_FILTERING")
-	viper.BindEnv("features.smsNotifications", "FEATURE_SMS_NOTIFICATIONS")
-	viper.BindEnv("features.analytics", "FEATURE_ANALYTICS")
-	viper.BindEnv("features.realTimeUpdates", "FEATURE_REAL_TIME_UPDATES")
+// IsProduction returns true if running in production environment
+func (c *Config) IsProduction() bool {
+	return c.Server.Environment == "production"
 }
 
-// validateConfig validates the loaded configuration
+// IsLocal returns true if running in local development environment
+func (c *Config) IsLocal() bool {
+	return c.Server.Environment == "development" || c.Server.Environment == "local"
+}
+
+// Helper functions
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAsBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAsSlice(key string, defaultValue []string) []string {
+	if value := os.Getenv(key); value != "" {
+		return strings.Split(value, ",")
+}
+	return defaultValue
+}
+
+// Validate configuration
 func validateConfig(config *Config) error {
 	// Validate required fields
-	if config.App.Name == "" {
-		return fmt.Errorf("app.name is required")
+	if config.Server.Port == "" {
+		return fmt.Errorf("server.port is required")
 	}
 
-	// Validate port ranges
-	if config.API.Port < 0 || config.API.Port > 65535 {
-		return fmt.Errorf("api.port must be between 0 and 65535")
+	if config.Server.Host == "" {
+		return fmt.Errorf("server.host is required")
 	}
 
-	if config.Notification.Port < 0 || config.Notification.Port > 65535 {
-		return fmt.Errorf("notification.port must be between 0 and 65535")
+	if config.Server.ReadTimeout <= 0 {
+		return fmt.Errorf("server.readTimeout must be positive")
 	}
 
-	// Validate positive integers
-	if config.Database.PoolSize <= 0 {
-		return fmt.Errorf("database.poolSize must be positive")
+	if config.Server.WriteTimeout <= 0 {
+		return fmt.Errorf("server.writeTimeout must be positive")
+	}
+
+	if config.Server.IdleTimeout <= 0 {
+		return fmt.Errorf("server.idleTimeout must be positive")
+	}
+
+	if config.Server.Environment == "" {
+		return fmt.Errorf("server.environment is required")
+	}
+
+	if config.MongoDB.URI == "" {
+		return fmt.Errorf("mongoDB.uri is required")
+	}
+
+	if config.MongoDB.Database == "" {
+		return fmt.Errorf("mongoDB.database is required")
+	}
+
+	if config.MongoDB.Username == "" {
+		return fmt.Errorf("mongoDB.username is required")
+	}
+
+	if config.MongoDB.Password == "" {
+		return fmt.Errorf("mongoDB.password is required")
+	}
+
+	if config.MongoDB.Host == "" {
+		return fmt.Errorf("mongoDB.host is required")
+	}
+
+	if config.MongoDB.Port == "" {
+		return fmt.Errorf("mongoDB.port is required")
+	}
+
+	if config.Redis.Address == "" {
+		return fmt.Errorf("redis.address is required")
+	}
+
+	if config.Redis.DB < 0 {
+		return fmt.Errorf("redis.db must be non-negative")
+	}
+
+	if config.JWT.Issuer == "" {
+		return fmt.Errorf("jwt.issuer is required")
+	}
+
+	if config.JWT.AccessTokenTTL <= 0 {
+		return fmt.Errorf("jwt.accessTokenTTL must be positive")
+	}
+
+	if config.JWT.RefreshTokenTTL <= 0 {
+		return fmt.Errorf("jwt.refreshTokenTTL must be positive")
+	}
+
+	if config.Email.SMTPHost == "" {
+		return fmt.Errorf("email.smtpHost is required")
+	}
+
+	if config.Email.SMTPPort == "" {
+		return fmt.Errorf("email.smtpPort is required")
+	}
+
+	if config.Email.SMTPUsername == "" {
+		return fmt.Errorf("email.smtpUsername is required")
+	}
+
+	if config.Email.SMTPPassword == "" {
+		return fmt.Errorf("email.smtpPassword is required")
+	}
+
+	if config.Email.FromEmail == "" {
+		return fmt.Errorf("email.fromEmail is required")
+	}
+
+	if len(config.CORS.AllowedOrigins) == 0 {
+		return fmt.Errorf("cors.allowedOrigins is required")
+	}
+
+	if len(config.CORS.AllowedMethods) == 0 {
+		return fmt.Errorf("cors.allowedMethods is required")
+	}
+
+	if len(config.CORS.AllowedHeaders) == 0 {
+		return fmt.Errorf("cors.allowedHeaders is required")
+	}
+
+	if !config.Scraper.Enabled {
+		return fmt.Errorf("scraper.enabled must be true")
 	}
 
 	if config.Scraper.Interval <= 0 {
 		return fmt.Errorf("scraper.interval must be positive")
 	}
 
-	if config.Scraper.Timeout <= 0 {
-		return fmt.Errorf("scraper.timeout must be positive")
+	if config.Vault.Address == "" {
+		return fmt.Errorf("vault.address is required")
 	}
 
-	// Validate timeout formats
-	if _, err := time.ParseDuration(config.API.Timeout); err != nil {
-		return fmt.Errorf("api.timeout must be a valid duration: %w", err)
-	}
-
-	if _, err := time.ParseDuration(config.Database.Timeout); err != nil {
-		return fmt.Errorf("database.timeout must be a valid duration: %w", err)
-	}
-
-	// Validate log level
-	validLogLevels := []string{"debug", "info", "warn", "error", "fatal"}
-	validLevel := false
-	for _, level := range validLogLevels {
-		if config.Logging.Level == level {
-			validLevel = true
-			break
-		}
-	}
-	if !validLevel {
-		return fmt.Errorf("logging.level must be one of: %v", validLogLevels)
+	if config.Vault.Token == "" {
+		return fmt.Errorf("vault.token is required")
 	}
 
 	return nil
 }
 
+// Set global config
+func (c *Config) SetGlobalConfig() {
+	AppConfig = c
+}
+
 // GetAPITimeout returns the API timeout as a time.Duration
 func (c *Config) GetAPITimeout() time.Duration {
-	duration, _ := time.ParseDuration(c.API.Timeout)
-	return duration
+	return time.Duration(c.Server.ReadTimeout) * time.Second
 }
 
 // GetDatabaseTimeout returns the database timeout as a time.Duration
 func (c *Config) GetDatabaseTimeout() time.Duration {
-	duration, _ := time.ParseDuration(c.Database.Timeout)
-	return duration
+	return time.Duration(c.Server.IdleTimeout) * time.Second
 }
 
 // IsFeatureEnabled checks if a feature flag is enabled
 func (c *Config) IsFeatureEnabled(feature string) bool {
-	enabled, exists := c.Features[feature]
-	return exists && enabled
+	// Implementation of IsFeatureEnabled method
+	return false // Placeholder, actual implementation needed
 }
 
 // GetScraperIntervalDuration returns the scraper interval as a time.Duration
 func (c *Config) GetScraperIntervalDuration() time.Duration {
-	return time.Duration(c.Scraper.Interval) * time.Second
+	return time.Duration(c.Scraper.Interval) * time.Minute
 }
 
 // GetScraperTimeoutDuration returns the scraper timeout as a time.Duration
 func (c *Config) GetScraperTimeoutDuration() time.Duration {
-	return time.Duration(c.Scraper.Timeout) * time.Second
+	return 0 // Placeholder, actual implementation needed
 }
 
 // IsDevelopment returns true if running in development environment
 func (c *Config) IsDevelopment() bool {
-	return c.App.Environment == "development"
-}
-
-// IsProduction returns true if running in production environment
-func (c *Config) IsProduction() bool {
-	return c.App.Environment == "production"
+	return c.Server.Environment == "development"
 }
 
 // IsTest returns true if running in test environment
 func (c *Config) IsTest() bool {
-	return c.App.Environment == "test"
+	return c.Server.Environment == "test"
 }

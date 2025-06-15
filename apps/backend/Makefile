@@ -1,187 +1,163 @@
-.PHONY: build test clean run-notification run-retention run-retention-test run-retention-dry-run run-auth-server run-seed-db run-seed-user run-db-tools format lint tidy check-deps
+.PHONY: help build clean test coverage lint run-api run-notification run-scraper docker-build docker-run setup-db seed-db deps install
 
 # Default target
-all: format tidy test build
+help: ## Show this help message
+	@echo 'Usage: make [target]'
+	@echo ''
+	@echo 'Targets:'
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-# Build all services
-build:
-	@echo "Building all backend services..."
+# Build targets
+build: ## Build all binaries
+	@echo "Building all binaries..."
 	@mkdir -p bin
-	go build -o bin/notification-service ./cmd/notification-service
-	go build -o bin/retention-service ./cmd/retention-service
-	go build -o bin/seed-db ./cmd/seed-db
-	go build -o bin/seed-user ./cmd/seed-user
-	go build -o bin/db-tools ./cmd/db-tools
-	go build -o bin/test-auth-server ./cmd/test-auth-server
-	go build -o bin/config-test ./cmd/config-test
+	go build -o bin/server cmd/server/main.go
+	go build -o bin/notification-service cmd/notification-service/main.go
+	go build -o bin/seed-db cmd/seed-db/main.go
+	go build -o bin/seed-user cmd/seed-user/main.go
+	@echo "✅ All binaries built successfully"
 
-# Run tests
-test:
+build-server: ## Build the main API server
+	@echo "Building main API server..."
+	@mkdir -p bin
+	go build -o bin/server cmd/server/main.go
+	@echo "✅ Server built successfully"
+
+build-notification: ## Build the notification service
+	@echo "Building notification service..."
+	@mkdir -p bin
+	go build -o bin/notification-service cmd/notification-service/main.go
+	@echo "✅ Notification service built successfully"
+
+build-scraper: ## Build the scraper service
+	@echo "Building scraper service..."
+	@mkdir -p bin
+	go build -o bin/scraper cmd/scraper/main.go
+	@echo "✅ Scraper built successfully"
+
+build-tools: ## Build utility tools
+	@echo "Building utility tools..."
+	@mkdir -p bin
+	go build -o bin/seed-db cmd/seed-db/main.go
+	go build -o bin/seed-user cmd/seed-user/main.go
+	@echo "✅ Tools built successfully"
+
+# Development targets
+run-server: build-server ## Run the main API server
+	@echo "Starting API server..."
+	./bin/server
+
+run-notification: build-notification ## Run the notification service
+	@echo "Starting notification service..."
+	./bin/notification-service
+
+run-scraper: build-scraper ## Run the scraper service
+	@echo "Starting scraper service..."
+	./bin/scraper
+
+# Database targets
+setup-db: ## Setup database collections and indexes
+	@echo "Setting up database..."
+	go run cmd/setup-db/main.go
+	@echo "✅ Database setup complete"
+
+seed-db: build-tools ## Seed database with initial data
+	@echo "Seeding database..."
+	./bin/seed-db
+	@echo "✅ Database seeded successfully"
+
+seed-user: build-tools ## Seed user preferences
+	@echo "Seeding user preferences..."
+	./bin/seed-user
+	@echo "✅ User preferences seeded successfully"
+
+# Testing targets
+test: ## Run all tests
 	@echo "Running tests..."
-	go test ./... -v
+	go test -v ./...
 
-# Run tests in short mode (skip integration tests)
-test-short:
-	@echo "Running tests in short mode..."
-	go test ./... -short -v
-
-# Run tests with coverage
-test-coverage:
+test-coverage: ## Run tests with coverage
 	@echo "Running tests with coverage..."
-	go test ./... -cover -coverprofile=coverage.out
+	go test -v -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
+	@echo "✅ Coverage report generated: coverage.html"
 
-# Format code
-format:
+# Quality targets
+lint: ## Run linter
+	@echo "Running linter..."
+	golangci-lint run
+
+format: ## Format code
 	@echo "Formatting code..."
-	gofmt -w .
+	go fmt ./...
+	@echo "✅ Code formatted"
 
-# Lint code
-lint:
-	@echo "Linting code..."
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run; \
-	else \
-		echo "golangci-lint not installed, skipping lint"; \
-	fi
+vet: ## Run go vet
+	@echo "Running go vet..."
+	go vet ./...
+	@echo "✅ Go vet completed"
 
-# Tidy dependencies
-tidy:
+# Dependency management
+deps: ## Download dependencies
+	@echo "Downloading dependencies..."
+	go mod download
+	@echo "✅ Dependencies downloaded"
+
+tidy: ## Tidy dependencies
 	@echo "Tidying dependencies..."
 	go mod tidy
+	@echo "✅ Dependencies tidied"
 
-# Check for security issues
-security-check:
-	@echo "Running security checks..."
-	@if command -v gosec >/dev/null 2>&1; then \
-		gosec ./...; \
-	else \
-		echo "gosec not installed, skipping security check"; \
-	fi
+vendor: ## Vendor dependencies
+	@echo "Vendoring dependencies..."
+	go mod vendor
+	@echo "✅ Dependencies vendored"
 
-# Check dependencies for vulnerabilities
-check-deps:
-	@echo "Checking dependencies for vulnerabilities..."
-	@if command -v govulncheck >/dev/null 2>&1; then \
-		govulncheck ./...; \
-	else \
-		echo "govulncheck not installed, skipping vulnerability check"; \
-	fi
+# Docker targets
+docker-build: ## Build Docker images
+	@echo "Building Docker images..."
+	docker build -t tennis-booker-api -f Dockerfile.api .
+	docker build -t tennis-booker-notification -f Dockerfile.notification .
+	docker build -t tennis-booker-scraper -f Dockerfile.scraper .
+	@echo "✅ Docker images built"
 
-# Clean build artifacts
-clean:
+docker-run: ## Run services with Docker Compose
+	@echo "Starting services with Docker Compose..."
+	docker-compose up -d
+	@echo "✅ Services started"
+
+docker-stop: ## Stop Docker Compose services
+	@echo "Stopping services..."
+	docker-compose down
+	@echo "✅ Services stopped"
+
+# Cleanup targets
+clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
 	rm -rf bin/
 	rm -f coverage.out coverage.html
+	@echo "✅ Clean completed"
 
-# Run notification service
-run-notification:
-	@echo "Running notification service..."
-	go run ./cmd/notification-service/main.go
+clean-all: clean ## Clean everything including vendor
+	@echo "Cleaning everything..."
+	rm -rf vendor/
+	@echo "✅ Deep clean completed"
 
-# Run retention service
-run-retention:
-	@echo "Running retention service..."
-	go run ./cmd/retention-service/main.go
+# Development environment
+dev: ## Start development environment
+	@echo "Starting development environment..."
+	make build
+	@echo "✅ Development environment ready"
 
-# Run retention service in test mode
-run-retention-test:
-	@echo "Running retention service in test mode..."
-	go run ./cmd/retention-service/main.go test
-
-# Run retention service in dry-run mode
-run-retention-dry-run:
-	@echo "Running retention service in dry-run mode..."
-	go run ./cmd/retention-service/main.go dry-run
-
-# Run test auth server
-run-auth-server:
-	@echo "Running test auth server..."
-	go run ./cmd/test-auth-server/main.go
-
-# Run seed-db
-run-seed-db:
-	@echo "Running seed-db..."
-	go run ./cmd/seed-db/main.go
-
-# Run seed-user
-run-seed-user:
-	@echo "Running seed-user..."
-	go run ./cmd/seed-user/main.go
-
-# Run db-tools
-run-db-tools:
-	@echo "Running db-tools..."
-	go run ./cmd/db-tools/ensure_indexes.go
-
-# Run config test
-run-config-test:
-	@echo "Running config test..."
-	go run ./cmd/config-test/main.go
-
-# Development setup
-dev-setup:
-	@echo "Setting up development environment..."
+# Install tools
+install-tools: ## Install development tools
 	@echo "Installing development tools..."
-	@if ! command -v golangci-lint >/dev/null 2>&1; then \
-		echo "Installing golangci-lint..."; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
-	fi
-	@if ! command -v gosec >/dev/null 2>&1; then \
-		echo "Installing gosec..."; \
-		go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest; \
-	fi
-	@if ! command -v govulncheck >/dev/null 2>&1; then \
-		echo "Installing govulncheck..."; \
-		go install golang.org/x/vuln/cmd/govulncheck@latest; \
-	fi
-	@echo "Development environment setup complete!"
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo "✅ Development tools installed"
 
-# Full check (format, lint, test, build)
-check: format tidy lint test build
-	@echo "All checks passed!"
+# All-in-one targets
+all: clean deps build test ## Clean, download deps, build, and test
+	@echo "✅ All tasks completed successfully"
 
-# Docker builds
-docker-build-retention:
-	@echo "Building retention service Docker image..."
-	docker build -f Dockerfile.retention -t tennis-booker/retention-service:latest .
-
-docker-build-all:
-	@echo "Building all Docker images..."
-	docker build -f Dockerfile -t tennis-booker/backend:latest .
-	docker build -f Dockerfile.retention -t tennis-booker/retention-service:latest .
-
-# Kubernetes deployment
-k8s-deploy-retention:
-	@echo "Deploying retention service to Kubernetes..."
-	kubectl apply -f k8s/retention-service-cronjob.yaml
-	kubectl apply -f k8s/retention-service-monitoring.yaml
-
-k8s-test-retention:
-	@echo "Running retention service test job in Kubernetes..."
-	kubectl apply -f k8s/retention-service-monitoring.yaml
-	kubectl wait --for=condition=complete job/retention-service-test-job --timeout=300s
-	kubectl logs job/retention-service-test-job
-
-# Help
-help:
-	@echo "Available targets:"
-	@echo "  build                  - Build all services"
-	@echo "  test                   - Run all tests"
-	@echo "  test-short             - Run tests in short mode"
-	@echo "  test-coverage          - Run tests with coverage report"
-	@echo "  format                 - Format code with gofmt"
-	@echo "  lint                   - Lint code with golangci-lint"
-	@echo "  tidy                   - Tidy go modules"
-	@echo "  security-check         - Run security checks with gosec"
-	@echo "  check-deps             - Check dependencies for vulnerabilities"
-	@echo "  clean                  - Clean build artifacts"
-	@echo "  dev-setup              - Set up development environment"
-	@echo "  check                  - Run all checks (format, lint, test, build)"
-	@echo "  run-*                  - Run specific services"
-	@echo "  run-retention-test     - Run retention service in test mode"
-	@echo "  run-retention-dry-run  - Run retention service in dry-run mode"
-	@echo "  docker-build-*         - Build Docker images"
-	@echo "  k8s-deploy-retention   - Deploy retention service to Kubernetes"
-	@echo "  k8s-test-retention     - Run retention service test in Kubernetes"
-	@echo "  help                   - Show this help message" 
+local: build seed-db ## Build and seed for local development
+	@echo "✅ Local development setup complete" 

@@ -7,6 +7,7 @@ import Dashboard from '@/pages/Dashboard'
 import Settings from '@/pages/Settings'
 import TokenRefreshTest from '@/pages/TokenRefreshTest'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { queryClient } from '@/lib/queryClient'
 
 function App() {
@@ -21,17 +22,21 @@ function App() {
             <Route 
               path="/dashboard" 
               element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
+                <ErrorBoundary>
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                </ErrorBoundary>
               } 
             />
             <Route 
               path="/settings" 
               element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
+                <ErrorBoundary>
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                </ErrorBoundary>
               } 
             />
             <Route 
