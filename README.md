@@ -105,7 +105,7 @@ cd apps/backend
 - **Frontend**: http://localhost:5173 (or as shown in terminal output)
 - **Backend API**: http://localhost:8080
 - **API Health**: http://localhost:8080/api/health
-- **Vault UI**: http://localhost:8200 (token: `dev-token`)
+- **Vault UI**: http://localhost:8200 (token: set `VAULT_TOKEN` environment variable)
 
 ### Default Login Credentials
 

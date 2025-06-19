@@ -246,6 +246,6 @@ export function useAuth(): UseAuthReturn {
     refreshUserInfo,
     
     // Loading states (for future enhancement)
-    isLoading: false, // TODO: Implement loading state management
+    isLoading: false, // Loading state would be managed by actual auth implementation
   }
 } 

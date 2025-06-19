@@ -116,7 +116,15 @@ func (r *UserRepository) List(ctx context.Context, skip, limit int64) ([]*models
 	defer cursor.Close(ctx)
 
 	var users []*models.User
-	if err := cursor.All(ctx, &users); err != nil {
+	for cursor.Next(ctx) {
+		var user models.User
+		if err := cursor.Decode(&user); err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := cursor.Err(); err != nil {
 		return nil, err
 	}
 

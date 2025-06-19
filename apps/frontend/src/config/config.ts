@@ -134,16 +134,4 @@ export const isProduction = () => environment === 'production';
 export const isDevelopment = () => environment === 'development';
 export const isFeatureEnabled = (feature: keyof typeof features) => features[feature];
 
-// Log configuration in development mode
-if (isDevelopment() && features.debugMode) {
-  console.log('🔧 Application Configuration:', {
-    appName,
-    appVersion,
-    environment,
-    apiUrl,
-    features: Object.entries(features)
-      .filter(([, enabled]) => enabled)
-      .map(([name]) => name),
-    logLevel,
-  });
-} 
+// Configuration loaded successfully 

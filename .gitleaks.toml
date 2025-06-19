@@ -1,0 +1,45 @@
+# Gitleaks configuration for Tennis Booker project
+# This file defines exceptions for legitimate development and documentation tokens
+
+title = "Tennis Booker Security Configuration"
+
+[allowlist]
+description = "Allow development and documentation tokens"
+paths = [
+    # Development scripts with legitimate dev tokens
+    "scripts/run_local.sh",
+    # Documentation with example tokens
+    "apps/backend/docs/api/court-endpoints.md",
+    # Vault documentation
+    "infrastructure/vault/README.md",
+    "README.md"
+]
+
+stopwords = [
+    # Development tokens used only for local Docker setup
+    "dev-token",
+    # Documentation examples
+    "YOUR_JWT_TOKEN_HERE",
+    "SCRAPING_LOG_ID_PLACEHOLDER",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    # MongoDB ObjectIDs used in examples
+    "507f1f77bcf86cd799439011",
+    "507f1f77bcf86cd799439012"
+]
+
+# Additional rules for specific patterns
+[[rules]]
+description = "Ignore vault dev tokens in development scripts"
+regex = '''X-Vault-Token: dev-token'''\npath = '''scripts/.*'''
+
+[[rules]]
+description = "Ignore example JWT tokens in documentation"
+regex = '''Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'''\npath = '''.*\\.md$'''\n
+
+[[rules]]
+description = "Ignore MongoDB ObjectID examples"
+regex = '''507f1f77bcf86cd799439\\d{3}'''\npath = '''.*\\.md$'''\n
+
+[extend]
+# Use default gitleaks rules as base
+useDefault = true 

@@ -57,16 +57,13 @@ export const authApi = {
   // Login user
   async login(credentials: LoginFormData): Promise<AuthResponse> {
     try {
-      console.log('🔐 AuthAPI: Attempting login for:', credentials.email)
       const response = await authApiClient.post('/api/auth/login', credentials)
-      console.log('✅ AuthAPI: Login successful:', response.data)
       
       return {
         success: true,
         data: response.data
       }
-    } catch (error) {
-      console.error('❌ AuthAPI: Login failed:', error)
+      } catch (error) {
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
@@ -87,16 +84,13 @@ export const authApi = {
   // Register user
   async register(userData: RegisterFormData): Promise<AuthResponse> {
     try {
-      console.log('📝 AuthAPI: Attempting registration for:', userData.email)
       const response = await authApiClient.post('/api/auth/register', userData)
-      console.log('✅ AuthAPI: Registration successful:', response.data)
       
       return {
         success: true,
         data: response.data
       }
-    } catch (error) {
-      console.error('❌ AuthAPI: Registration failed:', error)
+      } catch (error) {
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
@@ -118,7 +112,7 @@ export const authApi = {
   async getMe(accessToken?: string): Promise<UserInfoResponse> {
     try {
       const token = accessToken || tokenStorage.getAccessToken()
-      console.log('👤 AuthAPI: Fetching user info with token:', token ? 'Present' : 'Missing')
+
       
       if (!token) {
         return {
@@ -132,14 +126,14 @@ export const authApi = {
           Authorization: `Bearer ${token}`
         }
       })
-      console.log('✅ AuthAPI: User info fetched:', response.data)
+
       
       return {
         success: true,
         data: response.data
       }
     } catch (error) {
-      console.error('❌ AuthAPI: Failed to fetch user info:', error)
+
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
@@ -160,18 +154,18 @@ export const authApi = {
   // Refresh access token
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     try {
-      console.log('🔄 AuthAPI: Refreshing access token')
+
       const response = await authApiClient.post('/api/auth/refresh', {
         refreshToken
       })
-      console.log('✅ AuthAPI: Token refreshed successfully')
+
       
       return {
         success: true,
         data: response.data
       }
     } catch (error) {
-      console.error('❌ AuthAPI: Token refresh failed:', error)
+
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
@@ -193,7 +187,7 @@ export const authApi = {
   async logout(): Promise<{ success: boolean; error?: string }> {
     try {
       const token = tokenStorage.getAccessToken()
-      console.log('🚪 AuthAPI: Logging out user')
+
       
       if (token) {
         await authApiClient.post('/api/auth/logout', {}, {
@@ -203,10 +197,10 @@ export const authApi = {
         })
       }
       
-      console.log('✅ AuthAPI: Logout successful')
+
       return { success: true }
     } catch (error) {
-      console.error('❌ AuthAPI: Logout failed:', error)
+
       // Even if logout fails on server, we consider it successful on client
       return { success: true }
     }

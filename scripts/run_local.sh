@@ -151,10 +151,9 @@ EOF
         if curl -s -o /dev/null -w "%{http_code}" http://localhost:8200/v1/sys/health | grep -q "^200"; then
             success "Vault is ready"
             
-            # Add JWT secret at the path the app expects: kv/data/tennisapp/prod/jwt
-            # In Vault, the kv v2 engine is already mounted at 'secret/'
-            # For KV v2, we need to use /v1/secret/data/... in the API call
-            curl -s -X POST -H "X-Vault-Token: dev-token" \
+            # Setup Vault secrets for development
+            echo "🔐 Initializing Vault secrets..."
+            curl -s -X POST -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
                 -d '{"data":{"secret":"super-secret-jwt-key-for-local-development"}}' \
                 http://localhost:8200/v1/secret/data/tennisapp/prod/jwt > /dev/null
                 
@@ -186,7 +185,7 @@ seed_database() {
     success "Database seeded with venues"
     
     info "Seeding user preferences..."
-    export USER_EMAIL="${USER_EMAIL:-demo@example.com}"
+    export USER_EMAIL="${USER_EMAIL:-mvgnum@gmail.com}"
     ./bin/seed-user
     success "User preferences seeded"
 }

@@ -16,7 +16,7 @@ The integration uses a **DRY (Don't Repeat Yourself)** approach with:
 ### Development/Testing Setup
 ```bash
 export VAULT_ADDR=http://localhost:8200
-export VAULT_TOKEN=dev-token
+export VAULT_TOKEN=your-vault-token-here
 ./infrastructure/vault/setup-vault-secrets.sh
 ```
 

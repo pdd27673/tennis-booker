@@ -28,7 +28,9 @@ type User struct {
 type UserPreferences struct {
 	ID                   primitive.ObjectID   `bson:"_id,omitempty"`
 	UserID               primitive.ObjectID   `bson:"user_id"`
-	Times                []TimeRange          `bson:"times,omitempty"`
+	Times                []TimeRange          `bson:"times,omitempty"`                         // Legacy field for backward compatibility
+	WeekdayTimes         []TimeRange          `bson:"weekday_times,omitempty"`                 // Monday-Friday preferred times
+	WeekendTimes         []TimeRange          `bson:"weekend_times,omitempty"`                 // Saturday-Sunday preferred times
 	MaxPrice             float64              `bson:"max_price,omitempty"`
 	PreferredVenues      []string             `bson:"preferred_venues,omitempty"`
 	ExcludedVenues       []string             `bson:"excluded_venues,omitempty"`
@@ -65,7 +67,7 @@ func main() {
 	// Get MongoDB URI from environment or use default
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://admin:YOUR_PASSWORD@localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	dbName := os.Getenv("MONGO_DB_NAME")
@@ -114,9 +116,7 @@ func main() {
 		name     string
 		username string
 	}{
-		{"demo@example.com", "DEMO_PASSWORD", "Demo User", "demo"},
-		{"test@example.com", "test123", "Test User", "test"},
-		{"demo@example.com", "DEMO_PASSWORD", "Tennis Player", "demo"},
+		{"mvgnum@gmail.com", "password", "Paul", "admin"},
 	}
 
 	for _, demoUser := range demoUsers {
@@ -149,9 +149,11 @@ func main() {
 		preferences := UserPreferences{
 			ID:     primitive.NewObjectID(),
 			UserID: userID,
-			Times: []TimeRange{
-				{Start: "18:00", End: "20:00"},
-				{Start: "09:00", End: "11:00"},
+			WeekdayTimes: []TimeRange{
+				{Start: "18:00", End: "20:00"}, // Weekdays: 6pm-8pm
+			},
+			WeekendTimes: []TimeRange{
+				{Start: "11:00", End: "20:00"}, // Weekends: 11am-8pm
 			},
 			MaxPrice: 100.0,
 			PreferredVenues: []string{
@@ -160,7 +162,7 @@ func main() {
 				"Ropemakers Field",
 			},
 			ExcludedVenues: []string{},
-			PreferredDays:  []string{"monday", "tuesday", "wednesday", "thursday", "friday"},
+			PreferredDays:  []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"},
 			NotificationSettings: NotificationSettings{
 				Email:                true,
 				EmailAddress:         demoUser.email,
@@ -184,8 +186,6 @@ func main() {
 		log.Printf("✅ Successfully seeded user: %s (password: %s)", demoUser.email, demoUser.password)
 	}
 
-	log.Println("\n🎾 Demo credentials for testing:")
-	log.Println("   Email: demo@example.com, Password: DEMO_PASSWORD")
-	log.Println("   Email: test@example.com, Password: test123")
-	log.Println("   Email: demo@example.com, Password: DEMO_PASSWORD")
+	log.Println("\n🎾 User credentials:")
+	log.Println("   Email: mvgnum@gmail.com, Password: password")
 }

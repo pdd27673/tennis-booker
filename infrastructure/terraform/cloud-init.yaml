@@ -1,0 +1,139 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - git
+  - curl
+  - wget
+  - unzip
+  - htop
+  - vim
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-compose-plugin
+
+runcmd:
+  # Install Docker
+  - dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  - dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - systemctl start docker
+  - systemctl enable docker
+  - usermod -aG docker opc
+  
+  # Create application directory
+  - mkdir -p /opt/${project_name}
+  - chown opc:opc /opt/${project_name}
+  
+  # Create data directory for MongoDB
+  - mkdir -p /opt/${project_name}/data/mongodb
+  - chown opc:opc /opt/${project_name}/data/mongodb
+  
+  # Install Docker Compose (standalone)
+  - curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  - chmod +x /usr/local/bin/docker-compose
+  
+  # Configure firewall for HTTP/HTTPS
+  - firewall-cmd --permanent --add-service=http
+  - firewall-cmd --permanent --add-service=https
+  - firewall-cmd --permanent --add-port=22/tcp
+  - firewall-cmd --reload
+  
+  # Create swap file (helpful for ARM instances)
+  - fallocate -l 2G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+write_files:
+  - path: /opt/${project_name}/setup-volume.sh
+    permissions: '0755'
+    owner: opc:opc
+    content: |
+      #!/bin/bash
+      # Script to format and mount the attached block volume
+      
+      DEVICE="/dev/oracleoci/oraclevdb"
+      MOUNT_POINT="/opt/${project_name}/data"
+      
+      # Wait for device to be available
+      while [ ! -b $DEVICE ]; do
+        echo "Waiting for device $DEVICE to be available..."
+        sleep 5
+      done
+      
+      # Check if device is already formatted
+      if ! blkid $DEVICE; then
+        echo "Formatting device $DEVICE..."
+        mkfs.ext4 $DEVICE
+      fi
+      
+      # Create mount point if it doesn't exist
+      mkdir -p $MOUNT_POINT
+      
+      # Mount the device
+      mount $DEVICE $MOUNT_POINT
+      
+      # Add to fstab for persistent mounting
+      if ! grep -q "$DEVICE" /etc/fstab; then
+        echo "$DEVICE $MOUNT_POINT ext4 defaults,_netdev 0 2" >> /etc/fstab
+      fi
+      
+      # Set ownership
+      chown -R opc:opc $MOUNT_POINT
+      
+      echo "Block volume setup complete!"
+
+  - path: /opt/${project_name}/README.md
+    permissions: '0644'
+    owner: opc:opc
+    content: |
+      # Tennis Booker Server Setup
+      
+      This instance has been configured with:
+      - Docker and Docker Compose
+      - Git for code deployment
+      - Firewall configured for HTTP/HTTPS
+      - Block volume attached at /dev/oracleoci/oraclevdb
+      
+      ## Next Steps
+      
+      1. Format and mount the block volume:
+         ```bash
+         sudo /opt/${project_name}/setup-volume.sh
+         ```
+      
+      2. Clone the application repository:
+         ```bash
+         cd /opt/${project_name}
+         git clone <your-repo-url> .
+         ```
+      
+      3. Configure environment variables and deploy:
+         ```bash
+         cp .env.example .env
+         # Edit .env with your configuration
+         docker-compose up -d
+         ```
+      
+      ## Useful Commands
+      
+      - Check Docker status: `sudo systemctl status docker`
+      - View logs: `docker-compose logs -f`
+      - Restart services: `docker-compose restart`
+      - Update application: `git pull && docker-compose up -d --build`
+
+final_message: |
+  Tennis Booker instance setup complete!
+  
+  Instance configured with:
+  - Docker and Docker Compose installed
+  - Firewall configured for web traffic
+  - Block volume attached (run setup-volume.sh to format/mount)
+  - Application directory created at /opt/${project_name}
+  
+  Connect via SSH: ssh -i ~/.ssh/tennis_booker_key opc@<public-ip>
+  
+  Next: Format the block volume and deploy your application! 

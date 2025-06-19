@@ -15,7 +15,7 @@ const courtApiClient = axios.create({
 courtApiClient.interceptors.request.use(
   (config) => {
     const token = tokenStorage.getAccessToken()
-    console.log('🔑 CourtAPI: Using access token:', token ? 'Present' : 'Missing')
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -175,12 +175,10 @@ const handleCourtError = (error: AxiosError) => {
 export const courtApi = {
   async getVenues(): Promise<Venue[]> {
     try {
-      console.log('🏟️ CourtAPI: Fetching venues...')
       const response = await courtApiClient.get('/api/venues')
-      console.log('✅ CourtAPI: Successfully fetched venues:', response.data)
       return response.data || []
     } catch (error) {
-      console.error('❌ CourtAPI: Failed to fetch venues:', error)
+
       handleCourtError(error as AxiosError)
       return []
     }
@@ -232,9 +230,7 @@ export const courtApi = {
   // Get dashboard statistics
   async getDashboardStats() {
     try {
-      console.log('📊 CourtAPI: Fetching dashboard stats from backend...')
       const response = await courtApiClient.get('/api/dashboard/stats')
-      console.log('✅ CourtAPI: Successfully fetched dashboard stats:', response.data)
       
       const backendStats = response.data
       
@@ -248,10 +244,10 @@ export const courtApi = {
         lastUpdate: new Date(),
       }
 
-      console.log('✅ CourtAPI: Dashboard stats transformed:', stats)
+
       return stats
     } catch (error) {
-      console.error('❌ CourtAPI: Failed to fetch dashboard stats:', error)
+
       return {
         totalVenues: 0,
         totalCourts: 0,

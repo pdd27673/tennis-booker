@@ -1,0 +1,16 @@
+[Unit]
+Description=DuckDNS IP Update Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=opc
+Group=opc
+WorkingDirectory=/opt/tennis-booker
+ExecStart=/opt/tennis-booker/infrastructure/scripts/update-duckdns.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 

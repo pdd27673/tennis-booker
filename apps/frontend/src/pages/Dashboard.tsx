@@ -122,7 +122,7 @@ export default function Dashboard() {
       try {
         setIsLoading(true)
         setError(null)
-        console.log('🔄 Dashboard: Starting data fetch...')
+  
         
         // Fetch data with individual error handling for better resilience
         const results = await Promise.allSettled([
@@ -134,29 +134,23 @@ export default function Dashboard() {
 
         // Handle court slots
         if (results[0].status === 'fulfilled') {
-          console.log('✅ Dashboard: Court slots loaded:', results[0].value)
-          setCourtData(results[0].value)
-        } else {
-          console.warn('⚠️ Dashboard: Court slots failed, using mock data:', results[0].reason)
+                  setCourtData(results[0].value)
+      } else {
           setCourtData(mockCourtData)
         }
 
         // Handle dashboard stats
         let stats = { activeCourts: 0, availableSlots: 0, totalVenues: 0 }
         if (results[1].status === 'fulfilled') {
-          console.log('✅ Dashboard: Dashboard stats loaded:', results[1].value)
           stats = results[1].value
         } else {
-          console.warn('⚠️ Dashboard: Dashboard stats failed:', results[1].reason)
         }
 
         // Handle system status
         let systemStatus = 'RUNNING'
         if (results[2].status === 'fulfilled') {
-          console.log('✅ Dashboard: System status loaded:', results[2].value)
           systemStatus = results[2].value.status || 'RUNNING'
         } else {
-          console.warn('⚠️ Dashboard: System status failed, defaulting to RUNNING:', results[2].reason)
         }
 
         // Handle system metrics
@@ -167,10 +161,8 @@ export default function Dashboard() {
           scraperHealth: 'Unknown'
         }
         if (results[3].status === 'fulfilled') {
-          console.log('✅ Dashboard: System metrics loaded:', results[3].value)
           metrics = results[3].value
         } else {
-          console.warn('⚠️ Dashboard: System metrics failed, using defaults:', results[3].reason)
         }
         
         setDashboardStats({
@@ -185,9 +177,9 @@ export default function Dashboard() {
         const courtSlotsData = results[0].status === 'fulfilled' ? results[0].value : []
         generateRecentActivity(stats, systemStatus as any, metrics, courtSlotsData)
         
-        console.log('✅ Dashboard: All data processing complete')
+
       } catch (error) {
-        console.error('❌ Dashboard: Critical error during data fetch:', error)
+
         setError('Failed to load dashboard data. Please try refreshing the page.')
         // Fallback to mock data on critical error
         setCourtData(mockCourtData)
@@ -207,7 +199,7 @@ export default function Dashboard() {
     // Set up auto-refresh every 30 seconds for system metrics
     const refreshInterval = setInterval(() => {
       if (!isLoading) {
-        console.log('🔄 Dashboard: Auto-refreshing system metrics...')
+
         Promise.allSettled([
           courtApi.getCourtSlots({ limit: 10 }), // Get court slots for activity generation
           systemApi.getSystemStatus(),
@@ -284,11 +276,7 @@ export default function Dashboard() {
     const refreshToken = tokenStorage.getRefreshToken()
     const localStorageToken = localStorage.getItem('accessToken')
     
-    console.log('🔍 Token Debug Information:')
-    console.log('  - tokenStorage.getAccessToken():', accessToken ? 'Present' : 'Missing')
-    console.log('  - tokenStorage.getRefreshToken():', refreshToken ? 'Present' : 'Missing')
-    console.log('  - localStorage.getItem("accessToken"):', localStorageToken ? 'Present' : 'Missing')
-    console.log('  - Access Token (first 20 chars):', accessToken ? accessToken.substring(0, 20) + '...' : 'N/A')
+
     
     addNotification({
       title: 'Token Debug',

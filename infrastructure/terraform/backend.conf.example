@@ -1,0 +1,5 @@
+bucket    = "tennis-booker-terraform-state"
+namespace = "your-namespace"
+key       = "tennis-booker/dev/terraform.tfstate"
+region    = "us-ashburn-1"
+encrypt   = true 

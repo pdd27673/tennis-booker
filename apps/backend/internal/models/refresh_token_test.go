@@ -21,7 +21,7 @@ func setupRefreshTokenTest(t *testing.T) (*mongo.Database, *MongoRefreshTokenSer
 
 	mongoURI := os.Getenv("MONGODB_TEST_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	// Use a unique database name for this test

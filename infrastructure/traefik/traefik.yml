@@ -1,0 +1,91 @@
+# Traefik v3.0 Configuration
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# API and Dashboard
+api:
+  dashboard: true
+  debug: false
+  insecure: false
+
+# Entry Points
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        options: default
+
+  traefik:
+    address: ":8080"
+
+# Certificate Resolvers
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: ${ACME_EMAIL}
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+      # Alternative: DNS Challenge for DuckDNS
+      # dnsChallenge:
+      #   provider: duckdns
+      #   delayBeforeCheck: 0
+
+# Providers
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: tennis-network
+
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# Logging
+log:
+  level: INFO
+  filePath: /var/log/traefik/traefik.log
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+  bufferingSize: 100
+
+# Metrics (optional)
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+
+# Pilot (optional - for monitoring)
+# pilot:
+#   token: "your-pilot-token"
+
+# TLS Options
+tls:
+  options:
+    default:
+      sslProtocols:
+        - "TLSv1.2"
+        - "TLSv1.3"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+      curvePreferences:
+        - "CurveP521"
+        - "CurveP384"
+      minVersion: "VersionTLS12" 

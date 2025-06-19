@@ -20,7 +20,7 @@ func TestInitDatabase(t *testing.T) {
 
 	mongoURI := os.Getenv("MONGODB_TEST_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	// Test with valid URI - use short timeout to fail fast
@@ -62,7 +62,7 @@ func TestCreateAllIndexes(t *testing.T) {
 
 	mongoURI := os.Getenv("MONGODB_TEST_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	// Connect to MongoDB with short timeout
@@ -127,7 +127,7 @@ func TestGetIndexSummary(t *testing.T) {
 
 	mongoURI := os.Getenv("MONGODB_TEST_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	// Connect to MongoDB with short timeout
@@ -168,10 +168,18 @@ func TestGetIndexSummary(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, summaries)
 
+	// Debug: Print all indexes found
+	t.Logf("Found %d index summaries:", len(summaries))
+	for _, summary := range summaries {
+		t.Logf("Collection: %s, Index: %s, Keys: %+v, Unique: %t", 
+			summary.Collection, summary.IndexName, summary.Keys, summary.Unique)
+	}
+
 	// Verify the index was found
 	found := false
 	for _, summary := range summaries {
-		if summary.Collection == "test_collection" && len(summary.Keys) > 0 {
+		if summary.Collection == "test_collection" {
+			t.Logf("Found test_collection index: %s with keys %+v", summary.IndexName, summary.Keys)
 			if _, ok := summary.Keys["test_field"]; ok {
 				found = true
 				assert.True(t, summary.Unique)

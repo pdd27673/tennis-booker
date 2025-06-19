@@ -3,22 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+
 	"tennis-booker/internal/auth"
 	"tennis-booker/internal/config"
 	"tennis-booker/internal/database"
 	"tennis-booker/internal/handlers"
+	"tennis-booker/internal/logging"
 	"tennis-booker/internal/middleware"
 	"tennis-booker/internal/secrets"
-
-	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // FallbackJWTProvider provides JWT secrets from environment variables as fallback
@@ -28,29 +28,35 @@ type FallbackJWTProvider struct{}
 func (f *FallbackJWTProvider) GetJWTSecret() (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		// Use a default secret for development (not recommended for production)
-		secret = "tennis-booker-default-jwt-secret-change-in-production"
-		log.Println("⚠️ Using default JWT secret - set JWT_SECRET environment variable for production")
+		return "", fmt.Errorf("JWT_SECRET environment variable is required - cannot use insecure default")
 	}
 	return secret, nil
 }
 
 func main() {
+	// Initialize structured logging
+	logger := logging.New("tennis-server")
+	
+	// Load environment variables if .env file exists
+	if err := godotenv.Load(); err != nil {
+		logger.Debug("No .env file found, using environment variables")
+	}
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		logger.Fatal("Failed to load configuration", map[string]interface{}{"error": err.Error()})
 	}
 
 	// Initialize database connection with fallback
-	var mongoDb *mongo.Database
+	var mongoDb database.Database
 	var secretsManager *secrets.SecretsManager
 	
 	// Try to initialize secrets manager and database connection
 	sm, err := secrets.NewSecretsManagerFromEnv()
 	if err != nil {
-		log.Printf("⚠️ Failed to create secrets manager: %v", err)
-		log.Println("🔄 Using fallback database connection...")
+		logger.Warn("Failed to create secrets manager", map[string]interface{}{"error": err.Error()})
+		logger.Info("Using fallback database connection")
 		
 		// Fallback to direct database connection using config
 		mongoURI := cfg.MongoDB.URI
@@ -64,26 +70,25 @@ func main() {
 			}
 		}
 		
-		mongoDb, err = database.InitDatabase(mongoURI, cfg.MongoDB.Database)
+		mongoDbInstance, err := database.InitDatabase(mongoURI, cfg.MongoDB.Database)
+		mongoDb = database.NewMongoDB(mongoDbInstance)
 		if err != nil {
-			log.Fatalf("Failed to connect to database with fallback: %v", err)
+			logger.Fatal("Failed to connect to database with fallback", map[string]interface{}{"error": err.Error()})
 		}
-		log.Println("✅ Connected to database using fallback credentials")
+		logger.ConnectionInfo("Connected to database using fallback credentials", "mongodb", cfg.MongoDB.Host)
 	} else {
 		secretsManager = sm
 		defer secretsManager.Close()
 		
 		// Use connection manager for Vault-based connection
 		connectionManager := database.NewConnectionManager(secretsManager)
-		mongoDb, err = connectionManager.ConnectWithFallback()
+		mongoDbInstance, err := connectionManager.ConnectWithFallback()
 		if err != nil {
-			log.Fatalf("Failed to connect to database: %v", err)
+			logger.Fatal("Failed to connect to database", map[string]interface{}{"error": err.Error()})
 		}
-		log.Println("✅ Connected to database using Vault credentials")
+		mongoDb = database.NewMongoDB(mongoDbInstance)
+		logger.ConnectionInfo("Connected to database using Vault credentials", "mongodb", cfg.MongoDB.Host)
 	}
-	
-	// Wrap in our Database interface
-	db := database.NewMongoDB(mongoDb)
 
 	// Initialize JWT service
 	var jwtService *auth.JWTService
@@ -96,11 +101,11 @@ func main() {
 	}
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(jwtService, db)
-	courtHandler := handlers.NewCourtHandler(db)
-	userHandler := handlers.NewUserHandler(db, jwtService)
-	systemHandler := handlers.NewSystemHandler(db)
-	healthHandler := handlers.NewHealthHandler(secretsManager, db)
+	authHandler := handlers.NewAuthHandler(jwtService, mongoDb)
+	courtHandler := handlers.NewCourtHandler(mongoDb)
+	userHandler := handlers.NewUserHandler(mongoDb, jwtService)
+	systemHandler := handlers.NewSystemHandler(mongoDb)
+	healthHandler := handlers.NewHealthHandler(secretsManager, mongoDb)
 
 	// Setup router
 	router := mux.NewRouter()
@@ -129,7 +134,7 @@ func main() {
 	userRouter.Use(middleware.JWTMiddleware(jwtService))
 	userRouter.HandleFunc("/preferences", userHandler.GetPreferences).Methods("GET", "OPTIONS")
 	userRouter.HandleFunc("/preferences", userHandler.UpdatePreferences).Methods("PUT", "OPTIONS")
-
+	
 	// Court endpoints
 	courtRouter := router.PathPrefix("/api").Subrouter()
 	courtRouter.HandleFunc("/venues", courtHandler.GetVenues).Methods("GET", "OPTIONS")
@@ -159,18 +164,20 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("🚀 Tennis Booker API Server starting on port %s", cfg.Server.Port)
-		log.Printf("🌐 CORS enabled for origins: %v", cfg.CORS.AllowedOrigins)
-		log.Printf("📋 API endpoints available at http://localhost:%s/api/", cfg.Server.Port)
+		logger.StartupInfo("🚀 Tennis Booker API Server starting", cfg.Server.Port, "production")
+		logger.Info("API endpoints available", map[string]interface{}{
+			"base_url": fmt.Sprintf("http://localhost:%s/api/", cfg.Server.Port),
+			"cors_origins": cfg.CORS.AllowedOrigins,
+		})
 		
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			logger.Fatal("Failed to start server", map[string]interface{}{"error": err.Error()})
 		}
 	}()
 
 	// Wait for interrupt signal
 	<-quit
-	log.Println("🛑 Shutting down server...")
+	logger.ShutdownInfo("Shutting down server", "signal_received")
 
 	// Create a deadline for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -178,8 +185,8 @@ func main() {
 
 	// Shutdown server gracefully
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		logger.Error("Server forced to shutdown", map[string]interface{}{"error": err.Error()})
 	}
 
-	log.Println("✅ Server stopped gracefully")
+	logger.Info("Server stopped gracefully")
 } 

@@ -231,15 +231,15 @@ func TestSecretsManager_GetRedisCredentials(t *testing.T) {
 
 func TestSecretsManager_Constants(t *testing.T) {
 	// Test that all the predefined paths are correctly set
-	assert.Equal(t, "kv/data/tennisapp/prod/db", DBSecretPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/jwt", JWTSecretPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/email", EmailSecretPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/redis", RedisSecretPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/api", APISecretPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/platforms/lta", LTACredentialsPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/platforms/courtsides", CourtsidesCredentialsPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/notifications/twilio", TwilioCredentialsPath)
-	assert.Equal(t, "kv/data/tennisapp/prod/notifications/sendgrid", SendGridCredentialsPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/db", DBSecretPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/jwt", JWTSecretPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/email", EmailSecretPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/redis", RedisSecretPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/api", APISecretPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/platforms/lta", LTACredentialsPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/platforms/courtsides", CourtsidesCredentialsPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/notifications/twilio", TwilioCredentialsPath)
+	assert.Equal(t, "secret/data/tennisapp/prod/notifications/sendgrid", SendGridCredentialsPath)
 }
 
 // Integration tests - require running Vault instance

@@ -36,7 +36,7 @@ export default function Login() {
       
       if (result.success) {
         // Redirect to the intended page or dashboard
-        console.log('Redirecting to:', returnUrl)
+    
         navigate(returnUrl, { replace: true })
       } else {
         setError(result.error || 'Login failed')
@@ -129,17 +129,7 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-              Demo Credentials
-            </h4>
-            <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-              <p><strong>Email:</strong> demo@example.com</p>
-              <p><strong>Password:</strong> demo_password</p>
-              <p className="mt-2 italic">Or try: test@example.com / test123</p>
-            </div>
-          </div>
+
         </CardContent>
       </Card>
     </div>

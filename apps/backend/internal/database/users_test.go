@@ -16,7 +16,7 @@ func setupTestDB(t *testing.T) (*mongo.Client, *mongo.Database, func()) {
 	// Skip integration tests if MongoDB is not available
 	mongoURI := os.Getenv("MONGODB_TEST_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://admin:YOUR_PASSWORD@localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	// Check if we should skip MongoDB tests
@@ -287,8 +287,8 @@ func TestUserRepository_Delete(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error when finding deleted user")
 	}
-	if err != mongo.ErrNoDocuments {
-		t.Errorf("Expected mongo.ErrNoDocuments, got %v", err)
+	if err.Error() != "user not found" {
+		t.Errorf("Expected 'user not found', got %v", err)
 	}
 }
 
@@ -299,7 +299,7 @@ func TestUserRepository_List(t *testing.T) {
 	repo := NewUserRepository(db)
 	ctx := context.Background()
 
-	// Create multiple test users
+	// Create test users
 	users := []*models.User{
 		{
 			Email:           "user1@example.com",
@@ -330,12 +330,12 @@ func TestUserRepository_List(t *testing.T) {
 	}
 
 	// List users
-	foundUsers, err := repo.List(ctx, 10, 0)
+	foundUsers, err := repo.List(ctx, 0, 100)
 	if err != nil {
 		t.Fatalf("Failed to list users: %v", err)
 	}
 
-	// Verify we found at least our test users
+	// Should find at least the 2 users we created
 	if len(foundUsers) < 2 {
 		t.Errorf("Expected at least 2 users, got %d", len(foundUsers))
 	}

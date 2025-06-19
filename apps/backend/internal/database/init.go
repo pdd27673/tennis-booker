@@ -119,8 +119,18 @@ func GetIndexSummary(db *mongo.Database) ([]IndexSummary, error) {
 			if keyDoc, ok := idx["key"].(map[string]interface{}); ok {
 				for k, v := range keyDoc {
 					// Convert value to int (1 for ascending, -1 for descending)
-					if vFloat, ok := v.(float64); ok {
-						keys[k] = int(vFloat)
+					switch val := v.(type) {
+					case float64:
+						keys[k] = int(val)
+					case int:
+						keys[k] = val
+					case int32:
+						keys[k] = int(val)
+					case int64:
+						keys[k] = int(val)
+					default:
+						// Default to 1 for ascending if we can't parse the value
+						keys[k] = 1
 					}
 				}
 			}

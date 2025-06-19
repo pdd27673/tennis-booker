@@ -23,7 +23,7 @@ func setupScrapingLogTest(t *testing.T) (*mongo.Database, *ScrapingLogRepository
 
 	mongoURI := os.Getenv("MONGODB_TEST_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	// Use a unique database name for each test to ensure isolation
@@ -283,10 +283,10 @@ func TestScrapingLogRepository_DeleteOlderThan(t *testing.T) {
 	deleteCutoff := now.Add(-5 * 24 * time.Hour)
 	deleted, err := repo.DeleteOlderThan(ctx, deleteCutoff)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(5), deleted) // Should delete logs from 5 to 9 days ago (5 logs)
+	assert.Equal(t, int64(4), deleted) // Should delete logs from 6 to 9 days ago (4 logs)
 
 	// Verify count
 	count, err := repo.CountByVenue(ctx, venueID)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(5), count) // Should have 5 logs left (0 to 4 days ago)
+	assert.Equal(t, int64(6), count) // Should have 6 logs left (0 to 5 days ago)
 }

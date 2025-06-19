@@ -1,0 +1,118 @@
+# Dynamic Configuration for Traefik
+http:
+  middlewares:
+    # Security Headers
+    security-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+          - PATCH
+        accessControlAllowOriginList:
+          - "https://${DOMAIN_NAME}"
+          - "https://www.${DOMAIN_NAME}"
+        accessControlMaxAge: 100
+        hostsProxyHeaders:
+          - "X-Forwarded-Host"
+        referrerPolicy: "same-origin"
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Robots-Tag: "none,noarchive,nosnippet,notranslate,noimageindex"
+          X-Forwarded-Proto: "https"
+          server: ""
+        sslProxyHeaders:
+          X-Forwarded-Proto: "https"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        customFrameOptionsValue: "SAMEORIGIN"
+
+    # Rate Limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        period: 1m
+        burst: 200
+
+    # API Rate Limiting (more restrictive)
+    api-rate-limit:
+      rateLimit:
+        average: 30
+        period: 1m
+        burst: 50
+
+    # Compression
+    compression:
+      compress: {}
+
+    # Auth for Traefik Dashboard
+    traefik-auth:
+      basicAuth:
+        users:
+          - "${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}"
+
+    # CORS for API
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+          - PATCH
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowOriginList:
+          - "https://${DOMAIN_NAME}"
+          - "https://www.${DOMAIN_NAME}"
+        accessControlMaxAge: 100
+        addVaryHeader: true
+
+    # Redirect www to non-www
+    redirect-to-non-www:
+      redirectRegex:
+        regex: "^https://www\\.(.+)"
+        replacement: "https://${1}"
+        permanent: true
+
+  # Services (can be defined here or via Docker labels)
+  services: {}
+
+  # Routers (can be defined here or via Docker labels)
+  routers:
+    # Traefik Dashboard
+    traefik-dashboard:
+      rule: "Host(`traefik.${DOMAIN_NAME}`)"
+      service: api@internal
+      middlewares:
+        - traefik-auth
+        - security-headers
+      tls:
+        certResolver: letsencrypt
+
+# TLS Configuration
+tls:
+  options:
+    default:
+      sslProtocols:
+        - "TLSv1.2"
+        - "TLSv1.3"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+      curvePreferences:
+        - "CurveP521"
+        - "CurveP384"
+      minVersion: "VersionTLS12"
+      maxVersion: "VersionTLS13" 

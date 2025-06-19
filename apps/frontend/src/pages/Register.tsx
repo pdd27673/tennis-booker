@@ -38,7 +38,7 @@ export default function Register() {
       
       if (result.success) {
         // Redirect to the intended page or dashboard
-        console.log('Redirecting to:', returnUrl)
+    
         navigate(returnUrl, { replace: true })
       } else {
         setError(result.error || 'Registration failed')
@@ -177,7 +177,7 @@ export default function Register() {
             <div className="text-xs text-green-700 dark:text-green-300 space-y-1">
               <p>• Password must be at least 6 characters</p>
               <p>• Use a valid email address</p>
-              <p>• This is a demo - data is stored temporarily</p>
+
             </div>
           </div>
         </CardContent>

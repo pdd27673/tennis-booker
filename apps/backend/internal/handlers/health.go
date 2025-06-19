@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 
 	"tennis-booker/internal/database"
@@ -52,7 +53,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	response := HealthResponse{
 		Status:    "healthy",
 		Timestamp: time.Now(),
-		Version:   "1.0.0", // TODO: Get from build info
+		Version:   getVersion(), // Get from build info or environment
 		Services: struct {
 			Database bool `json:"database"`
 			Vault    bool `json:"vault"`
@@ -108,8 +109,8 @@ func (h *HealthHandler) SystemHealth(w http.ResponseWriter, r *http.Request) {
 	response := SystemHealthResponse{
 		Status:      "healthy",
 		Timestamp:   time.Now(),
-		Version:     "1.0.0", // TODO: Get from build info
-		Environment: "development", // TODO: Get from config
+		Version:     getVersion(), // Get from build info or environment
+		Environment: getEnvironment(), // Get from config
 		Services:    services,
 		Uptime:      uptime.String(),
 	}
@@ -156,4 +157,23 @@ func (h *HealthHandler) checkVault() bool {
 	// Try to get a secret to verify connectivity
 	_, err := h.secretsManager.GetSecret("secret/data/tennisapp/prod/jwt", "secret")
 	return err == nil
-} 
+}
+
+// Helper functions for version and environment
+func getVersion() string {
+	// Try to get version from environment variable first
+	if version := os.Getenv("APP_VERSION"); version != "" {
+		return version
+	}
+	// Fallback to default
+	return "1.0.0"
+}
+
+func getEnvironment() string {
+	// Try to get environment from environment variable first
+	if env := os.Getenv("APP_ENVIRONMENT"); env != "" {
+		return env
+	}
+	// Fallback to default
+	return "development"
+}

@@ -20,7 +20,7 @@ func main() {
 	// Get MongoDB URI from environment or use default
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://admin:YOUR_PASSWORD@localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 	}
 
 	dbName := os.Getenv("DB_NAME")

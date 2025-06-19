@@ -1,0 +1,29 @@
+# OCI Authentication - Replace with your actual values
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa..."
+user_ocid        = "ocid1.user.oc1..aaaaaaaa..."
+fingerprint      = "aa:bb:cc:dd:ee:ff:gg:hh:ii:jj:kk:ll:mm:nn:oo:pp"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-ashburn-1"
+
+# Project Configuration
+project_name     = "tennis-booker"
+environment      = "dev"
+compartment_ocid = "" # Leave empty to use tenancy root compartment
+
+# Backend Configuration (for backend.conf)
+bucket_name = "tennis-booker-terraform-state"
+namespace   = "your-namespace"
+
+# Network Configuration
+vcn_cidr            = "10.0.0.0/16"
+public_subnet_cidr  = "10.0.1.0/24"
+private_subnet_cidr = "10.0.2.0/24"
+
+# Compute Configuration (Always Free Tier Limits)
+instance_shape          = "VM.Standard.A1.Flex"
+instance_ocpus          = 2  # Max 4 OCPUs total across all instances
+instance_memory_in_gbs  = 12 # Max 24GB total across all instances
+ssh_public_key          = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... your-public-key"
+
+# Storage Configuration
+block_volume_size_in_gbs = 50 # Max 200GB total across all volumes 

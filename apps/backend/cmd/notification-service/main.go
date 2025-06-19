@@ -19,6 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"tennis-booker/internal/database"
+	"tennis-booker/internal/models"
 	"tennis-booker/internal/secrets"
 )
 
@@ -63,13 +64,14 @@ type SlotData struct {
 
 // NotificationService handles the notification processing
 type NotificationService struct {
-	db          *mongo.Database
-	redisClient *redis.Client
-	logger      *log.Logger
-	users       []User
-	slotBatch   map[string][]SlotData // User email -> list of slots
-	batchMutex  sync.RWMutex
-	batchTimer  *time.Timer
+	db                  *mongo.Database
+	redisClient         *redis.Client
+	deduplicationSvc    *models.DeduplicationService
+	logger              *log.Logger
+	users               []User
+	slotBatch           map[string][]SlotData // User email -> list of slots
+	batchMutex          sync.RWMutex
+	batchTimer          *time.Timer
 }
 
 // GmailService handles Gmail SMTP email notifications
@@ -173,6 +175,74 @@ Price: £15.00`, time.Now().Format("2006-01-02"))
 
 	g.logger.Printf("📧 [TEST EMAIL] Sending test notification to %s", toEmail)
 	return g.SendCourtAvailabilityAlert(toEmail, testDetails, "https://example.com/book")
+}
+
+// NewNotificationService creates a new notification service
+func NewNotificationService(db *mongo.Database, redisClient *redis.Client, logger *log.Logger) *NotificationService {
+	return &NotificationService{
+		db:                db,
+		redisClient:       redisClient,
+		deduplicationSvc:  models.NewDeduplicationService(db),
+		logger:            logger,
+		slotBatch:         make(map[string][]SlotData),
+	}
+}
+
+// processSlotMessage processes a single slot message from Redis
+func (s *NotificationService) processSlotMessage(slotMessage string) {
+	var slot SlotData
+	if err := json.Unmarshal([]byte(slotMessage), &slot); err != nil {
+		s.logger.Printf("❌ Error parsing slot message: %v", err)
+		return
+	}
+
+	s.logger.Printf("🎾 Processing slot: %s at %s (%s-%s)", slot.CourtName, slot.VenueName, slot.StartTime, slot.EndTime)
+
+	// Check for users who might be interested in this slot
+	for _, user := range s.users {
+		if s.shouldNotifyUser(user, slot) {
+			// Use the consolidated deduplication service
+			event := models.CourtAvailabilityEvent{
+				VenueID:      slot.VenueID,
+				VenueName:    slot.VenueName,
+				CourtID:      slot.CourtID,
+				CourtName:    slot.CourtName,
+				Date:         slot.Date,
+				StartTime:    slot.StartTime,
+				EndTime:      slot.EndTime,
+				Price:        slot.Price,
+				Currency:     "GBP",
+				BookingURL:   slot.BookingURL,
+				DiscoveredAt: time.Now(),
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			dupCheck, err := s.deduplicationSvc.CheckForDuplicate(ctx, user.ID, event)
+			cancel()
+
+			if err != nil {
+				s.logger.Printf("❌ Error checking for duplicate: %v", err)
+				continue
+			}
+
+			if dupCheck.IsDuplicate {
+				s.logger.Printf("🔄 Skipping duplicate for %s: %s", user.Email, dupCheck.ReasonDescription)
+				continue
+			}
+
+			// Add to batch for this user
+			s.addSlotToBatch(user, slot)
+
+			// Record the notification
+			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+			err = s.deduplicationSvc.RecordNotification(ctx, user.ID, event)
+			cancel()
+
+			if err != nil {
+				s.logger.Printf("❌ Error recording notification: %v", err)
+			}
+		}
+	}
 }
 
 func main() {
@@ -385,8 +455,6 @@ func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	email := os.Getenv("GMAIL_EMAIL")
 	password := os.Getenv("GMAIL_PASSWORD")
 
-
-
 	if email == "" || password == "" {
 		logger.Fatalf("❌ GMAIL_EMAIL and GMAIL_PASSWORD environment variables are required for fallback mode")
 	}
@@ -559,66 +627,54 @@ func (s *NotificationService) startNotificationEngine(gmailService *GmailService
 
 		// result[0] is the queue name, result[1] is the data
 		if len(result) > 1 {
-			s.addSlotToBatch(result[1], gmailService)
+			s.processSlotMessage(result[1])
 		}
 	}
 }
 
 // addSlotToBatch adds a slot to the batching system
-func (s *NotificationService) addSlotToBatch(slotJSON string, gmailService *GmailService) {
-	var slot SlotData
-	if err := json.Unmarshal([]byte(slotJSON), &slot); err != nil {
-		s.logger.Printf("Error parsing slot JSON: %v", err)
-		return
-	}
-
-	s.logger.Printf("Processing slot: %s at %s, %s %s--%s, £%.2f",
-		slot.VenueName, slot.CourtName, slot.Date, slot.StartTime, slot.EndTime, slot.Price)
-
+func (s *NotificationService) addSlotToBatch(user User, slot SlotData) {
 	s.batchMutex.Lock()
 	defer s.batchMutex.Unlock()
 
-	// Check each user's preferences and add to their batch if matches
-	for _, user := range s.users {
-		if s.matchesUserPreferences(user, slot) {
-			// Check for duplicates
-			if s.isDuplicateNotification(user, slot) {
-				s.logger.Printf("Skipping duplicate notification for user: %s", user.Email)
-				continue
-			}
+	// Deduplication is now handled in processSlotMessage, so this is redundant
 
-			s.logger.Printf("Slot matches preferences for user: %s", user.Email)
+	s.logger.Printf("Slot matches preferences for user: %s", user.Email)
 
-			// Add to batch
-			if s.slotBatch[user.Email] == nil {
-				s.slotBatch[user.Email] = make([]SlotData, 0)
-			}
-			s.slotBatch[user.Email] = append(s.slotBatch[user.Email], slot)
-
-			// Reset/start the batch timer (10 seconds)
-			if s.batchTimer != nil {
-				s.batchTimer.Stop()
-			}
-			s.batchTimer = time.AfterFunc(10*time.Second, func() {
-				s.sendBatchedNotifications(gmailService)
-			})
-		}
+	// Add to batch
+	if s.slotBatch[user.Email] == nil {
+		s.slotBatch[user.Email] = make([]SlotData, 0)
 	}
+	s.slotBatch[user.Email] = append(s.slotBatch[user.Email], slot)
+
+	// Reset/start the batch timer (10 seconds)
+	if s.batchTimer != nil {
+		s.batchTimer.Stop()
+	}
+	s.batchTimer = time.AfterFunc(10*time.Second, func() {
+		s.flushBatchedNotifications()
+	})
 }
 
-// sendBatchedNotifications sends all batched slots as consolidated emails
-func (s *NotificationService) sendBatchedNotifications(gmailService *GmailService) {
+// flushBatchedNotifications processes all batched notifications
+func (s *NotificationService) flushBatchedNotifications() {
 	s.batchMutex.Lock()
 	currentBatch := s.slotBatch
 	s.slotBatch = make(map[string][]SlotData) // Reset batch
 	s.batchMutex.Unlock()
 
-	for email, slots := range currentBatch {
+	// Create Gmail service
+	email := os.Getenv("GMAIL_EMAIL")
+	password := os.Getenv("GMAIL_PASSWORD")
+	gmailService := NewGmailService(email, password, "Tennis Court Alerts", s.logger)
+
+	// Send notifications for each user's batch
+	for userEmail, slots := range currentBatch {
 		if len(slots) > 0 {
 			// Find user by email
 			var user User
 			for _, u := range s.users {
-				if u.Email == email {
+				if u.Email == userEmail {
 					user = u
 					break
 				}
@@ -626,54 +682,16 @@ func (s *NotificationService) sendBatchedNotifications(gmailService *GmailServic
 
 			// Send consolidated notification
 			if err := s.sendBatchedNotification(user, slots, gmailService); err != nil {
-				s.logger.Printf("Error sending batched notification to %s: %v", email, err)
-			} else {
-				s.logger.Printf("✅ Batched notification sent to %s (%d slots)", email, len(slots))
-
-				// Record all notifications
-				for _, slot := range slots {
-					s.recordNotification(user, slot)
-				}
+				s.logger.Printf("Error sending batched notification to %s: %v", userEmail, err)
 			}
 		}
 	}
 }
 
-// processSlotNotification processes a slot notification (kept for compatibility)
-func (s *NotificationService) processSlotNotification(slotJSON string, gmailService *GmailService) {
-	var slot SlotData
-	if err := json.Unmarshal([]byte(slotJSON), &slot); err != nil {
-		s.logger.Printf("Error parsing slot JSON: %v", err)
-		return
-	}
+// Removed duplicate function - using the complete implementation below
 
-	s.logger.Printf("Processing slot: %s at %s, %s %s--%s, £%.2f",
-		slot.VenueName, slot.CourtName, slot.Date, slot.StartTime, slot.EndTime, slot.Price)
-
-	// Check each user's preferences
-	for _, user := range s.users {
-		if s.matchesUserPreferences(user, slot) {
-			s.logger.Printf("Slot matches preferences for user: %s", user.Email)
-
-			// Check for duplicates
-			if s.isDuplicateNotification(user, slot) {
-				s.logger.Printf("Skipping duplicate notification for user: %s", user.Email)
-				continue
-			}
-
-			// Send notification
-			if err := s.sendNotification(user, slot, gmailService); err != nil {
-				s.logger.Printf("Error sending notification to %s: %v", user.Email, err)
-			} else {
-				s.logger.Printf("✅ Notification sent to %s", user.Email)
-				s.recordNotification(user, slot)
-			}
-		}
-	}
-}
-
-// matchesUserPreferences checks if a slot matches user preferences
-func (s *NotificationService) matchesUserPreferences(user User, slot SlotData) bool {
+// shouldNotifyUser checks if a user should be notified about a slot using the existing retention service logic
+func (s *NotificationService) shouldNotifyUser(user User, slot SlotData) bool {
 	// Check venue preference
 	venueMatch := false
 	for _, venue := range user.PreferredVenues {
@@ -742,55 +760,7 @@ func (s *NotificationService) timeInRange(timeStr, start, end string) bool {
 }
 
 // isDuplicateNotification checks if this notification was already sent
-func (s *NotificationService) isDuplicateNotification(user User, slot SlotData) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Create unique identifier for this slot
-	slotID := fmt.Sprintf("%s_%s_%s_%s", slot.VenueID, slot.CourtID, slot.Date, slot.StartTime)
-
-	// Check if notification was sent in the last 24 hours
-	cutoff := time.Now().Add(-24 * time.Hour)
-	filter := bson.M{
-		"userId": user.ID,
-		"slotId": slotID,
-		"sentAt": bson.M{"$gte": cutoff},
-	}
-
-	count, err := s.db.Collection("notification_history").CountDocuments(ctx, filter)
-	if err != nil {
-		s.logger.Printf("Error checking duplicate notification: %v", err)
-		return false
-	}
-
-	return count > 0
-}
-
-// recordNotification records that a notification was sent
-func (s *NotificationService) recordNotification(user User, slot SlotData) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	slotID := fmt.Sprintf("%s_%s_%s_%s", slot.VenueID, slot.CourtID, slot.Date, slot.StartTime)
-
-	record := bson.M{
-		"userId":    user.ID,
-		"userEmail": user.Email,
-		"slotId":    slotID,
-		"venueId":   slot.VenueID,
-		"venueName": slot.VenueName,
-		"courtName": slot.CourtName,
-		"date":      slot.Date,
-		"startTime": slot.StartTime,
-		"price":     slot.Price,
-		"sentAt":    time.Now(),
-	}
-
-	_, err := s.db.Collection("notification_history").InsertOne(ctx, record)
-	if err != nil {
-		s.logger.Printf("Error recording notification: %v", err)
-	}
-}
+// isDuplicateNotification is now replaced by the consolidated deduplication service
 
 // sendNotification sends an email notification
 func (s *NotificationService) sendNotification(user User, slot SlotData, gmailService *GmailService) error {

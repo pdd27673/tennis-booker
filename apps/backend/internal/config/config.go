@@ -150,7 +150,7 @@ func Load() (*Config, error) {
 		},
 		Vault: VaultConfig{
 			Address: getEnv("VAULT_ADDR", "http://localhost:8200"),
-			Token:   getEnv("VAULT_TOKEN", "dev-token"),
+			                       Token:   getEnv("VAULT_TOKEN", ""),
 		},
 	}, nil
 }

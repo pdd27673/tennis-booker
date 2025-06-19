@@ -360,7 +360,7 @@ func (h *SystemHandler) GetScrapingLogs(w http.ResponseWriter, r *http.Request) 
 
 	cursor, err := scrapingLogsCollection.Find(ctx, filter, opts)
 	if err != nil {
-		fmt.Printf("Error fetching scraping logs: %v\n", err)
+
 		http.Error(w, fmt.Sprintf("Failed to fetch scraping logs: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -428,7 +428,7 @@ func (h *SystemHandler) GetScrapingLogs(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := cursor.Err(); err != nil {
-		fmt.Printf("Cursor error: %v\n", err)
+		
 		http.Error(w, fmt.Sprintf("Error reading scraping logs: %v", err), http.StatusInternalServerError)
 		return
 	}

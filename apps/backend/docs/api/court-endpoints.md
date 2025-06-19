@@ -39,39 +39,13 @@ Retrieves a list of all active tennis venues.
 [
   {
     "id": "507f1f77bcf86cd799439011",
-    "name": "Premium Tennis Club",
-    "provider": "lta",
-    "url": "https://premium-tennis.com",
-    "location": {
-      "address": "123 Premium Street",
-      "city": "London",
-      "post_code": "SW1A 1AA",
-      "latitude": 51.5074,
-      "longitude": -0.1278
-    },
-    "courts": [
-      {
-        "id": "court_1",
-        "name": "Court 1",
-        "surface": "hard",
-        "indoor": false,
-        "floodlights": true,
-        "court_type": "singles",
-        "tags": ["premium", "outdoor"]
-      }
-    ],
-    "booking_window": 14,
-    "scraper_config": {
-      "type": "clubspark",
-      "requires_login": true,
-      "retry_count": 3,
-      "timeout_seconds": 30
-    },
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-15T12:00:00Z",
-    "last_scraped_at": "2024-01-15T18:00:00Z",
-    "scraping_interval": 60,
-    "is_active": true
+    "name": "Central Park Tennis Center",
+    "location": "New York, NY",
+    "courts": 6,
+    "available_slots": 15,
+    "earliest_available": "2024-01-15T09:00:00Z",
+    "booking_url": "https://centralparktennis.com/book",
+    "scraping_log_id": "SCRAPING_LOG_ID_PLACEHOLDER"
   }
 ]
 ```
@@ -80,7 +54,7 @@ Retrieves a list of all active tennis venues.
 
 ```bash
 curl -X GET "https://api.tennisbooker.com/api/venues" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
 ### 2. Get Court Slots
@@ -133,31 +107,31 @@ Retrieves available court booking slots with optional filtering capabilities.
 1. **Get all available court slots:**
 ```bash
 curl -X GET "https://api.tennisbooker.com/api/courts" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
 2. **Filter by venue:**
 ```bash
 curl -X GET "https://api.tennisbooker.com/api/courts?venueId=507f1f77bcf86cd799439011" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
 3. **Filter by date and time:**
 ```bash
 curl -X GET "https://api.tennisbooker.com/api/courts?date=2024-01-15&startTime=18:00" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
 4. **Filter by price range:**
 ```bash
 curl -X GET "https://api.tennisbooker.com/api/courts?minPrice=20&maxPrice=30" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
 5. **Combined filters with limit:**
 ```bash
 curl -X GET "https://api.tennisbooker.com/api/courts?venueId=507f1f77bcf86cd799439011&date=2024-01-15&limit=10" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
 ## Filtering Logic

@@ -180,7 +180,7 @@ func connectWithFallback() *mongo.Database {
 	// Get MongoDB connection details from environment
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://admin:YOUR_PASSWORD@localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017"
 		log.Printf("MONGO_URI not set, using default: %s", mongoURI)
 	}
 

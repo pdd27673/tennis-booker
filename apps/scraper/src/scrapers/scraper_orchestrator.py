@@ -202,7 +202,16 @@ class ScraperOrchestrator:
                 await self.store_scraping_result(result)
                 
                 # Rate limiting between venues
-                interval = int(os.getenv('SCRAPER_INTERVAL', '600'))
+                # Try SCRAPER_INTERVAL_MINUTES first (for scheduler), then SCRAPER_INTERVAL (legacy)
+                interval_minutes = os.getenv('SCRAPER_INTERVAL_MINUTES', os.getenv('SCRAPER_INTERVAL', '10'))
+                try:
+                    interval = int(interval_minutes) * 60  # Convert minutes to seconds
+                except ValueError:
+                    # Handle cases like "5m" - extract number and assume minutes
+                    import re
+                    match = re.search(r'(\d+)', str(interval_minutes))
+                    interval = int(match.group(1)) * 60 if match else 600  # Default to 10 minutes
+                
                 # Convert interval to a reasonable delay between venues (use 1/10th of interval)
                 delay = max(1, interval // 10)
                 await asyncio.sleep(delay)
