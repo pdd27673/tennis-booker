@@ -14,11 +14,11 @@ export const apiClient = axios.create({
 let isRefreshing = false
 let failedQueue: Array<{
   resolve: (value: string) => void
-  reject: (error: any) => void
+  reject: (error: unknown) => void
 }> = []
 
 // Process the queue of failed requests after token refresh
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) {
       reject(error)
@@ -142,7 +142,7 @@ apiClient.interceptors.response.use(
 export const makeAuthenticatedRequest = async <T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
-  data?: any
+  data?: unknown
 ): Promise<T> => {
   const response = await apiClient.request({
     method,
@@ -157,10 +157,10 @@ export const makeAuthenticatedRequest = async <T>(
 export const apiGet = <T>(url: string): Promise<T> => 
   makeAuthenticatedRequest<T>('GET', url)
 
-export const apiPost = <T>(url: string, data?: any): Promise<T> => 
+export const apiPost = <T>(url: string, data?: unknown): Promise<T> => 
   makeAuthenticatedRequest<T>('POST', url, data)
 
-export const apiPut = <T>(url: string, data?: any): Promise<T> => 
+export const apiPut = <T>(url: string, data?: unknown): Promise<T> => 
   makeAuthenticatedRequest<T>('PUT', url, data)
 
 export const apiDelete = <T>(url: string): Promise<T> => 
@@ -169,7 +169,7 @@ export const apiDelete = <T>(url: string): Promise<T> =>
 // Test function to simulate protected API call
 export const testProtectedEndpoint = async (): Promise<{
   success: boolean
-  data?: any
+  data?: unknown
   error?: string
 }> => {
   try {
@@ -198,7 +198,7 @@ export const testProtectedEndpoint = async (): Promise<{
 // Test function to simulate expired token scenario
 export const testExpiredTokenEndpoint = async (): Promise<{
   success: boolean
-  data?: any
+  data?: unknown
   error?: string
 }> => {
   try {

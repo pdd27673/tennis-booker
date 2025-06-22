@@ -333,6 +333,7 @@ start_scraper() {
     export REDIS_PORT="6379"
     export REDIS_PASSWORD="${REDIS_PASSWORD}"
     export SCRAPER_INTERVAL_MINUTES="5"  # 5 minutes for local development
+    export SCRAPER_DAYS_AHEAD="8"        # 8 days ahead as requested
     export LOG_LEVEL="INFO"
     
     # Start scraper scheduler in background (set PYTHONPATH to fix imports)

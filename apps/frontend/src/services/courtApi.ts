@@ -103,7 +103,7 @@ export const transformCourtSlotToCardProps = (slot: CourtSlot) => {
       if (isNaN(date.getTime())) {
         return 'Invalid Date'
       }
-    } catch (error) {
+    } catch {
       return 'Invalid Date'
     }
     
@@ -163,7 +163,7 @@ export const transformCourtSlotToCardProps = (slot: CourtSlot) => {
 // Handle API errors consistently
 const handleCourtError = (error: AxiosError) => {
   if (error.response) {
-    const errorData = error.response.data as any
+    const errorData = error.response.data as { message?: string; error?: string }
     throw new Error(errorData.message || errorData.error || 'API request failed')
   } else if (error.request) {
     throw new Error('Network error. Please check your connection.')
@@ -178,7 +178,6 @@ export const courtApi = {
       const response = await courtApiClient.get('/api/venues')
       return response.data || []
     } catch (error) {
-
       handleCourtError(error as AxiosError)
       return []
     }
@@ -246,8 +245,7 @@ export const courtApi = {
 
 
       return stats
-    } catch (error) {
-
+    } catch {
       return {
         totalVenues: 0,
         totalCourts: 0,

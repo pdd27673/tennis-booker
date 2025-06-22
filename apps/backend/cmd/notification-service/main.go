@@ -462,12 +462,8 @@ func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	gmailService := NewGmailService(email, password, "Tennis Court Alerts", logger)
 	logger.Println("✅ Using email credentials from environment variables")
 
-	// Create notification service
-	service := &NotificationService{
-		db:          db,
-		redisClient: redisClient,
-		logger:      logger,
-	}
+	// Create notification service using the proper constructor
+	service := NewNotificationService(db, redisClient, logger)
 
 	// Load users
 	if err := service.loadUsers(); err != nil {

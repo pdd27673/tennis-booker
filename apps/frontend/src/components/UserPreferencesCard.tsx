@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useNavigate } from 'react-router-dom'
 import { userApi } from '@/services/userApi'
-import { useAppStore, type UserPreferences } from '@/stores/appStore'
+import { useAppStore } from '@/stores/appStore'
 import { 
   Settings, 
   Clock, 
@@ -13,7 +13,6 @@ import {
   DollarSign, 
   Bell,
   Calendar,
-  Loader2,
   AlertCircle
 } from 'lucide-react'
 

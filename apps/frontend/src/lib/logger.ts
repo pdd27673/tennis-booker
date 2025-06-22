@@ -1,7 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Production-ready logging utility for frontend
  * Provides structured logging with different levels and environment-based behavior
  */
+
+
 
 export enum LogLevel {
   DEBUG = 0,
@@ -133,7 +137,7 @@ class Logger {
       }
       
       sessionStorage.setItem('tennis_logs', JSON.stringify(logs));
-    } catch (e) {
+    } catch (_e) {
       // Silently fail if sessionStorage is not available
     }
   }

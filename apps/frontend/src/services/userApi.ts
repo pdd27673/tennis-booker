@@ -25,7 +25,7 @@ const getDefaultPreferences = (): UserPreferences => ({
 // Handle API errors consistently
 const handleUserError = (error: AxiosError) => {
   if (error.response) {
-    const errorData = error.response.data as any
+    const errorData = error.response.data as { message?: string; error?: string }
     throw new Error(errorData.message || errorData.error || 'User operation failed')
   } else if (error.request) {
     throw new Error('Network error. Please check your connection.')

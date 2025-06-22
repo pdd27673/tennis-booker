@@ -1,3 +1,4 @@
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -6,7 +7,6 @@ import { useNavigate } from 'react-router-dom'
 import CourtCard, { type CourtCardProps } from '@/components/CourtCard'
 import ScrapingLogsTerminal from '@/components/ScrapingLogsTerminal'
 import UserPreferencesCard from '@/components/UserPreferencesCard'
-import { useEffect, useState } from 'react'
 import { courtApi } from '@/services/courtApi'
 import { systemApi } from '@/services/systemApi'
 import { useAppStore } from '@/stores/appStore'
@@ -14,7 +14,6 @@ import {
   RefreshCw, 
   Play, 
   Pause, 
-  Square, 
   RotateCcw, 
   Activity,
   Clock,
@@ -115,6 +114,108 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSystemControlLoading, setIsSystemControlLoading] = useState(false)
+  const isLoadingRef = useRef(false)
+
+  // Helper function to safely get court slot properties
+  const getCourtSlotProperty = useCallback((slot: unknown, property: string, fallback: string = 'Unknown'): string => {
+    if (slot && typeof slot === 'object' && slot !== null) {
+      const obj = slot as Record<string, unknown>
+      return String(obj[property] || fallback)
+    }
+    return fallback
+  }, [])
+
+  const generateRecentActivity = useCallback((
+    stats: typeof dashboardStats, 
+    systemStatus: string, 
+    metrics: typeof systemMetrics, 
+    courtSlots?: unknown[]
+  ) => {
+    const now = new Date()
+    const activities = []
+    const timestamp = now.getTime()
+
+    // Add system status activity
+    if (systemStatus === 'RUNNING') {
+      activities.push({
+        id: `system-running-${timestamp}`,
+        type: 'system' as const,
+        message: `System is operational - ${metrics.scraperHealth || 'Excellent'} health`,
+        timestamp: new Date(now.getTime() - 2 * 60 * 1000), // 2 minutes ago
+      })
+    }
+
+    // Add last scrape activity
+    if (metrics.lastScrapeTime) {
+      activities.push({
+        id: `last-scrape-${timestamp}`,
+        type: 'system' as const,
+        message: `Last scrape completed at ${metrics.lastScrapeTime}`,
+        timestamp: new Date(now.getTime() - 8 * 60 * 1000), // 8 minutes ago
+      })
+    }
+
+    // Add court availability activities using real court slot data
+    if (courtSlots && courtSlots.length > 0) {
+      // Get a random available slot for realistic activity
+      const availableSlots = courtSlots.filter(slot => 
+        slot && typeof slot === 'object' && 
+        ('available' in slot ? getCourtSlotProperty(slot, 'available', 'true') !== 'false' : true)
+      )
+      if (availableSlots.length > 0) {
+        const randomSlot = availableSlots[Math.floor(Math.random() * Math.min(availableSlots.length, 5))]
+        if (randomSlot) {
+          const courtName = getCourtSlotProperty(randomSlot, 'court_name') || getCourtSlotProperty(randomSlot, 'courtName', 'Unknown Court')
+          const venueName = getCourtSlotProperty(randomSlot, 'venue_name') || getCourtSlotProperty(randomSlot, 'venue', 'Unknown Venue')
+          activities.push({
+            id: `court-available-${timestamp}`,
+            type: 'available' as const,
+            message: `${courtName} at ${venueName} - slot opened`,
+            timestamp: new Date(now.getTime() - 14 * 60 * 1000), // 14 minutes ago
+            venue: venueName
+          })
+        }
+      }
+
+      // Add a booking activity (simulated)
+      if (availableSlots.length > 1) {
+        const randomSlot = availableSlots[Math.floor(Math.random() * Math.min(availableSlots.length, 5))]
+        if (randomSlot) {
+          const courtName = getCourtSlotProperty(randomSlot, 'court_name') || getCourtSlotProperty(randomSlot, 'courtName', 'Unknown Court')
+          const venueName = getCourtSlotProperty(randomSlot, 'venue_name') || getCourtSlotProperty(randomSlot, 'venue', 'Unknown Venue')
+          activities.push({
+            id: `court-booked-${timestamp}`,
+            type: 'booked' as const,
+            message: `${courtName} at ${venueName} - slot filled`,
+            timestamp: new Date(now.getTime() - 20 * 60 * 1000), // 20 minutes ago
+            venue: venueName
+          })
+        }
+      }
+    } else {
+      // Fallback activities if no court slots available
+      activities.push({
+        id: `courts-available-${timestamp}`,
+        type: 'available' as const,
+        message: `${stats.availableSlots} court slots became available`,
+        timestamp: new Date(now.getTime() - 5 * 60 * 1000), // 5 minutes ago
+        venue: 'Multiple venues'
+      })
+    }
+
+    // Add notification activity
+    if (metrics.notificationsSent > 0) {
+      activities.push({
+        id: `notifications-${timestamp}`,
+        type: 'notification' as const,
+        message: `${metrics.notificationsSent} notifications sent to users`,
+        timestamp: new Date(now.getTime() - 12 * 60 * 1000), // 12 minutes ago
+      })
+    }
+
+    // Sort by timestamp (most recent first) and limit to 4 activities
+    return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 4)
+  }, [getCourtSlotProperty])
 
   // Fetch real data from APIs
   useEffect(() => {
@@ -144,6 +245,7 @@ export default function Dashboard() {
         if (results[1].status === 'fulfilled') {
           stats = results[1].value
         } else {
+          // Use default stats on error
         }
 
         // Handle system status
@@ -151,6 +253,7 @@ export default function Dashboard() {
         if (results[2].status === 'fulfilled') {
           systemStatus = results[2].value.status || 'RUNNING'
         } else {
+          // Use default system status on error
         }
 
         // Handle system metrics
@@ -163,23 +266,18 @@ export default function Dashboard() {
         if (results[3].status === 'fulfilled') {
           metrics = results[3].value
         } else {
+          // Use default metrics on error
         }
         
         setDashboardStats({
-          systemStatus: systemStatus as any,
+          systemStatus: systemStatus as 'RUNNING' | 'ERROR' | 'MAINTENANCE',
           activeCourts: stats.activeCourts,
           availableSlots: stats.availableSlots,
           totalVenues: stats.totalVenues,
         })
         setSystemMetrics(metrics)
-        
-        // Generate realistic recent activity based on system data
-        const courtSlotsData = results[0].status === 'fulfilled' ? results[0].value : []
-        generateRecentActivity(stats, systemStatus as any, metrics, courtSlotsData)
-        
 
-      } catch (error) {
-
+      } catch {
         setError('Failed to load dashboard data. Please try refreshing the page.')
         // Fallback to mock data on critical error
         setCourtData(mockCourtData)
@@ -198,7 +296,7 @@ export default function Dashboard() {
 
     // Set up auto-refresh every 30 seconds for system metrics
     const refreshInterval = setInterval(() => {
-      if (!isLoading) {
+      if (!isLoadingRef.current) {
 
         Promise.allSettled([
           courtApi.getCourtSlots({ limit: 10 }), // Get court slots for activity generation
@@ -206,50 +304,71 @@ export default function Dashboard() {
           systemApi.getSystemMetrics(),
           courtApi.getDashboardStats()
         ]).then((results) => {
-          let latestStats = dashboardStats
-          let latestSystemStatus = dashboardStats.systemStatus
-          let latestMetrics = systemMetrics
-
-          if (results[1].status === 'fulfilled') {
-            const statusResult = results[1] as PromiseFulfilledResult<any>
-            latestSystemStatus = statusResult.value.status || dashboardStats.systemStatus
-            setDashboardStats(prev => ({
-              ...prev,
-              systemStatus: latestSystemStatus
-            }))
-          }
-          
-          if (results[2].status === 'fulfilled') {
-            const metricsResult = results[2] as PromiseFulfilledResult<any>
-            latestMetrics = metricsResult.value
-            setSystemMetrics(latestMetrics)
-          }
-
-          if (results[3].status === 'fulfilled') {
-            const statsResult = results[3] as PromiseFulfilledResult<any>
-            latestStats = {
-              ...dashboardStats,
-              systemStatus: latestSystemStatus,
-              activeCourts: statsResult.value.activeCourts,
-              availableSlots: statsResult.value.availableSlots,
-              totalVenues: statsResult.value.totalVenues,
+          // Use callback refs to get current state
+          setDashboardStats(currentStats => {
+            let latestStats = currentStats
+            let latestSystemStatus = currentStats.systemStatus
+            
+            if (results[1].status === 'fulfilled') {
+              const statusResult = results[1] as PromiseFulfilledResult<{ status: string }>
+              latestSystemStatus = statusResult.value.status || currentStats.systemStatus
             }
             
-            // Update dashboard stats with the new data
-            setDashboardStats(latestStats)
+            if (results[3].status === 'fulfilled') {
+              const statsResult = results[3] as PromiseFulfilledResult<{ activeCourts: number; availableSlots: number; totalVenues: number }>
+              latestStats = {
+                ...currentStats,
+                systemStatus: latestSystemStatus,
+                activeCourts: statsResult.value.activeCourts,
+                availableSlots: statsResult.value.availableSlots,
+                totalVenues: statsResult.value.totalVenues,
+              }
+            } else {
+              latestStats = {
+                ...currentStats,
+                systemStatus: latestSystemStatus
+              }
+            }
+            
+            return latestStats
+          })
+          
+          if (results[2].status === 'fulfilled') {
+            const metricsResult = results[2] as PromiseFulfilledResult<typeof systemMetrics>
+            setSystemMetrics(metricsResult.value)
           }
-
-          // Update activity with the latest data
-          const courtSlotsData = results[0].status === 'fulfilled' ? results[0].value : []
-          const newActivities = generateRecentActivity(latestStats, latestSystemStatus, latestMetrics, courtSlotsData)
-          setRecentActivity(newActivities)
-          setLastActivityUpdate(new Date())
         })
       }
     }, 30000) // 30 seconds
 
     return () => clearInterval(refreshInterval)
   }, [])
+
+  // Separate useEffect to update activity when state changes
+  const updateActivity = useCallback(async () => {
+    if (isLoading) return // Don't update while loading
+    
+    try {
+      const courtSlots = await courtApi.getCourtSlots({ limit: 10 })
+      const newActivities = generateRecentActivity(dashboardStats, dashboardStats.systemStatus, systemMetrics, courtSlots)
+      setRecentActivity(newActivities)
+      setLastActivityUpdate(new Date())
+    } catch {
+      // Fallback to generating activity without court slots
+      const newActivities = generateRecentActivity(dashboardStats, dashboardStats.systemStatus, systemMetrics, [])
+      setRecentActivity(newActivities)
+      setLastActivityUpdate(new Date())
+    }
+  }, [dashboardStats, systemMetrics, generateRecentActivity, isLoading])
+
+  // Update the ref whenever isLoading changes
+  useEffect(() => {
+    isLoadingRef.current = isLoading
+  }, [isLoading])
+
+  useEffect(() => {
+    updateActivity()
+  }, [updateActivity])
 
   const handleLogout = () => {
     clearAuthState()
@@ -270,8 +389,8 @@ export default function Dashboard() {
     })
   }
 
-  const handleDebugTokens = () => {
-    const { tokenStorage } = require('@/lib/tokenStorage')
+  const handleDebugTokens = async () => {
+    const { tokenStorage } = await import('@/lib/tokenStorage')
     const accessToken = tokenStorage.getAccessToken()
     const refreshToken = tokenStorage.getRefreshToken()
     const localStorageToken = localStorage.getItem('accessToken')
@@ -283,82 +402,6 @@ export default function Dashboard() {
       message: `Access: ${accessToken ? 'Present' : 'Missing'}, Refresh: ${refreshToken ? 'Present' : 'Missing'}, LocalStorage: ${localStorageToken ? 'Present' : 'Missing'}`,
       type: 'info',
     })
-  }
-
-  const generateRecentActivity = (stats: any, systemStatus: string, metrics: any, courtSlots?: any[]) => {
-    const now = new Date()
-    const activities = []
-    const timestamp = now.getTime()
-
-    // Add system status activity
-    if (systemStatus === 'RUNNING') {
-      activities.push({
-        id: `system-running-${timestamp}`,
-        type: 'system' as const,
-        message: `System is operational - ${metrics.scraperHealth || 'Excellent'} health`,
-        timestamp: new Date(now.getTime() - 2 * 60 * 1000), // 2 minutes ago
-      })
-    }
-
-    // Add last scrape activity
-    if (metrics.lastScrapeTime) {
-      activities.push({
-        id: `last-scrape-${timestamp}`,
-        type: 'system' as const,
-        message: `Last scrape completed at ${metrics.lastScrapeTime}`,
-        timestamp: new Date(now.getTime() - 8 * 60 * 1000), // 8 minutes ago
-      })
-    }
-
-    // Add court availability activities using real court slot data
-    if (courtSlots && courtSlots.length > 0) {
-      // Get a random available slot for realistic activity
-      const availableSlots = courtSlots.filter(slot => slot.available)
-      if (availableSlots.length > 0) {
-        const randomSlot = availableSlots[Math.floor(Math.random() * Math.min(availableSlots.length, 5))]
-        activities.push({
-          id: `court-available-${timestamp}`,
-          type: 'available' as const,
-          message: `${randomSlot.court_name} at ${randomSlot.venue_name} - slot opened`,
-          timestamp: new Date(now.getTime() - 14 * 60 * 1000), // 14 minutes ago
-          venue: randomSlot.venue_name
-        })
-      }
-
-      // Add a booking activity (simulated)
-      if (availableSlots.length > 1) {
-        const randomSlot = availableSlots[Math.floor(Math.random() * Math.min(availableSlots.length, 5))]
-        activities.push({
-          id: `court-booked-${timestamp}`,
-          type: 'booked' as const,
-          message: `${randomSlot.court_name} at ${randomSlot.venue_name} - slot filled`,
-          timestamp: new Date(now.getTime() - 20 * 60 * 1000), // 20 minutes ago
-          venue: randomSlot.venue_name
-        })
-      }
-    } else {
-      // Fallback activities if no court slots available
-      activities.push({
-        id: `courts-available-${timestamp}`,
-        type: 'available' as const,
-        message: `${stats.availableSlots} court slots became available`,
-        timestamp: new Date(now.getTime() - 5 * 60 * 1000), // 5 minutes ago
-        venue: 'Multiple venues'
-      })
-    }
-
-    // Add notification activity
-    if (metrics.notificationsSent > 0) {
-      activities.push({
-        id: `notifications-${timestamp}`,
-        type: 'notification' as const,
-        message: `${metrics.notificationsSent} notifications sent to users`,
-        timestamp: new Date(now.getTime() - 12 * 60 * 1000), // 12 minutes ago
-      })
-    }
-
-    // Sort by timestamp (most recent first) and limit to 4 activities
-    return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 4)
   }
 
   const handleRefreshData = async () => {

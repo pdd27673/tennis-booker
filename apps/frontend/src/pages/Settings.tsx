@@ -18,17 +18,16 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { useNavigate } from 'react-router-dom'
-import { useAppStore, type UserPreferences } from '@/stores/appStore'
+import { useAppStore } from '@/stores/appStore'
 import { userApi } from '@/services/userApi'
 import { 
   ArrowLeft,
-  Settings as SettingsIcon, 
+  Settings2, 
+  Clock, 
   Save,
-  Clock,
-  MapPin,
   Bell,
+  MapPin,
   DollarSign,
-  Calendar,
   Loader2
 } from 'lucide-react'
 
@@ -66,22 +65,11 @@ type UserPreferencesForm = z.infer<typeof userPreferencesSchema>
 
 const Settings: React.FC = () => {
   const navigate = useNavigate()
-  const { userProfile: user, clearAuthState, addNotification, userPreferences, setUserPreferences } = useAppStore()
+  const { userProfile: user, clearAuthState, addNotification, setUserPreferences } = useAppStore()
   
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [availableVenues, setAvailableVenues] = useState<string[]>([])
-
-  // Available options
-  const daysOfWeek = [
-    { value: 'monday', label: 'Monday' },
-    { value: 'tuesday', label: 'Tuesday' },
-    { value: 'wednesday', label: 'Wednesday' },
-    { value: 'thursday', label: 'Thursday' },
-    { value: 'friday', label: 'Friday' },
-    { value: 'saturday', label: 'Saturday' },
-    { value: 'sunday', label: 'Sunday' },
-  ]
 
   const form = useForm<UserPreferencesForm>({
     resolver: zodResolver(userPreferencesSchema),
@@ -267,7 +255,7 @@ const Settings: React.FC = () => {
                 Back to Dashboard
               </Button>
               <div className="flex items-center space-x-3">
-                <SettingsIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                <Settings2 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                     Settings

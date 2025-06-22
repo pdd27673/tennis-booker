@@ -41,7 +41,7 @@ export default function Login() {
       } else {
         setError(result.error || 'Login failed')
       }
-    } catch (err) {
+    } catch {
       const errorMessage = 'An unexpected error occurred'
       setError(errorMessage)
     } finally {

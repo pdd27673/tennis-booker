@@ -86,9 +86,8 @@ export function useAuth(): UseAuthReturn {
                 refreshToken,
             })
           }
-        } catch (error) {
-          console.warn('Failed to fetch additional user info:', error)
-          // Continue with basic user info from login response
+        } catch {
+          // Silent failure for token validation
         }
         
         addNotification({
@@ -110,7 +109,7 @@ export function useAuth(): UseAuthReturn {
           error: response.error || 'Login failed' 
         }
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'An unexpected error occurred during login'
       addNotification({
         title: 'Login Error',
@@ -164,7 +163,7 @@ export function useAuth(): UseAuthReturn {
           error: response.error || 'Registration failed' 
         }
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'An unexpected error occurred during registration'
       addNotification({
         title: 'Registration Error',
@@ -222,7 +221,7 @@ export function useAuth(): UseAuthReturn {
           error: response.error || 'Failed to fetch user information' 
         }
       }
-    } catch (error) {
+    } catch {
       return { 
         success: false, 
         error: 'An unexpected error occurred while fetching user information' 

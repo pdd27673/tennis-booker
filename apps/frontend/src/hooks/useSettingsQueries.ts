@@ -7,6 +7,17 @@ import type {
 } from '@/services/settingsApi'
 import React from 'react'
 
+// Helper function to map API status to store enum
+const mapApiStatusToStoreStatus = (apiStatus: string): 'IDLE' | 'RUNNING' | 'PAUSED' | 'ERROR' => {
+  const statusMap: { [key: string]: 'IDLE' | 'RUNNING' | 'PAUSED' | 'ERROR' } = {
+    'running': 'RUNNING',
+    'paused': 'PAUSED',
+    'idle': 'IDLE',
+    'error': 'ERROR'
+  }
+  return statusMap[apiStatus] || 'ERROR'
+}
+
 // Query keys for React Query
 export const settingsQueryKeys = {
   userPreferences: ['userPreferences'] as const,
@@ -137,7 +148,6 @@ export const useResetUserPreferences = () => {
 export const useSystemStatus = () => {
   const { 
     setSystemControlError,
-    updateSystemInfo,
     setSystemStatus 
   } = useAppStore()
 
@@ -151,16 +161,15 @@ export const useSystemStatus = () => {
   // Handle success/error in useEffect
   React.useEffect(() => {
     if (query.data) {
-      // Update system info in store
-      updateSystemInfo(query.data.systemInfo)
-      setSystemStatus(query.data.systemStatus)
+      // Update system status in store
+      setSystemStatus(mapApiStatusToStoreStatus(query.data.status))
       setSystemControlError(null)
     }
     if (query.error) {
       console.error('Failed to fetch system status:', query.error)
       setSystemControlError(query.error.message)
     }
-  }, [query.data, query.error, updateSystemInfo, setSystemStatus, setSystemControlError])
+  }, [query.data, query.error, setSystemStatus, setSystemControlError])
 
   return query
 }
@@ -182,7 +191,7 @@ export const usePauseScraping = () => {
     },
     onSuccess: (data: SystemActionResponse) => {
       // Update system status
-      setSystemStatus(data.status)
+      setSystemStatus(mapApiStatusToStoreStatus(data.status))
       setSystemControlError(null)
       
       // Invalidate system status query
@@ -229,7 +238,7 @@ export const useResumeScraping = () => {
     },
     onSuccess: (data: SystemActionResponse) => {
       // Update system status
-      setSystemStatus(data.status)
+      setSystemStatus(mapApiStatusToStoreStatus(data.status))
       setSystemControlError(null)
       
       // Invalidate system status query
@@ -277,7 +286,7 @@ export const useRestartSystem = () => {
     },
     onSuccess: (data: SystemActionResponse) => {
       // Update system status and scan time
-      setSystemStatus(data.status)
+      setSystemStatus(mapApiStatusToStoreStatus(data.status))
       updateLastScanTime()
       setSystemControlError(null)
       

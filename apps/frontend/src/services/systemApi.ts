@@ -1,5 +1,4 @@
 import axios, { AxiosError } from 'axios'
-import config from '@/config/config'
 import { tokenStorage } from '@/lib/tokenStorage'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
@@ -61,42 +60,12 @@ export interface ScrapingLog {
   createdAt: string
 }
 
-// Transform backend system status to match frontend expectations
-const transformSystemStatus = (backendStatus: SystemStatusResponse) => {
-  const statusMap: { [key: string]: 'RUNNING' | 'PAUSED' | 'ERROR' } = {
-    'running': 'RUNNING',
-    'paused': 'PAUSED',
-    'restarting': 'RUNNING',
-    'error': 'ERROR'
-  }
 
-  return {
-    systemStatus: statusMap[backendStatus.status] || 'ERROR',
-    lastUpdate: new Date(backendStatus.lastUpdate),
-    isScrapingActive: backendStatus.scrapingStatus === 'active',
-    systemInfo: {
-      monitoredClubs: 12, // This could be fetched from venues API
-      lastScan: new Date(backendStatus.lastUpdate),
-      nextScan: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
-      averageResponseTime: 1.2, // This could be enhanced with real metrics
-      successRate: backendStatus.erroredJobs > 0 ? 
-        100 - (backendStatus.erroredJobs / Math.max(backendStatus.completedJobs + backendStatus.erroredJobs, 1)) * 100 : 
-        100,
-      courtsFoundToday: backendStatus.completedJobs,
-      activeJobs: backendStatus.activeJobs,
-      queuedJobs: backendStatus.queuedJobs,
-      completedJobs: backendStatus.completedJobs,
-      erroredJobs: backendStatus.erroredJobs,
-      systemHealth: backendStatus.systemHealth,
-      message: backendStatus.message,
-    },
-  }
-}
 
 // Handle API errors consistently
 const handleSystemError = (error: AxiosError) => {
   if (error.response) {
-    const errorData = error.response.data as any
+    const errorData = error.response.data as { message?: string; error?: string }
     throw new Error(errorData.message || errorData.error || 'System operation failed')
   } else if (error.request) {
     throw new Error('Network error. Please check your connection.')
@@ -167,7 +136,7 @@ export const systemApi = {
           if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''}`
           if (diffMins > 0) return `${diffMins} minute${diffMins > 1 ? 's' : ''}`
           return 'Just started'
-        } catch (error) {
+        } catch {
           return 'Unknown'
         }
       }
@@ -188,7 +157,7 @@ export const systemApi = {
           if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
           
           return lastScrape.toLocaleDateString()
-        } catch (error) {
+        } catch {
           return 'Never'
         }
       }

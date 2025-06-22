@@ -1,4 +1,4 @@
-import type { UserPreferences, SystemControlState, SystemStatus } from '@/stores/appStore'
+import type { UserPreferences, SystemControlState } from '@/stores/appStore'
 import { userApi } from './userApi'
 import { systemApi } from './systemApi'
 
@@ -42,7 +42,7 @@ export const systemControlApi = {
   },
 
   // Get system health metrics
-  getSystemHealth: systemApi.getSystemHealth,
+  getSystemHealth: systemApi.getHealth,
 }
 
 // Combined API object for easy importing
@@ -54,7 +54,7 @@ export const settingsApi = {
 // API response types
 export type UserPreferencesResponse = UserPreferences
 export type SystemControlResponse = SystemControlState
-export type SystemActionResponse = { status: SystemStatus; message: string }
+export type SystemActionResponse = { status: string; message: string }
 export type SystemHealthResponse = {
   uptime: number
   memoryUsage: number

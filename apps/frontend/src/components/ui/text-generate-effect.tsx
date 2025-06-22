@@ -15,7 +15,7 @@ export const TextGenerateEffect = ({
 }) => {
   const [scope, animate] = useAnimate();
   const [isVisible, setIsVisible] = useState(false);
-  let wordsArray = words.split(" ");
+  const wordsArray = words.split(" ");
 
   useEffect(() => {
     if (isVisible) {
@@ -31,7 +31,7 @@ export const TextGenerateEffect = ({
         }
       );
     }
-  }, [scope.current, isVisible]);
+  }, [isVisible, animate, filter, duration]);
 
   useEffect(() => {
     setIsVisible(true);

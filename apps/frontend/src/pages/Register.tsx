@@ -43,7 +43,7 @@ export default function Register() {
       } else {
         setError(result.error || 'Registration failed')
       }
-    } catch (err) {
+    } catch {
       const errorMessage = 'An unexpected error occurred'
       setError(errorMessage)
     } finally {

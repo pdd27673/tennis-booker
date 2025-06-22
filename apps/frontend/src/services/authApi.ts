@@ -41,18 +41,6 @@ interface UserInfoResponse {
   }
 }
 
-// Handle API errors consistently
-const handleAuthError = (error: AxiosError) => {
-  if (error.response) {
-    const errorData = error.response.data as any
-    throw new Error(errorData.message || errorData.error || 'Authentication failed')
-  } else if (error.request) {
-    throw new Error('Network error. Please check your connection.')
-  } else {
-    throw new Error('An unexpected error occurred.')
-  }
-}
-
 export const authApi = {
   // Login user
   async login(credentials: LoginFormData): Promise<AuthResponse> {
@@ -67,7 +55,7 @@ export const authApi = {
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
-        const errorData = axiosError.response.data as any
+        const errorData = axiosError.response.data as { message?: string; error?: string }
         return {
           success: false,
           error: errorData.message || errorData.error || 'Login failed'
@@ -94,7 +82,7 @@ export const authApi = {
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
-        const errorData = axiosError.response.data as any
+        const errorData = axiosError.response.data as { message?: string; error?: string }
         return {
           success: false,
           error: errorData.message || errorData.error || 'Registration failed'
@@ -137,7 +125,7 @@ export const authApi = {
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
-        const errorData = axiosError.response.data as any
+        const errorData = axiosError.response.data as { message?: string; error?: string }
         return {
           success: false,
           error: errorData.message || errorData.error || 'Failed to fetch user info'
@@ -169,7 +157,7 @@ export const authApi = {
       const axiosError = error as AxiosError
       
       if (axiosError.response) {
-        const errorData = axiosError.response.data as any
+        const errorData = axiosError.response.data as { message?: string; error?: string }
         return {
           success: false,
           error: errorData.message || errorData.error || 'Token refresh failed'
@@ -199,7 +187,7 @@ export const authApi = {
       
 
       return { success: true }
-    } catch (error) {
+    } catch {
 
       // Even if logout fails on server, we consider it successful on client
       return { success: true }
