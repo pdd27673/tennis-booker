@@ -322,14 +322,6 @@ main() {
     if [ "$RUN_SECURITY" = true ]; then
         print_header "Security Scan"
         
-        # Check for Trivy (filesystem scan like in GitHub CI)
-        if command_exists trivy; then
-            run_check "Run Trivy vulnerability scanner" "trivy fs --format table ." "$PROJECT_ROOT"
-        else
-            print_step "Trivy vulnerability scanner"
-            print_status "$YELLOW" "⚠️  Trivy not installed - install with: brew install trivy"
-        fi
-        
         # Check for TruffleHog (secret scan like in GitHub CI)
         if command_exists trufflehog; then
             run_check "Run TruffleHog secret scan" "trufflehog filesystem . --only-verified" "$PROJECT_ROOT"
