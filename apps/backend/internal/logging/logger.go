@@ -240,4 +240,4 @@ func (l *Logger) ErrorWithCode(message string, errorCode string, err error) {
 		fields["error"] = err.Error()
 	}
 	l.Error(message, fields)
-} 
+}

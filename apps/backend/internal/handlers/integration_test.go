@@ -37,7 +37,7 @@ func TestBasicRouting(t *testing.T) {
 		},
 		{
 			name:           "Root path handled",
-			method:         "GET", 
+			method:         "GET",
 			path:           "/",
 			expectedStatus: 404, // No root handler defined
 			description:    "Root path should be handled by router",
@@ -63,7 +63,7 @@ func TestHTTPMethodHandling(t *testing.T) {
 	skipIfIntegrationTestsDisabled(t)
 
 	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
-	
+
 	for _, method := range methods {
 		t.Run("Method_"+method, func(t *testing.T) {
 			req := httptest.NewRequest(method, "/test-endpoint", nil)
@@ -71,9 +71,9 @@ func TestHTTPMethodHandling(t *testing.T) {
 
 			// Simulate router behavior - all should return some HTTP status
 			http.NotFound(w, req)
-			
+
 			// Should return a valid HTTP status code
 			assert.True(t, w.Code >= 200 && w.Code < 600, "Should return valid HTTP status")
 		})
 	}
-} 
+}

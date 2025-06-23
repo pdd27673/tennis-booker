@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -33,14 +34,15 @@ type SlotsRepositoryInterface interface {
 	GetAvailableSlotsByDate(ctx context.Context, date string, limit int64) ([]*models.CourtSlot, error)
 	CountAvailableSlots(ctx context.Context) (int64, error)
 	CountSlotsByDate(ctx context.Context, date string) (int64, error)
+	CountSlotsByDateRange(ctx context.Context, startDate, endDate string) (int64, error)
 	GetActivePlatforms(ctx context.Context) ([]string, error)
 }
 
 // CourtHandler handles court and venue related requests
 type CourtHandler struct {
-	db               database.Database
-	scrapingLogRepo  ScrapingLogRepositoryInterface
-	slotsRepo        SlotsRepositoryInterface
+	db              database.Database
+	scrapingLogRepo ScrapingLogRepositoryInterface
+	slotsRepo       SlotsRepositoryInterface
 }
 
 // NewCourtHandler creates a new court handler
@@ -48,7 +50,7 @@ func NewCourtHandler(db database.Database) *CourtHandler {
 	// Create repositories
 	scrapingLogRepo := database.NewScrapingLogRepository(db.GetMongoDB())
 	slotsRepo := database.NewSlotsRepository(db.GetMongoDB())
-	
+
 	return &CourtHandler{
 		db:              db,
 		scrapingLogRepo: scrapingLogRepo,
@@ -58,51 +60,51 @@ func NewCourtHandler(db database.Database) *CourtHandler {
 
 // VenueResponse represents venue data for API responses
 type VenueResponse struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Address     string  `json:"address"`
-	City        string  `json:"city"`
-	PostCode    string  `json:"postCode"`
-	Phone       string  `json:"phone"`
-	Email       string  `json:"email"`
-	Website     string  `json:"website"`
-	Platform    string  `json:"platform"`
-	PlatformID  string  `json:"platformId"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Address     string `json:"address"`
+	City        string `json:"city"`
+	PostCode    string `json:"postCode"`
+	Phone       string `json:"phone"`
+	Email       string `json:"email"`
+	Website     string `json:"website"`
+	Platform    string `json:"platform"`
+	PlatformID  string `json:"platformId"`
 	Coordinates struct {
 		Lat float64 `json:"lat"`
 		Lng float64 `json:"lng"`
 	} `json:"coordinates"`
 	TotalCourts int `json:"totalCourts"`
-	}
+}
 
 // CourtSlotResponse represents court slot data for API responses
 type CourtSlotResponse struct {
-	ID       string    `json:"id"`
-	VenueID  string    `json:"venueId"`
-	VenueName string  `json:"venueName"`
-	CourtID  string    `json:"courtId"`
-	CourtName string  `json:"courtName"`
-	Date     string    `json:"date"`
-	StartTime string   `json:"startTime"`
-	EndTime   string   `json:"endTime"`
-	Duration  int       `json:"duration"`
-	Price     float64   `json:"price"`
-	Currency  string    `json:"currency"`
-	Available bool      `json:"available"`
-	Platform  string    `json:"platform"`
-	BookingURL string   `json:"bookingUrl"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	}
+	ID         string    `json:"id"`
+	VenueID    string    `json:"venueId"`
+	VenueName  string    `json:"venueName"`
+	CourtID    string    `json:"courtId"`
+	CourtName  string    `json:"courtName"`
+	Date       string    `json:"date"`
+	StartTime  string    `json:"startTime"`
+	EndTime    string    `json:"endTime"`
+	Duration   int       `json:"duration"`
+	Price      float64   `json:"price"`
+	Currency   string    `json:"currency"`
+	Available  bool      `json:"available"`
+	Platform   string    `json:"platform"`
+	BookingURL string    `json:"bookingUrl"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}
 
 // DashboardStatsResponse represents dashboard statistics
 type DashboardStatsResponse struct {
-	TotalVenues      int `json:"totalVenues"`
-	TotalCourtSlots  int `json:"totalCourtSlots"`
-	AvailableSlots   int `json:"availableSlots"`
+	TotalVenues     int `json:"totalVenues"`
+	TotalCourtSlots int `json:"totalCourtSlots"`
+	AvailableSlots  int `json:"availableSlots"`
 	TodaySlots      int `json:"todaySlots"`
 	WeekSlots       int `json:"weekSlots"`
-	ActivePlatforms  int `json:"activePlatforms"`
+	ActivePlatforms int `json:"activePlatforms"`
 }
 
 // GetVenues handles the GET /api/venues endpoint
@@ -123,7 +125,9 @@ func (h *CourtHandler) GetVenues(w http.ResponseWriter, r *http.Request) {
 		filter["platform"] = platform
 	}
 	if city != "" {
-		filter["city"] = bson.M{"$regex": city, "$options": "i"}
+		// Sanitize city input to prevent regex injection
+		sanitizedCity := strings.ReplaceAll(strings.ReplaceAll(city, "\\", "\\\\"), "$", "\\$")
+		filter["city"] = bson.M{"$regex": sanitizedCity, "$options": "i"}
 	}
 
 	// Set up options
@@ -147,8 +151,8 @@ func (h *CourtHandler) GetVenues(w http.ResponseWriter, r *http.Request) {
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
 		http.Error(w, "Failed to fetch venues", http.StatusInternalServerError)
-			return
-		}
+		return
+	}
 	defer cursor.Close(ctx)
 
 	var venues []models.Venue
@@ -283,20 +287,16 @@ func (h *CourtHandler) GetDashboardStats(w http.ResponseWriter, r *http.Request)
 			stats.TodaySlots = int(todayCount)
 		}
 
-		// Count this week's slots (approximate by getting all slots and filtering)
-		allSlots, weekErr := h.slotsRepo.GetAvailableSlots(ctx, 10000) // Large limit to get all
+		// Count this week's slots using efficient date range query
+		now := time.Now()
+		weekStart := now.AddDate(0, 0, -int(now.Weekday()))
+		weekEnd := weekStart.AddDate(0, 0, 7)
+		weekStartStr := weekStart.Format("2006-01-02")
+		weekEndStr := weekEnd.Format("2006-01-02")
+
+		weekCount, weekErr := h.slotsRepo.CountSlotsByDateRange(ctx, weekStartStr, weekEndStr)
 		if weekErr == nil {
-			now := time.Now()
-			weekStart := now.AddDate(0, 0, -int(now.Weekday()))
-			weekEnd := weekStart.AddDate(0, 0, 7)
-			weekCount := 0
-			for _, slot := range allSlots {
-				slotDate, parseErr := time.Parse("2006-01-02", slot.Date)
-				if parseErr == nil && slotDate.After(weekStart) && slotDate.Before(weekEnd) {
-					weekCount++
-				}
-			}
-			stats.WeekSlots = weekCount
+			stats.WeekSlots = int(weekCount)
 		}
 
 		// Count active platforms
@@ -317,17 +317,17 @@ func calculateDuration(startTime, endTime string) int {
 	if err != nil {
 		return 0
 	}
-	
+
 	end, err := time.Parse("15:04", endTime)
 	if err != nil {
 		return 0
 	}
-	
+
 	// Handle case where end time is next day (e.g., 23:00 to 01:00)
 	if end.Before(start) {
 		end = end.Add(24 * time.Hour)
 	}
-	
+
 	duration := end.Sub(start)
 	return int(duration.Minutes())
 }

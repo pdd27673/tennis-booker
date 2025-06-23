@@ -79,7 +79,7 @@ func TestJSONLogging(t *testing.T) {
 	// Set JSON format
 	os.Setenv("LOG_FORMAT", "json")
 	os.Setenv("LOG_LEVEL", "DEBUG")
-	
+
 	// Capture output
 	var buf bytes.Buffer
 	logger := New("test-service")
@@ -116,7 +116,7 @@ func TestHumanReadableLogging(t *testing.T) {
 	// Ensure human-readable format (default)
 	os.Unsetenv("LOG_FORMAT")
 	os.Setenv("LOG_LEVEL", "DEBUG")
-	
+
 	// Capture output
 	var buf bytes.Buffer
 	logger := New("test-service")
@@ -199,7 +199,7 @@ func TestConvenienceMethods(t *testing.T) {
 
 func TestLogEntryTimestamp(t *testing.T) {
 	os.Setenv("LOG_FORMAT", "json")
-	
+
 	var buf bytes.Buffer
 	logger := New("test-service")
 	logger.logger.SetOutput(&buf)
@@ -223,7 +223,7 @@ func TestLogEntryTimestamp(t *testing.T) {
 
 func TestLogLevels(t *testing.T) {
 	os.Setenv("LOG_LEVEL", "DEBUG")
-	
+
 	var buf bytes.Buffer
 	logger := New("test-service")
 	logger.logger.SetOutput(&buf)
@@ -235,10 +235,10 @@ func TestLogLevels(t *testing.T) {
 	logger.Error("error message")
 
 	output := buf.String()
-	
+
 	expectedMessages := []string{
 		"debug message",
-		"info message", 
+		"info message",
 		"warn message",
 		"error message",
 	}
@@ -251,4 +251,4 @@ func TestLogLevels(t *testing.T) {
 
 	// Clean up
 	os.Unsetenv("LOG_LEVEL")
-} 
+}

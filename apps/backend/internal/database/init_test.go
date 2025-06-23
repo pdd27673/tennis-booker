@@ -171,7 +171,7 @@ func TestGetIndexSummary(t *testing.T) {
 	// Debug: Print all indexes found
 	t.Logf("Found %d index summaries:", len(summaries))
 	for _, summary := range summaries {
-		t.Logf("Collection: %s, Index: %s, Keys: %+v, Unique: %t", 
+		t.Logf("Collection: %s, Index: %s, Keys: %+v, Unique: %t",
 			summary.Collection, summary.IndexName, summary.Keys, summary.Unique)
 	}
 

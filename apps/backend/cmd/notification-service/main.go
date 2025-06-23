@@ -64,14 +64,14 @@ type SlotData struct {
 
 // NotificationService handles the notification processing
 type NotificationService struct {
-	db                  *mongo.Database
-	redisClient         *redis.Client
-	deduplicationSvc    *models.DeduplicationService
-	logger              *log.Logger
-	users               []User
-	slotBatch           map[string][]SlotData // User email -> list of slots
-	batchMutex          sync.RWMutex
-	batchTimer          *time.Timer
+	db               *mongo.Database
+	redisClient      *redis.Client
+	deduplicationSvc *models.DeduplicationService
+	logger           *log.Logger
+	users            []User
+	slotBatch        map[string][]SlotData // User email -> list of slots
+	batchMutex       sync.RWMutex
+	batchTimer       *time.Timer
 }
 
 // GmailService handles Gmail SMTP email notifications
@@ -180,11 +180,11 @@ Price: £15.00`, time.Now().Format("2006-01-02"))
 // NewNotificationService creates a new notification service
 func NewNotificationService(db *mongo.Database, redisClient *redis.Client, logger *log.Logger) *NotificationService {
 	return &NotificationService{
-		db:                db,
-		redisClient:       redisClient,
-		deduplicationSvc:  models.NewDeduplicationService(db),
-		logger:            logger,
-		slotBatch:         make(map[string][]SlotData),
+		db:               db,
+		redisClient:      redisClient,
+		deduplicationSvc: models.NewDeduplicationService(db),
+		logger:           logger,
+		slotBatch:        make(map[string][]SlotData),
 	}
 }
 
@@ -319,7 +319,7 @@ func main() {
 			password := getEnvWithDefault("MONGO_ROOT_PASSWORD", "")
 			host := getEnvWithDefault("MONGO_HOST", "localhost")
 			port := getEnvWithDefault("MONGO_PORT", "27017")
-			
+
 			if username != "" && password != "" {
 				mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s?authSource=admin", username, password, host, port)
 			} else {
@@ -431,7 +431,7 @@ func main() {
 func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	// Load environment variables again to ensure they're available
 	godotenv.Load("../../.env")
-	
+
 	// Get configuration from environment
 	redisAddr := getEnvWithDefault("REDIS_ADDR", "localhost:6379")
 	redisPassword := getEnvWithDefault("REDIS_PASSWORD", "password")
@@ -498,7 +498,7 @@ func (s *NotificationService) loadUsers() error {
 
 	// Query user_preferences collection for users with notifications enabled
 	filter := bson.M{
-		"notification_settings.email": true,
+		"notification_settings.email":        true,
 		"notification_settings.unsubscribed": bson.M{"$ne": true},
 	}
 
@@ -510,17 +510,17 @@ func (s *NotificationService) loadUsers() error {
 
 	// Load user preferences and convert to User struct
 	var userPrefs []struct {
-		ID                   primitive.ObjectID `bson:"_id"`
-		UserID               primitive.ObjectID `bson:"user_id"`
-		Times                []struct {
+		ID     primitive.ObjectID `bson:"_id"`
+		UserID primitive.ObjectID `bson:"user_id"`
+		Times  []struct {
 			Start string `bson:"start"`
 			End   string `bson:"end"`
 		} `bson:"times"`
-		WeekdayTimes         []struct {
+		WeekdayTimes []struct {
 			Start string `bson:"start"`
 			End   string `bson:"end"`
 		} `bson:"weekday_times"`
-		WeekendTimes         []struct {
+		WeekendTimes []struct {
 			Start string `bson:"start"`
 			End   string `bson:"end"`
 		} `bson:"weekend_times"`
@@ -544,7 +544,7 @@ func (s *NotificationService) loadUsers() error {
 			Email string `bson:"email"`
 			Name  string `bson:"name"`
 		}
-		
+
 		userFilter := bson.M{"_id": pref.UserID}
 		err := s.db.Collection("users").FindOne(ctx, userFilter).Decode(&userDoc)
 		if err != nil {
@@ -554,7 +554,7 @@ func (s *NotificationService) loadUsers() error {
 
 		// Convert time preferences to the expected format
 		var weekdaySlots, weekendSlots []TimeSlot
-		
+
 		// Use new weekday/weekend specific times if available
 		if len(pref.WeekdayTimes) > 0 || len(pref.WeekendTimes) > 0 {
 			// Use the new separate weekday/weekend times
@@ -583,9 +583,9 @@ func (s *NotificationService) loadUsers() error {
 		}
 
 		user := User{
-			ID:    pref.UserID,
-			Email: userDoc.Email,
-			Name:  userDoc.Name,
+			ID:              pref.UserID,
+			Email:           userDoc.Email,
+			Name:            userDoc.Name,
 			PreferredVenues: pref.PreferredVenues,
 			TimePreferences: TimePreferences{
 				WeekdaySlots: weekdaySlots,

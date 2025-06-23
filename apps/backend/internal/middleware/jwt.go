@@ -35,12 +35,11 @@ func JWTMiddleware(jwtService *auth.JWTService) func(http.Handler) http.Handler 
 				return
 			}
 
-					// Add user info to request context
-		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
-		ctx = context.WithValue(ctx, "username", claims.Username)
-			
+			// Add user claims to request context using the proper key
+			ctx := context.WithValue(r.Context(), auth.UserClaimsKey, claims)
+
 			// Continue with the request
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
-} 
+}

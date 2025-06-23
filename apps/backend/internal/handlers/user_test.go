@@ -17,10 +17,10 @@ import (
 func setupTestUserHandler() (*UserHandler, *auth.JWTService) {
 	// Create mock database
 	mockDB := &MockDatabase{}
-	
+
 	// Create JWT service with mock secrets provider and algorithm
 	jwtService := auth.NewJWTService(&MockSecretsProvider{secret: "test-secret"}, "HS256")
-	
+
 	userHandler := NewUserHandler(mockDB, jwtService)
 	return userHandler, jwtService
 }
@@ -66,7 +66,6 @@ func TestUserHandler_UpdatePreferences(t *testing.T) {
 		// Simple test to verify handler can be created
 		assert.NotNil(t, userHandler)
 	})
-
 
 }
 

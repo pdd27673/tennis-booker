@@ -12,14 +12,14 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	MongoDB  MongoDBConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
-	Email    EmailConfig
-	CORS     CORSConfig
-	Scraper  ScraperConfig
-	Vault    VaultConfig
+	Server  ServerConfig
+	MongoDB MongoDBConfig
+	Redis   RedisConfig
+	JWT     JWTConfig
+	Email   EmailConfig
+	CORS    CORSConfig
+	Scraper ScraperConfig
+	Vault   VaultConfig
 }
 
 // ServerConfig holds server-specific configuration
@@ -51,9 +51,9 @@ type RedisConfig struct {
 
 // JWTConfig holds JWT configuration
 type JWTConfig struct {
-	Issuer           string
-	AccessTokenTTL   int // in hours
-	RefreshTokenTTL  int // in hours
+	Issuer          string
+	AccessTokenTTL  int // in hours
+	RefreshTokenTTL int // in hours
 }
 
 // EmailConfig holds email configuration
@@ -150,7 +150,7 @@ func Load() (*Config, error) {
 		},
 		Vault: VaultConfig{
 			Address: getEnv("VAULT_ADDR", "http://localhost:8200"),
-			                       Token:   getEnv("VAULT_TOKEN", ""),
+			Token:   getEnv("VAULT_TOKEN", ""),
 		},
 	}, nil
 }
@@ -195,7 +195,7 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 func getEnvAsSlice(key string, defaultValue []string) []string {
 	if value := os.Getenv(key); value != "" {
 		return strings.Split(value, ",")
-}
+	}
 	return defaultValue
 }
 

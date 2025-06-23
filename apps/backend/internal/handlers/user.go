@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -14,8 +15,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
-
-
 
 // UserHandler handles user-related requests
 type UserHandler struct {
@@ -35,9 +34,9 @@ func NewUserHandler(db database.Database, jwtService *auth.JWTService) *UserHand
 type UserPreferencesResponse struct {
 	ID                   string                      `json:"id"`
 	UserID               string                      `json:"userId"`
-	Times                []models.TimeRange          `json:"times"`                // Legacy field for backward compatibility
-	WeekdayTimes         []models.TimeRange          `json:"weekdayTimes"`         // Monday-Friday preferred times
-	WeekendTimes         []models.TimeRange          `json:"weekendTimes"`         // Saturday-Sunday preferred times
+	Times                []models.TimeRange          `json:"times"`        // Legacy field for backward compatibility
+	WeekdayTimes         []models.TimeRange          `json:"weekdayTimes"` // Monday-Friday preferred times
+	WeekendTimes         []models.TimeRange          `json:"weekendTimes"` // Saturday-Sunday preferred times
 	PreferredVenues      []string                    `json:"preferredVenues"`
 	ExcludedVenues       []string                    `json:"excludedVenues"`
 	PreferredDays        []string                    `json:"preferredDays"`
@@ -49,9 +48,9 @@ type UserPreferencesResponse struct {
 
 // UpdatePreferencesRequest represents a request to update user preferences
 type UpdatePreferencesRequest struct {
-	Times                []models.TimeRange           `json:"times"`                // Legacy field for backward compatibility
-	WeekdayTimes         []models.TimeRange           `json:"weekdayTimes"`         // Monday-Friday preferred times
-	WeekendTimes         []models.TimeRange           `json:"weekendTimes"`         // Saturday-Sunday preferred times
+	Times                []models.TimeRange           `json:"times"`        // Legacy field for backward compatibility
+	WeekdayTimes         []models.TimeRange           `json:"weekdayTimes"` // Monday-Friday preferred times
+	WeekendTimes         []models.TimeRange           `json:"weekendTimes"` // Saturday-Sunday preferred times
 	PreferredVenues      []string                     `json:"preferredVenues"`
 	ExcludedVenues       []string                     `json:"excludedVenues"`
 	PreferredDays        []string                     `json:"preferredDays"`
@@ -80,7 +79,7 @@ func (h *UserHandler) GetPreferences(w http.ResponseWriter, r *http.Request) {
 	collection := h.db.Collection("user_preferences")
 	var preferences models.UserPreferences
 	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&preferences)
-	
+
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			// Create default preferences if none exist
@@ -166,7 +165,7 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 	// Check if preferences exist
 	var existingPreferences models.UserPreferences
 	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&existingPreferences)
-	
+
 	if err != nil && err != mongo.ErrNoDocuments {
 		http.Error(w, "Failed to check existing preferences", http.StatusInternalServerError)
 		return
@@ -234,7 +233,7 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 	updateFields := bson.M{
 		"updatedAt": time.Now(),
 	}
-	
+
 	// Only update fields that are provided
 	if req.Times != nil {
 		updateFields["times"] = req.Times
@@ -258,7 +257,7 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 	if req.NotificationSettings != nil {
 		updateFields["notification_settings"] = *req.NotificationSettings
 	}
-	
+
 	update := bson.M{"$set": updateFields}
 
 	result, err := collection.UpdateOne(ctx, bson.M{"userId": userID}, update)
@@ -318,7 +317,7 @@ func (h *UserHandler) validatePreferences(prefs *models.UserPreferences) error {
 		if err := h.validateTimeRange(&timeRange); err != nil {
 			return &ValidationError{
 				Field:   "preferred_times",
-				Message: "invalid time range at index " + string(rune(i)) + ": " + err.Error(),
+				Message: "invalid time range at index " + fmt.Sprintf("%d", i) + ": " + err.Error(),
 			}
 		}
 	}

@@ -18,11 +18,11 @@ type IndexRecommendation struct {
 }
 
 type CollectionAnalysis struct {
-	Name            string                 `json:"name"`
-	DocumentCount   int64                  `json:"document_count"`
-	DataSize        int64                  `json:"data_size"`
-	IndexSize       int64                  `json:"index_size"`
-	Recommendations []IndexRecommendation  `json:"recommendations"`
+	Name            string                `json:"name"`
+	DocumentCount   int64                 `json:"document_count"`
+	DataSize        int64                 `json:"data_size"`
+	IndexSize       int64                 `json:"index_size"`
+	Recommendations []IndexRecommendation `json:"recommendations"`
 }
 
 type DatabaseAnalysis struct {
@@ -151,10 +151,10 @@ func shouldBeSparse(keys map[string]interface{}) bool {
 	// Fields that should have sparse indexes
 	sparseFields := map[string]bool{
 		"notification_settings.unsubscribed": true,
-		"preferred_venues":                    true,
-		"preferred_days":                      true,
-		"excluded_venues":                     true,
-		"booking_url":                         true,
+		"preferred_venues":                   true,
+		"preferred_days":                     true,
+		"excluded_venues":                    true,
+		"booking_url":                        true,
 		"notified":                           true,
 	}
 
@@ -174,10 +174,10 @@ func joinStrings(strs []string, sep string) string {
 	if len(strs) == 1 {
 		return strs[0]
 	}
-	
+
 	result := strs[0]
 	for i := 1; i < len(strs); i++ {
 		result += sep + strs[i]
 	}
 	return result
-} 
+}

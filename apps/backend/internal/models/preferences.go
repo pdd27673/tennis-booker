@@ -15,9 +15,9 @@ import (
 type UserPreferences struct {
 	ID                   primitive.ObjectID   `bson:"_id,omitempty" json:"id,omitempty"`
 	UserID               primitive.ObjectID   `bson:"user_id" json:"user_id"`
-	Times                []TimeRange          `bson:"times,omitempty" json:"times,omitempty"`                         // Legacy field for backward compatibility
-	WeekdayTimes         []TimeRange          `bson:"weekday_times,omitempty" json:"weekday_times,omitempty"`         // Monday-Friday preferred times
-	WeekendTimes         []TimeRange          `bson:"weekend_times,omitempty" json:"weekend_times,omitempty"`         // Saturday-Sunday preferred times
+	Times                []TimeRange          `bson:"times,omitempty" json:"times,omitempty"`                 // Legacy field for backward compatibility
+	WeekdayTimes         []TimeRange          `bson:"weekday_times,omitempty" json:"weekday_times,omitempty"` // Monday-Friday preferred times
+	WeekendTimes         []TimeRange          `bson:"weekend_times,omitempty" json:"weekend_times,omitempty"` // Saturday-Sunday preferred times
 	MaxPrice             float64              `bson:"max_price,omitempty" json:"max_price,omitempty"`
 	PreferredVenues      []string             `bson:"preferred_venues,omitempty" json:"preferred_venues,omitempty"`
 	ExcludedVenues       []string             `bson:"excluded_venues,omitempty" json:"excluded_venues,omitempty"`
@@ -41,9 +41,9 @@ type NotificationSettings struct {
 
 // PreferenceRequest represents the request payload for updating preferences
 type PreferenceRequest struct {
-	Times                []TimeRange           `json:"times,omitempty" binding:"dive"`                    // Legacy field for backward compatibility
-	WeekdayTimes         []TimeRange           `json:"weekday_times,omitempty" binding:"dive"`            // Monday-Friday preferred times
-	WeekendTimes         []TimeRange           `json:"weekend_times,omitempty" binding:"dive"`            // Saturday-Sunday preferred times
+	Times                []TimeRange           `json:"times,omitempty" binding:"dive"`         // Legacy field for backward compatibility
+	WeekdayTimes         []TimeRange           `json:"weekday_times,omitempty" binding:"dive"` // Monday-Friday preferred times
+	WeekendTimes         []TimeRange           `json:"weekend_times,omitempty" binding:"dive"` // Saturday-Sunday preferred times
 	MaxPrice             *float64              `json:"max_price,omitempty" binding:"omitempty,gte=0"`
 	PreferredVenues      []string              `json:"preferred_venues,omitempty"`
 	ExcludedVenues       []string              `json:"excluded_venues,omitempty"`

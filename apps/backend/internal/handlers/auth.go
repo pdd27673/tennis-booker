@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"tennis-booker/internal/auth"
 	"tennis-booker/internal/database"
 	"tennis-booker/internal/models"
+	"tennis-booker/internal/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -60,12 +60,12 @@ type RefreshRequest struct {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		utils.WriteError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	// Find user by email
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithDBTimeout()
 	defer cancel()
 
 	collection := h.db.Collection("users")
@@ -73,16 +73,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	err := collection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			utils.WriteError(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.WriteError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		utils.WriteError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
@@ -106,7 +106,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"updatedAt": time.Now(),
 		},
 	}
-	collection.UpdateOne(ctx, bson.M{"_id": user.ID}, update)
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": user.ID}, update)
+	if err != nil {
+		// Log error but don't fail the login since token generation succeeded
+		// In production, you might want to log this error
+	}
 
 	// Don't return password in response
 	user.HashedPassword = ""
@@ -117,19 +121,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		User:         user,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	utils.WriteSuccess(w, response)
 }
 
 // Register handles user registration
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		utils.WriteError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithDBTimeout()
 	defer cancel()
 
 	collection := h.db.Collection("users")
@@ -141,7 +144,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User with this email already exists", http.StatusConflict)
 		return
 	} else if err != mongo.ErrNoDocuments {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.WriteError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -192,16 +195,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		User:         user,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	utils.WriteCreated(w, response)
 }
 
 // RefreshToken handles token refresh
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	var req RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		utils.WriteError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -213,7 +214,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user to ensure they still exist
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithDBTimeout()
 	defer cancel()
 
 	userID, err := primitive.ObjectIDFromHex(claims.UserID)
@@ -230,7 +231,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "User not found", http.StatusUnauthorized)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.WriteError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -257,37 +258,29 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		User:         user,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	utils.WriteSuccess(w, response)
 }
 
 // GetCurrentUser returns the current authenticated user
 func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context (set by JWT middleware)
-	userIDStr, ok := r.Context().Value("userID").(string)
+	// Get user ID from context using utility function
+	userID, ok := utils.RequireAuth(w, r)
 	if !ok {
-		http.Error(w, "User ID not found in context", http.StatusInternalServerError)
 		return
 	}
 
-	userID, err := primitive.ObjectIDFromHex(userIDStr)
-	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := utils.WithDBTimeout()
 	defer cancel()
 
 	collection := h.db.Collection("users")
 	var user models.User
-	err = collection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	err := collection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			http.Error(w, "User not found", http.StatusNotFound)
+			utils.WriteError(w, "User not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.WriteError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -296,7 +289,7 @@ func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
-	}
+}
 
 // Logout handles user logout
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {

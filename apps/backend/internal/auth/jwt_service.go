@@ -1,10 +1,19 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+)
+
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const (
+	// UserClaimsKey is the context key for storing user claims
+	UserClaimsKey contextKey = "user_claims"
 )
 
 // JWTSecretsProvider defines the interface for fetching JWT secrets
@@ -111,4 +120,36 @@ func (js *JWTService) RefreshAccessToken(refreshToken string, accessTokenDuratio
 
 	// Generate new access token with the same user info
 	return js.GenerateToken(claims.UserID, claims.Username, accessTokenDuration)
+}
+
+// GetUserClaimsFromContext extracts user claims from the request context
+func GetUserClaimsFromContext(ctx context.Context) (*AppClaims, error) {
+	claims, ok := ctx.Value(UserClaimsKey).(*AppClaims)
+	if !ok {
+		return nil, fmt.Errorf("user claims not found in context")
+	}
+	return claims, nil
+}
+
+// GetUserIDFromContext is a convenience function to get user ID from context
+func GetUserIDFromContext(ctx context.Context) (string, error) {
+	claims, err := GetUserClaimsFromContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	return claims.UserID, nil
+}
+
+// GetUsernameFromContext is a convenience function to get username from context
+func GetUsernameFromContext(ctx context.Context) (string, error) {
+	claims, err := GetUserClaimsFromContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	return claims.Username, nil
+}
+
+// SetUserClaimsInContext is a helper function to set user claims in context (primarily for testing)
+func SetUserClaimsInContext(ctx context.Context, claims *AppClaims) context.Context {
+	return context.WithValue(ctx, UserClaimsKey, claims)
 }

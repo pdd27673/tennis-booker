@@ -61,10 +61,10 @@ func main() {
 
 	for _, venue := range venues {
 		log.Printf("Creating court slots for venue: %s", venue.Name)
-		
+
 		for dateIndex, date := range dates {
 			var slots []models.Slot
-			
+
 			// Generate slots based on number of courts
 			numCourts := len(venue.Courts)
 			if numCourts == 0 {
@@ -125,4 +125,4 @@ func main() {
 		}
 		log.Printf("  - %s (%d courts, %s provider)", venue.Name, numCourts, venue.Provider)
 	}
-} 
+}

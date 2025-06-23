@@ -35,12 +35,12 @@ type IndexUsageInfo struct {
 
 // CollectionAnalysis represents analysis results for a collection
 type CollectionAnalysis struct {
-	Name           string                 `json:"name"`
-	DocumentCount  int64                  `json:"document_count"`
-	DataSize       int64                  `json:"data_size"`
-	IndexSize      int64                  `json:"index_size"`
-	Indexes        []IndexInfo            `json:"indexes"`
-	QueryPatterns  []QueryPattern         `json:"query_patterns"`
+	Name            string                `json:"name"`
+	DocumentCount   int64                 `json:"document_count"`
+	DataSize        int64                 `json:"data_size"`
+	IndexSize       int64                 `json:"index_size"`
+	Indexes         []IndexInfo           `json:"indexes"`
+	QueryPatterns   []QueryPattern        `json:"query_patterns"`
 	Recommendations []IndexRecommendation `json:"recommendations"`
 }
 
@@ -56,11 +56,11 @@ type QueryPattern struct {
 
 // IndexRecommendation represents a recommended index
 type IndexRecommendation struct {
-	Type        string                 `json:"type"`
-	Keys        map[string]interface{} `json:"keys"`
-	Reason      string                 `json:"reason"`
-	Priority    string                 `json:"priority"`
-	EstimatedImpact string             `json:"estimated_impact"`
+	Type            string                 `json:"type"`
+	Keys            map[string]interface{} `json:"keys"`
+	Reason          string                 `json:"reason"`
+	Priority        string                 `json:"priority"`
+	EstimatedImpact string                 `json:"estimated_impact"`
 }
 
 // DatabaseAnalysis represents the complete database analysis
@@ -73,13 +73,13 @@ type DatabaseAnalysis struct {
 
 // AnalysisSummary provides high-level analysis results
 type AnalysisSummary struct {
-	TotalCollections     int                   `json:"total_collections"`
-	TotalIndexes         int                   `json:"total_indexes"`
-	TotalDataSize        int64                 `json:"total_data_size"`
-	TotalIndexSize       int64                 `json:"total_index_size"`
-	UnusedIndexes        []string              `json:"unused_indexes"`
-	MissingIndexes       []IndexRecommendation `json:"missing_indexes"`
-	PerformanceIssues    []string              `json:"performance_issues"`
+	TotalCollections  int                   `json:"total_collections"`
+	TotalIndexes      int                   `json:"total_indexes"`
+	TotalDataSize     int64                 `json:"total_data_size"`
+	TotalIndexSize    int64                 `json:"total_index_size"`
+	UnusedIndexes     []string              `json:"unused_indexes"`
+	MissingIndexes    []IndexRecommendation `json:"missing_indexes"`
+	PerformanceIssues []string              `json:"performance_issues"`
 }
 
 func main() {
@@ -154,7 +154,7 @@ func analyzeDatabase(ctx context.Context, db *mongo.Database) (*DatabaseAnalysis
 	// Analyze each collection
 	for _, collName := range collections {
 		log.Printf("   Analyzing collection: %s", collName)
-		
+
 		collAnalysis, err := analyzeCollection(ctx, db.Collection(collName))
 		if err != nil {
 			log.Printf("   ⚠️ Failed to analyze collection %s: %v", collName, err)
@@ -172,7 +172,7 @@ func analyzeDatabase(ctx context.Context, db *mongo.Database) (*DatabaseAnalysis
 
 func analyzeCollection(ctx context.Context, collection *mongo.Collection) (*CollectionAnalysis, error) {
 	collName := collection.Name()
-	
+
 	analysis := &CollectionAnalysis{
 		Name:            collName,
 		Indexes:         []IndexInfo{},
@@ -185,20 +185,20 @@ func analyzeCollection(ctx context.Context, collection *mongo.Collection) (*Coll
 	err := collection.Database().RunCommand(ctx, bson.D{
 		{Key: "collStats", Value: collName},
 	}).Decode(&stats)
-	
+
 	if err == nil {
 		if count, ok := stats["count"].(int64); ok {
 			analysis.DocumentCount = count
 		} else if count, ok := stats["count"].(int32); ok {
 			analysis.DocumentCount = int64(count)
 		}
-		
+
 		if size, ok := stats["size"].(int64); ok {
 			analysis.DataSize = size
 		} else if size, ok := stats["size"].(int32); ok {
 			analysis.DataSize = int64(size)
 		}
-		
+
 		if indexSize, ok := stats["totalIndexSize"].(int64); ok {
 			analysis.IndexSize = indexSize
 		} else if indexSize, ok := stats["totalIndexSize"].(int32); ok {
@@ -220,7 +220,7 @@ func analyzeCollection(ctx context.Context, collection *mongo.Collection) (*Coll
 		}
 
 		indexInfo := parseIndexInfo(indexDoc)
-		
+
 		// Try to get index usage stats (MongoDB 3.2+)
 		if usage := getIndexUsage(ctx, collection, indexInfo.Name); usage != nil {
 			indexInfo.UsageInfo = usage
@@ -282,17 +282,17 @@ func getIndexUsage(ctx context.Context, collection *mongo.Collection, indexName 
 		if err := cursor.Decode(&stats); err == nil {
 			if accesses, ok := stats["accesses"].(bson.M); ok {
 				usage := &IndexUsageInfo{}
-				
+
 				if ops, ok := accesses["ops"].(int64); ok {
 					usage.Operations = ops
 				} else if ops, ok := accesses["ops"].(int32); ok {
 					usage.Operations = int64(ops)
 				}
-				
+
 				if since, ok := accesses["since"].(primitive.DateTime); ok {
 					usage.Since = since.Time()
 				}
-				
+
 				return usage
 			}
 		}
@@ -331,9 +331,9 @@ func getQueryPatterns(collectionName string) []QueryPattern {
 			{
 				Description: "Find recent slots for notifications",
 				Filter: map[string]interface{}{
-					"available":     true,
-					"last_scraped":  map[string]interface{}{"$gte": "recent_date"},
-					"notified":      map[string]interface{}{"$ne": true},
+					"available":    true,
+					"last_scraped": map[string]interface{}{"$gte": "recent_date"},
+					"notified":     map[string]interface{}{"$ne": true},
 				},
 				Sort:        map[string]interface{}{"last_scraped": -1},
 				Frequency:   "High",
@@ -342,8 +342,8 @@ func getQueryPatterns(collectionName string) []QueryPattern {
 			{
 				Description: "Cleanup old unavailable slots",
 				Filter: map[string]interface{}{
-					"available":  false,
-					"slot_date":  map[string]interface{}{"$lt": "cutoff_date"},
+					"available": false,
+					"slot_date": map[string]interface{}{"$lt": "cutoff_date"},
 				},
 				Frequency:   "Daily",
 				Performance: "Moderate",
@@ -376,7 +376,7 @@ func getQueryPatterns(collectionName string) []QueryPattern {
 			{
 				Description: "Find preferences by venue for targeted notifications",
 				Filter: map[string]interface{}{
-					"preferred_venues": "venue_id",
+					"preferred_venues":                   "venue_id",
 					"notification_settings.unsubscribed": map[string]interface{}{"$ne": true},
 				},
 				Frequency:   "High",
@@ -427,8 +427,8 @@ func getQueryPatterns(collectionName string) []QueryPattern {
 			{
 				Description: "Find successful scrapes with slots",
 				Filter: map[string]interface{}{
-					"success":     true,
-					"slots_found": map[string]interface{}{"$gt": 0},
+					"success":          true,
+					"slots_found":      map[string]interface{}{"$gt": 0},
 					"scrape_timestamp": map[string]interface{}{"$gte": "recent_date"},
 				},
 				Sort:        map[string]interface{}{"scrape_timestamp": -1},
@@ -534,7 +534,7 @@ func generateRecommendations(analysis *CollectionAnalysis) []IndexRecommendation
 func generateIndexRecommendation(pattern QueryPattern, existingIndexes map[string]bool) *IndexRecommendation {
 	// Extract fields from filter
 	fields := extractFieldsFromFilter(pattern.Filter)
-	
+
 	// Add sort fields
 	if pattern.Sort != nil {
 		for field := range pattern.Sort {
@@ -600,7 +600,7 @@ func addSlotIndexRecommendations(recommendations *[]IndexRecommendation, existin
 		*recommendations = append(*recommendations, IndexRecommendation{
 			Type: "Compound",
 			Keys: map[string]interface{}{
-				"available":     1,
+				"available":    1,
 				"last_scraped": -1,
 			},
 			Reason:          "Optimize notification queries for new available slots",
@@ -630,7 +630,7 @@ func addPreferenceIndexRecommendations(recommendations *[]IndexRecommendation, e
 			Type: "Compound",
 			Keys: map[string]interface{}{
 				"notification_settings.unsubscribed": 1,
-				"preferred_venues":                    1,
+				"preferred_venues":                   1,
 			},
 			Reason:          "Optimize venue-based notification targeting",
 			Priority:        "High",
@@ -703,7 +703,7 @@ func addDeduplicationIndexRecommendations(recommendations *[]IndexRecommendation
 
 func extractFieldsFromFilter(filter map[string]interface{}) []string {
 	fields := []string{}
-	
+
 	for key, value := range filter {
 		if key == "$or" || key == "$and" {
 			// Handle logical operators
@@ -719,25 +719,25 @@ func extractFieldsFromFilter(filter map[string]interface{}) []string {
 			fields = append(fields, key)
 		}
 	}
-	
+
 	return fields
 }
 
 func indexKeysToString(keys map[string]interface{}) string {
 	var parts []string
-	
+
 	// Sort keys for consistent string representation
 	var sortedKeys []string
 	for key := range keys {
 		sortedKeys = append(sortedKeys, key)
 	}
 	sort.Strings(sortedKeys)
-	
+
 	for _, key := range sortedKeys {
 		value := keys[key]
 		parts = append(parts, fmt.Sprintf("%s_%v", key, value))
 	}
-	
+
 	return strings.Join(parts, "_")
 }
 
@@ -793,8 +793,8 @@ func generateSummary(collections []CollectionAnalysis) AnalysisSummary {
 
 		// Check for performance issues
 		if coll.DocumentCount > 100000 && len(coll.Indexes) <= 2 {
-			summary.PerformanceIssues = append(summary.PerformanceIssues, 
-				fmt.Sprintf("Collection %s has %d documents but only %d indexes", 
+			summary.PerformanceIssues = append(summary.PerformanceIssues,
+				fmt.Sprintf("Collection %s has %d documents but only %d indexes",
 					coll.Name, coll.DocumentCount, len(coll.Indexes)))
 		}
 	}
@@ -815,7 +815,7 @@ func printSummary(analysis *DatabaseAnalysis) {
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("📊 MONGODB INDEX ANALYSIS SUMMARY")
 	fmt.Println(strings.Repeat("=", 60))
-	
+
 	fmt.Printf("Database: %s\n", analysis.DatabaseName)
 	fmt.Printf("Analysis Time: %s\n", analysis.Timestamp.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Collections Analyzed: %d\n", analysis.Summary.TotalCollections)
@@ -888,4 +888,4 @@ func formatNumber(num int64) string {
 	} else {
 		return fmt.Sprintf("%.1fM", float64(num)/1000000)
 	}
-} 
+}

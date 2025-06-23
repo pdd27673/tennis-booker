@@ -63,7 +63,7 @@ func (h *SystemHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	statusCollection := h.db.Collection("system_status")
 	var systemStatus bson.M
 	err := statusCollection.FindOne(ctx, bson.M{}).Decode(&systemStatus)
-	
+
 	// Default status if no record exists
 	response := SystemStatusResponse{
 		Status:         "running",
@@ -340,7 +340,7 @@ func (h *SystemHandler) GetScrapingLogs(w http.ResponseWriter, r *http.Request) 
 
 	// Query the database directly to handle the current schema
 	scrapingLogsCollection := h.db.Collection("scraping_logs")
-	
+
 	// Build filter
 	filter := bson.M{}
 	if venueID != "" {
@@ -399,7 +399,7 @@ func (h *SystemHandler) GetScrapingLogs(w http.ResponseWriter, r *http.Request) 
 		slotsFound, _ := rawLog["slots_found"].(int32)
 		scrapeDurationMs, _ := rawLog["scrape_duration_ms"].(int32)
 		createdAt, _ := rawLog["created_at"].(primitive.DateTime)
-		
+
 		// Handle errors field
 		var errors []string
 		if errorsInterface, ok := rawLog["errors"]; ok {
@@ -428,7 +428,7 @@ func (h *SystemHandler) GetScrapingLogs(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := cursor.Err(); err != nil {
-		
+
 		http.Error(w, fmt.Sprintf("Error reading scraping logs: %v", err), http.StatusInternalServerError)
 		return
 	}

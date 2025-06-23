@@ -28,9 +28,9 @@ type User struct {
 type UserPreferences struct {
 	ID                   primitive.ObjectID   `bson:"_id,omitempty"`
 	UserID               primitive.ObjectID   `bson:"user_id"`
-	Times                []TimeRange          `bson:"times,omitempty"`                         // Legacy field for backward compatibility
-	WeekdayTimes         []TimeRange          `bson:"weekday_times,omitempty"`                 // Monday-Friday preferred times
-	WeekendTimes         []TimeRange          `bson:"weekend_times,omitempty"`                 // Saturday-Sunday preferred times
+	Times                []TimeRange          `bson:"times,omitempty"`         // Legacy field for backward compatibility
+	WeekdayTimes         []TimeRange          `bson:"weekday_times,omitempty"` // Monday-Friday preferred times
+	WeekendTimes         []TimeRange          `bson:"weekend_times,omitempty"` // Saturday-Sunday preferred times
 	MaxPrice             float64              `bson:"max_price,omitempty"`
 	PreferredVenues      []string             `bson:"preferred_venues,omitempty"`
 	ExcludedVenues       []string             `bson:"excluded_venues,omitempty"`

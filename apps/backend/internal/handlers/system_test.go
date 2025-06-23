@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"testing"
-	
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,13 +22,13 @@ func TestSystemHandler_GetStatus_Methods(t *testing.T) {
 			expectedStatus: 200, // This will be 500 in unit test due to no real DB, but that's OK
 		},
 		{
-			name:           "Invalid POST request", 
+			name:           "Invalid POST request",
 			method:         "POST",
 			expectedStatus: 405,
 		},
 		{
 			name:           "Invalid PUT request",
-			method:         "PUT", 
+			method:         "PUT",
 			expectedStatus: 405,
 		},
 		{

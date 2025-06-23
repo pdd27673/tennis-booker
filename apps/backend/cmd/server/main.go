@@ -36,7 +36,7 @@ func (f *FallbackJWTProvider) GetJWTSecret() (string, error) {
 func main() {
 	// Initialize structured logging
 	logger := logging.New("tennis-server")
-	
+
 	// Load environment variables if .env file exists
 	if err := godotenv.Load(); err != nil {
 		logger.Debug("No .env file found, using environment variables")
@@ -51,35 +51,35 @@ func main() {
 	// Initialize database connection with fallback
 	var mongoDb database.Database
 	var secretsManager *secrets.SecretsManager
-	
+
 	// Try to initialize secrets manager and database connection
 	sm, err := secrets.NewSecretsManagerFromEnv()
 	if err != nil {
 		logger.Warn("Failed to create secrets manager", map[string]interface{}{"error": err.Error()})
 		logger.Info("Using fallback database connection")
-		
+
 		// Fallback to direct database connection using config
 		mongoURI := cfg.MongoDB.URI
 		if mongoURI == "" {
 			// Build URI from config components
 			if cfg.MongoDB.Username != "" && cfg.MongoDB.Password != "" {
-				mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s?authSource=admin", 
+				mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s?authSource=admin",
 					cfg.MongoDB.Username, cfg.MongoDB.Password, cfg.MongoDB.Host, cfg.MongoDB.Port)
 			} else {
 				mongoURI = fmt.Sprintf("mongodb://%s:%s", cfg.MongoDB.Host, cfg.MongoDB.Port)
 			}
 		}
-		
+
 		mongoDbInstance, err := database.InitDatabase(mongoURI, cfg.MongoDB.Database)
-		mongoDb = database.NewMongoDB(mongoDbInstance)
 		if err != nil {
 			logger.Fatal("Failed to connect to database with fallback", map[string]interface{}{"error": err.Error()})
 		}
+		mongoDb = database.NewMongoDB(mongoDbInstance)
 		logger.ConnectionInfo("Connected to database using fallback credentials", "mongodb", cfg.MongoDB.Host)
 	} else {
 		secretsManager = sm
 		defer secretsManager.Close()
-		
+
 		// Use connection manager for Vault-based connection
 		connectionManager := database.NewConnectionManager(secretsManager)
 		mongoDbInstance, err := connectionManager.ConnectWithFallback()
@@ -134,7 +134,7 @@ func main() {
 	userRouter.Use(middleware.JWTMiddleware(jwtService))
 	userRouter.HandleFunc("/preferences", userHandler.GetPreferences).Methods("GET", "OPTIONS")
 	userRouter.HandleFunc("/preferences", userHandler.UpdatePreferences).Methods("PUT", "OPTIONS")
-	
+
 	// Court endpoints
 	courtRouter := router.PathPrefix("/api").Subrouter()
 	courtRouter.HandleFunc("/venues", courtHandler.GetVenues).Methods("GET", "OPTIONS")
@@ -166,10 +166,10 @@ func main() {
 	go func() {
 		logger.StartupInfo("🚀 Tennis Booker API Server starting", cfg.Server.Port, "production")
 		logger.Info("API endpoints available", map[string]interface{}{
-			"base_url": fmt.Sprintf("http://localhost:%s/api/", cfg.Server.Port),
+			"base_url":     fmt.Sprintf("http://localhost:%s/api/", cfg.Server.Port),
 			"cors_origins": cfg.CORS.AllowedOrigins,
 		})
-		
+
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Failed to start server", map[string]interface{}{"error": err.Error()})
 		}
@@ -189,4 +189,4 @@ func main() {
 	}
 
 	logger.Info("Server stopped gracefully")
-} 
+}

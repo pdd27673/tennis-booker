@@ -24,11 +24,11 @@ type IndexRecommendation struct {
 
 // CollectionAnalysis represents analysis results for a collection (from analysis)
 type CollectionAnalysis struct {
-	Name            string                 `json:"name"`
-	DocumentCount   int64                  `json:"document_count"`
-	DataSize        int64                  `json:"data_size"`
-	IndexSize       int64                  `json:"index_size"`
-	Recommendations []IndexRecommendation  `json:"recommendations"`
+	Name            string                `json:"name"`
+	DocumentCount   int64                 `json:"document_count"`
+	DataSize        int64                 `json:"data_size"`
+	IndexSize       int64                 `json:"index_size"`
+	Recommendations []IndexRecommendation `json:"recommendations"`
 }
 
 // DatabaseAnalysis represents the complete database analysis (from analysis)
@@ -40,23 +40,23 @@ type DatabaseAnalysis struct {
 
 // OptimizationResult represents the result of applying an index
 type OptimizationResult struct {
-	Collection  string `json:"collection"`
-	IndexName   string `json:"index_name"`
-	Keys        string `json:"keys"`
-	Success     bool   `json:"success"`
-	Error       string `json:"error,omitempty"`
-	Duration    string `json:"duration"`
-	Priority    string `json:"priority"`
+	Collection string `json:"collection"`
+	IndexName  string `json:"index_name"`
+	Keys       string `json:"keys"`
+	Success    bool   `json:"success"`
+	Error      string `json:"error,omitempty"`
+	Duration   string `json:"duration"`
+	Priority   string `json:"priority"`
 }
 
 // OptimizationSummary represents the overall optimization results
 type OptimizationSummary struct {
-	Timestamp        time.Time            `json:"timestamp"`
-	TotalIndexes     int                  `json:"total_indexes"`
-	SuccessfulIndexes int                 `json:"successful_indexes"`
-	FailedIndexes    int                  `json:"failed_indexes"`
-	Results          []OptimizationResult `json:"results"`
-	Duration         string               `json:"duration"`
+	Timestamp         time.Time            `json:"timestamp"`
+	TotalIndexes      int                  `json:"total_indexes"`
+	SuccessfulIndexes int                  `json:"successful_indexes"`
+	FailedIndexes     int                  `json:"failed_indexes"`
+	Results           []OptimizationResult `json:"results"`
+	Duration          string               `json:"duration"`
 }
 
 func main() {
@@ -145,12 +145,12 @@ func applyOptimizations(ctx context.Context, db *mongo.Database, analysis *Datab
 	// Process each collection
 	for _, collAnalysis := range analysis.Collections {
 		log.Printf("📁 Processing collection: %s", collAnalysis.Name)
-		
+
 		collection := db.Collection(collAnalysis.Name)
-		
+
 		// Apply recommendations by priority (High first, then Medium, then Low)
 		priorities := []string{"High", "Medium", "Low"}
-		
+
 		for _, priority := range priorities {
 			for _, rec := range collAnalysis.Recommendations {
 				if rec.Priority != priority {
@@ -160,7 +160,7 @@ func applyOptimizations(ctx context.Context, db *mongo.Database, analysis *Datab
 				summary.TotalIndexes++
 				result := applyIndexRecommendation(ctx, collection, rec)
 				summary.Results = append(summary.Results, result)
-				
+
 				if result.Success {
 					summary.SuccessfulIndexes++
 					log.Printf("   ✅ [%s] Created index: %s", priority, result.Keys)
@@ -177,7 +177,7 @@ func applyOptimizations(ctx context.Context, db *mongo.Database, analysis *Datab
 
 func applyIndexRecommendation(ctx context.Context, collection *mongo.Collection, rec IndexRecommendation) OptimizationResult {
 	startTime := time.Now()
-	
+
 	result := OptimizationResult{
 		Collection: collection.Name(),
 		Keys:       formatIndexKeys(rec.Keys),
@@ -196,7 +196,7 @@ func applyIndexRecommendation(ctx context.Context, collection *mongo.Collection,
 
 	// Set index options based on type and recommendation
 	opts := options.Index()
-	
+
 	// Generate index name
 	indexName := generateIndexName(rec.Keys)
 	opts.SetName(indexName)
@@ -222,13 +222,13 @@ func applyIndexRecommendation(ctx context.Context, collection *mongo.Collection,
 
 	// Create the index
 	_, err := collection.Indexes().CreateOne(ctx, indexModel)
-	
+
 	result.Duration = time.Since(startTime).String()
-	
+
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
-		
+
 		// Check if error is because index already exists
 		if isIndexExistsError(err) {
 			result.Error = "Index already exists (skipped)"
@@ -293,10 +293,10 @@ func shouldBeSparse(keys map[string]interface{}) bool {
 	// Fields that should have sparse indexes
 	sparseFields := map[string]bool{
 		"notification_settings.unsubscribed": true,
-		"preferred_venues":                    true,
-		"preferred_days":                      true,
-		"excluded_venues":                     true,
-		"booking_url":                         true,
+		"preferred_venues":                   true,
+		"preferred_days":                     true,
+		"excluded_venues":                    true,
+		"booking_url":                        true,
 		"notified":                           true,
 	}
 
@@ -312,17 +312,17 @@ func shouldBeSparse(keys map[string]interface{}) bool {
 func isIndexExistsError(err error) bool {
 	// Check if the error indicates the index already exists
 	errStr := err.Error()
-	return contains(errStr, "already exists") || 
-		   contains(errStr, "IndexOptionsConflict") ||
-		   contains(errStr, "duplicate key")
+	return contains(errStr, "already exists") ||
+		contains(errStr, "IndexOptionsConflict") ||
+		contains(errStr, "duplicate key")
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && 
-			(s[:len(substr)] == substr || 
-			 s[len(s)-len(substr):] == substr ||
-			 containsSubstring(s, substr))))
+	return len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) &&
+			(s[:len(substr)] == substr ||
+				s[len(s)-len(substr):] == substr ||
+				containsSubstring(s, substr))))
 }
 
 func containsSubstring(s, substr string) bool {
@@ -341,7 +341,7 @@ func joinStrings(strs []string, sep string) string {
 	if len(strs) == 1 {
 		return strs[0]
 	}
-	
+
 	result := strs[0]
 	for i := 1; i < len(strs); i++ {
 		result += sep + strs[i]
@@ -362,13 +362,13 @@ func printOptimizationSummary(summary *OptimizationSummary) {
 	fmt.Println("\n" + repeatString("=", 60))
 	fmt.Println("🚀 MONGODB INDEX OPTIMIZATION SUMMARY")
 	fmt.Println(repeatString("=", 60))
-	
+
 	fmt.Printf("Optimization Time: %s\n", summary.Timestamp.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Total Duration: %s\n", summary.Duration)
 	fmt.Printf("Total Indexes Processed: %d\n", summary.TotalIndexes)
 	fmt.Printf("Successful: %d\n", summary.SuccessfulIndexes)
 	fmt.Printf("Failed: %d\n", summary.FailedIndexes)
-	
+
 	if summary.TotalIndexes > 0 {
 		successRate := float64(summary.SuccessfulIndexes) / float64(summary.TotalIndexes) * 100
 		fmt.Printf("Success Rate: %.1f%%\n", successRate)
@@ -386,13 +386,13 @@ func printOptimizationSummary(summary *OptimizationSummary) {
 
 	for collection, results := range collectionResults {
 		fmt.Printf("\n📁 %s:\n", collection)
-		
+
 		for _, result := range results {
 			status := "✅"
 			if !result.Success {
 				status = "❌"
 			}
-			
+
 			fmt.Printf("   %s [%s] %s (%s)\n", status, result.Priority, result.Keys, result.Duration)
 			if !result.Success && result.Error != "" {
 				fmt.Printf("      Error: %s\n", result.Error)
@@ -409,4 +409,4 @@ func repeatString(s string, count int) string {
 		result += s
 	}
 	return result
-} 
+}

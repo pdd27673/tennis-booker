@@ -64,11 +64,11 @@ func (r *SlotsRepository) GetAvailableSlots(ctx context.Context, limit int64) ([
 			ScrapedAt  time.Time          `bson:"scraped_at"`
 			Platform   string             `bson:"platform"`
 		}
-		
+
 		if err := cursor.Decode(&dbSlot); err != nil {
 			continue // Skip invalid slots
 		}
-		
+
 		// Convert to CourtSlot model
 		slot := &models.CourtSlot{
 			ID:          dbSlot.ID.Hex(),
@@ -95,7 +95,7 @@ func (r *SlotsRepository) GetAvailableSlots(ctx context.Context, limit int64) ([
 // GetAvailableSlotsByVenue retrieves available court slots for a specific venue
 func (r *SlotsRepository) GetAvailableSlotsByVenue(ctx context.Context, venueID primitive.ObjectID, limit int64) ([]*models.CourtSlot, error) {
 	filter := bson.M{
-		"venue_id": venueID,
+		"venue_id":  venueID,
 		"available": true,
 		"date": bson.M{
 			"$gte": time.Now().Format("2006-01-02"), // Today or later
@@ -134,11 +134,11 @@ func (r *SlotsRepository) GetAvailableSlotsByVenue(ctx context.Context, venueID 
 			ScrapedAt  time.Time          `bson:"scraped_at"`
 			Platform   string             `bson:"platform"`
 		}
-		
+
 		if err := cursor.Decode(&dbSlot); err != nil {
 			continue // Skip invalid slots
 		}
-		
+
 		// Convert to CourtSlot model
 		slot := &models.CourtSlot{
 			ID:          dbSlot.ID.Hex(),
@@ -166,7 +166,7 @@ func (r *SlotsRepository) GetAvailableSlotsByVenue(ctx context.Context, venueID 
 func (r *SlotsRepository) GetAvailableSlotsByDate(ctx context.Context, date string, limit int64) ([]*models.CourtSlot, error) {
 	filter := bson.M{
 		"available": true,
-		"date": date,
+		"date":      date,
 	}
 
 	opts := options.Find().
@@ -201,11 +201,11 @@ func (r *SlotsRepository) GetAvailableSlotsByDate(ctx context.Context, date stri
 			ScrapedAt  time.Time          `bson:"scraped_at"`
 			Platform   string             `bson:"platform"`
 		}
-		
+
 		if err := cursor.Decode(&dbSlot); err != nil {
 			continue // Skip invalid slots
 		}
-		
+
 		// Convert to CourtSlot model
 		slot := &models.CourtSlot{
 			ID:          dbSlot.ID.Hex(),
@@ -245,7 +245,20 @@ func (r *SlotsRepository) CountAvailableSlots(ctx context.Context) (int64, error
 func (r *SlotsRepository) CountSlotsByDate(ctx context.Context, date string) (int64, error) {
 	filter := bson.M{
 		"available": true,
-		"date": date,
+		"date":      date,
+	}
+
+	return r.collection.CountDocuments(ctx, filter)
+}
+
+// CountSlotsByDateRange counts slots within a date range
+func (r *SlotsRepository) CountSlotsByDateRange(ctx context.Context, startDate, endDate string) (int64, error) {
+	filter := bson.M{
+		"available": true,
+		"date": bson.M{
+			"$gte": startDate,
+			"$lt":  endDate,
+		},
 	}
 
 	return r.collection.CountDocuments(ctx, filter)
@@ -273,4 +286,4 @@ func (r *SlotsRepository) GetActivePlatforms(ctx context.Context) ([]string, err
 	}
 
 	return result, nil
-} 
+}

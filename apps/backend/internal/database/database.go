@@ -36,4 +36,4 @@ func (m *MongoDB) Ping(ctx context.Context) error {
 // GetMongoDB returns the underlying MongoDB database instance
 func (m *MongoDB) GetMongoDB() *mongo.Database {
 	return m.db
-} 
+}

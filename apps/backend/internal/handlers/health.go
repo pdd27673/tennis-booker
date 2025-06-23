@@ -76,12 +76,12 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 // SystemHealth handles detailed system health check
 func (h *HealthHandler) SystemHealth(w http.ResponseWriter, r *http.Request) {
 	services := make(map[string]interface{})
-	
+
 	// Check database
 	dbStatus := h.checkDatabase()
 	services["database"] = map[string]interface{}{
-		"status":  dbStatus,
-		"type":    "mongodb",
+		"status": dbStatus,
+		"type":   "mongodb",
 		"message": func() string {
 			if dbStatus {
 				return "Connected and responsive"
@@ -93,8 +93,8 @@ func (h *HealthHandler) SystemHealth(w http.ResponseWriter, r *http.Request) {
 	// Check Vault
 	vaultStatus := h.checkVault()
 	services["vault"] = map[string]interface{}{
-		"status":  vaultStatus,
-		"type":    "hashicorp-vault",
+		"status": vaultStatus,
+		"type":   "hashicorp-vault",
 		"message": func() string {
 			if vaultStatus {
 				return "Connected and accessible"
@@ -109,7 +109,7 @@ func (h *HealthHandler) SystemHealth(w http.ResponseWriter, r *http.Request) {
 	response := SystemHealthResponse{
 		Status:      "healthy",
 		Timestamp:   time.Now(),
-		Version:     getVersion(), // Get from build info or environment
+		Version:     getVersion(),     // Get from build info or environment
 		Environment: getEnvironment(), // Get from config
 		Services:    services,
 		Uptime:      uptime.String(),
@@ -140,11 +140,11 @@ func (h *HealthHandler) checkDatabase() bool {
 	if h.db == nil {
 		return false
 	}
-	
+
 	// Try to ping the database
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	return h.db.Ping(ctx) == nil
 }
 
@@ -153,7 +153,7 @@ func (h *HealthHandler) checkVault() bool {
 	if h.secretsManager == nil {
 		return false
 	}
-	
+
 	// Try to get a secret to verify connectivity
 	_, err := h.secretsManager.GetSecret("secret/data/tennisapp/prod/jwt", "secret")
 	return err == nil
