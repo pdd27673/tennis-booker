@@ -67,7 +67,7 @@ export interface CourtSlot {
   date: string
   startTime: string
   endTime: string
-  duration?: number
+  duration: number
   price: number
   currency: string
   available: boolean

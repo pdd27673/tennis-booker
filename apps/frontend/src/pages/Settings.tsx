@@ -343,6 +343,71 @@ const Settings: React.FC = () => {
               </CardContent>
             </Card>
 
+            {/* Add New Venue/Court Section */}
+            <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                    <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900 dark:text-white">
+                      Add New Venue to Scraping List
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                      Request a new tennis venue to be added to our monitoring system
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Venue Name</label>
+                    <Input placeholder="e.g., City Tennis Club" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Venue Website URL</label>
+                    <Input placeholder="https://example.com/book-courts" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Booking Provider</label>
+                    <select className="w-full p-2 border rounded-md">
+                      <option value="">Select Provider</option>
+                      <option value="clubspark">ClubSpark</option>
+                      <option value="courtside">Courtside</option>
+                      <option value="other">Other/Unknown</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Location (City)</label>
+                    <Input placeholder="e.g., London, Birmingham" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Additional Notes (Optional)</label>
+                  <textarea 
+                    className="w-full p-2 border rounded-md resize-none"
+                    rows={3}
+                    placeholder="Any special instructions or details about this venue..."
+                  />
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => {
+                    addNotification({
+                      title: 'Venue Request Submitted',
+                      message: 'Your venue request has been submitted for review. We\'ll add it to our scraping system within 24-48 hours.',
+                      type: 'success',
+                    })
+                  }}
+                >
+                  Submit Venue Request
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Time Preferences */}
             <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
               <CardHeader>

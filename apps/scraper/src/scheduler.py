@@ -32,9 +32,24 @@ class ScrapingScheduler:
         self.running = False
         self.next_run_time: Optional[datetime] = None
         
-        # Get interval from environment (in minutes)
-        self.interval_minutes = int(os.getenv("SCRAPER_INTERVAL_MINUTES", 
-                                            os.getenv("SCRAPER_INTERVAL", 30)))
+        # Get interval from environment (in minutes) - handle both minute and second formats
+        interval_env = os.getenv("SCRAPER_INTERVAL_MINUTES", os.getenv("SCRAPER_INTERVAL", "30"))
+        
+        # Handle different interval formats (minutes vs seconds)
+        try:
+            # If it's just a number, assume minutes
+            if isinstance(interval_env, str) and interval_env.isdigit():
+                self.interval_minutes = int(interval_env)
+            else:
+                # Try to parse as duration or convert seconds to minutes
+                interval_val = int(interval_env)
+                # If value is very large (>60), assume it's in seconds
+                if interval_val > 60:
+                    self.interval_minutes = interval_val // 60
+                else:
+                    self.interval_minutes = interval_val
+        except (ValueError, TypeError):
+            self.interval_minutes = 30  # Default fallback
         
         self.logger.info(f"Scraping scheduler initialized with {self.interval_minutes}-minute intervals")
         

@@ -49,7 +49,11 @@ export const authApi = {
       
       return {
         success: true,
-        data: response.data
+        data: {
+          user: response.data.user,
+          accessToken: response.data.accessToken,
+          refreshToken: response.data.refreshToken
+        }
       }
       } catch (error) {
       const axiosError = error as AxiosError
@@ -76,7 +80,11 @@ export const authApi = {
       
       return {
         success: true,
-        data: response.data
+        data: {
+          user: response.data.user,
+          accessToken: response.data.accessToken,
+          refreshToken: response.data.refreshToken
+        }
       }
       } catch (error) {
       const axiosError = error as AxiosError
@@ -118,7 +126,9 @@ export const authApi = {
       
       return {
         success: true,
-        data: response.data
+        data: {
+          user: response.data
+        }
       }
     } catch (error) {
 
@@ -150,7 +160,11 @@ export const authApi = {
       
       return {
         success: true,
-        data: response.data
+        data: {
+          user: response.data.user,
+          accessToken: response.data.accessToken,
+          refreshToken: response.data.refreshToken
+        }
       }
     } catch (error) {
 

@@ -6,7 +6,7 @@ import { authApi } from './authApi'
 
 // Create a separate axios instance for API calls
 export const apiClient = axios.create({
-  baseURL: '/api', // This would be your actual API base URL
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   timeout: 10000,
 })
 

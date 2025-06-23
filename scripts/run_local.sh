@@ -153,11 +153,45 @@ EOF
             
             # Setup Vault secrets for development
             echo "🔐 Initializing Vault secrets..."
+            
+            # Enable AppRole authentication method
+            curl -s -X POST -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
+                -d '{"type":"approle"}' \
+                http://localhost:8200/v1/sys/auth/approle > /dev/null 2>&1
+            
+            # Create policy for tennis app
+            curl -s -X POST -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
+                -d '{"policy": "path \"secret/data/tennisapp/*\" {\n  capabilities = [\"read\"]\n}\npath \"secret/metadata/tennisapp/*\" {\n  capabilities = [\"list\", \"read\"]\n}"}' \
+                http://localhost:8200/v1/sys/policies/acl/tennisapp-policy > /dev/null
+            
+            # Create AppRole
+            curl -s -X POST -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
+                -d '{"policies":["default","tennisapp-policy"]}' \
+                http://localhost:8200/v1/auth/approle/role/tennisapp > /dev/null
+            
+            # Get AppRole credentials
+            ROLE_ID=$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
+                http://localhost:8200/v1/auth/approle/role/tennisapp/role-id | \
+                grep -o '"role_id":"[^"]*"' | cut -d'"' -f4)
+            SECRET_ID=$(curl -s -X POST -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
+                http://localhost:8200/v1/auth/approle/role/tennisapp/secret-id | \
+                grep -o '"secret_id":"[^"]*"' | cut -d'"' -f4)
+            
+            # Store credentials for backend server
+            export VAULT_ROLE_ID="$ROLE_ID"
+            export VAULT_SECRET_ID="$SECRET_ID"
+            
+            # Create database credentials secret
+            curl -s -X POST -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
+                -d "{\"data\":{\"host\":\"localhost:27017\",\"username\":\"${MONGO_ROOT_USERNAME}\",\"password\":\"${MONGO_ROOT_PASSWORD}\",\"database\":\"${DB_NAME}\",\"authSource\":\"admin\"}}" \
+                http://localhost:8200/v1/secret/data/tennisapp/prod/db > /dev/null
+            
+            # Create JWT secret
             curl -s -X POST -H "X-Vault-Token: ${VAULT_TOKEN:-dev-token}" \
                 -d '{"data":{"secret":"super-secret-jwt-key-for-local-development"}}' \
                 http://localhost:8200/v1/secret/data/tennisapp/prod/jwt > /dev/null
                 
-            success "Vault initialized with JWT secret"
+            success "Vault initialized with AppRole authentication and secrets"
             break
         fi
         echo -n "."
@@ -216,6 +250,9 @@ start_backend_server() {
     
     # Build the server first
     make build-server
+    
+    # Set Vault environment variables for backend server
+    export VAULT_ADDR="${VAULT_ADDR:-http://localhost:8200}"
     
     # Start integrated backend server in background
     nohup ./bin/server > "$PROJECT_ROOT/logs/backend-server.log" 2>&1 &

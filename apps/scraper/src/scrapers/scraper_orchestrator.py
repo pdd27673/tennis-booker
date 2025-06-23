@@ -45,14 +45,19 @@ class ScraperOrchestrator:
     def __init__(self, mongo_uri: str = None, db_name: str = None):
         self.setup_logging()
         
-        # MongoDB connection
-        self.mongo_uri = mongo_uri or os.getenv("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017")
-        self.db_name = db_name or os.getenv("MONGO_DB_NAME", "tennis_booking")
+        # MongoDB connection - use consistent environment variable names
+        self.mongo_uri = mongo_uri or os.getenv("MONGODB_URI", os.getenv("MONGO_URI", "mongodb://admin:YOUR_PASSWORD@localhost:27017"))
+        self.db_name = db_name or os.getenv("MONGODB_DATABASE", os.getenv("MONGO_DB_NAME", "tennis_booking"))
         self.mongo_client = None
         self.db = None
         
-        # Redis publisher
-        self.redis_publisher = RedisPublisher()
+        # Redis publisher - use consistent environment variables
+        self.redis_publisher = RedisPublisher(
+            redis_host=os.getenv("REDIS_HOST", "localhost"),
+            redis_port=int(os.getenv("REDIS_PORT", "6379")),
+            redis_password=os.getenv("REDIS_PASSWORD"),
+            redis_db=int(os.getenv("REDIS_PUBLISHER_DB", "0"))  # Use different DB for publishing
+        )
         
         # Redis deduplicator for slot deduplication
         self.redis_deduplicator = RedisDeduplicator(

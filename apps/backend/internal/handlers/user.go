@@ -78,7 +78,7 @@ func (h *UserHandler) GetPreferences(w http.ResponseWriter, r *http.Request) {
 
 	collection := h.db.Collection("user_preferences")
 	var preferences models.UserPreferences
-	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&preferences)
+	err = collection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&preferences)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -87,9 +87,11 @@ func (h *UserHandler) GetPreferences(w http.ResponseWriter, r *http.Request) {
 				ID:              primitive.NewObjectID(),
 				UserID:          userID,
 				Times:           []models.TimeRange{},
+				WeekdayTimes:    []models.TimeRange{{Start: "18:00", End: "20:00"}},
+				WeekendTimes:    []models.TimeRange{{Start: "09:00", End: "11:00"}},
 				PreferredVenues: []string{},
 				ExcludedVenues:  []string{},
-				PreferredDays:   []string{},
+				PreferredDays:   []string{"monday", "tuesday", "wednesday", "thursday", "friday"},
 				MaxPrice:        100.0,
 				NotificationSettings: models.NotificationSettings{
 					Email:                true,
@@ -164,7 +166,7 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 
 	// Check if preferences exist
 	var existingPreferences models.UserPreferences
-	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&existingPreferences)
+	err = collection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&existingPreferences)
 
 	if err != nil && err != mongo.ErrNoDocuments {
 		http.Error(w, "Failed to check existing preferences", http.StatusInternalServerError)
@@ -260,7 +262,7 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 
 	update := bson.M{"$set": updateFields}
 
-	result, err := collection.UpdateOne(ctx, bson.M{"userId": userID}, update)
+	result, err := collection.UpdateOne(ctx, bson.M{"user_id": userID}, update)
 	if err != nil {
 		http.Error(w, "Failed to update preferences", http.StatusInternalServerError)
 		return
@@ -273,7 +275,7 @@ func (h *UserHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) 
 
 	// Fetch updated preferences
 	var updatedPreferences models.UserPreferences
-	err = collection.FindOne(ctx, bson.M{"userId": userID}).Decode(&updatedPreferences)
+	err = collection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&updatedPreferences)
 	if err != nil {
 		http.Error(w, "Failed to fetch updated preferences", http.StatusInternalServerError)
 		return

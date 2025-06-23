@@ -162,3 +162,4 @@ yarn-error.log*
 
 # Keep directories
 !.gitkeep
+apps/backend/bin

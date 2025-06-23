@@ -40,7 +40,7 @@ export const userApi = {
     try {
       console.log('📋 UserAPI: Fetching user preferences...')
       // Use the dedicated preferences endpoint
-      const response = await apiClient.get('/users/preferences')
+      const response = await apiClient.get('/api/users/preferences')
       console.log('✅ UserAPI: Successfully fetched preferences:', response.data)
       return response.data
     } catch (error) {
@@ -57,7 +57,7 @@ export const userApi = {
     try {
       console.log('💾 UserAPI: Updating user preferences:', preferences)
       // Send preferences directly to backend (no transformation needed)
-      const response = await apiClient.put('/users/preferences', preferences)
+      const response = await apiClient.put('/api/users/preferences', preferences)
       console.log('✅ UserAPI: Successfully updated preferences:', response.data)
       return response.data
     } catch (error) {

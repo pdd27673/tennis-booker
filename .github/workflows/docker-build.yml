@@ -24,13 +24,13 @@ jobs:
         service: [backend, frontend, scraper]
         include:
           - service: backend
-            dockerfile: apps/backend/Dockerfile.server
+            dockerfile: Dockerfile.server
             context: apps/backend
           - service: frontend  
-            dockerfile: apps/frontend/Dockerfile
+            dockerfile: Dockerfile
             context: apps/frontend
           - service: scraper
-            dockerfile: apps/scraper/Dockerfile
+            dockerfile: Dockerfile
             context: apps/scraper
     
     steps:
@@ -65,7 +65,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

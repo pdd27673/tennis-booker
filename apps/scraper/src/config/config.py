@@ -52,13 +52,14 @@ class Config:
         """Find the config directory by searching multiple locations"""
         current_dir = Path(__file__).parent
         
-        # Search paths relative to this file
+        # Search paths relative to this file (config.py is in src/config/)
         search_paths = [
-            current_dir / 'config',  # Same directory
-            current_dir.parent / 'config',  # Parent directory (src/config)
+            current_dir,  # src/config directory itself
+            current_dir.parent / 'config',  # src/config (same as above)
             current_dir.parent.parent / 'config',  # apps/scraper/config
             current_dir.parent.parent.parent / 'config',  # apps/config
-            current_dir.parent.parent.parent.parent / 'config',  # project root config
+            current_dir.parent.parent.parent.parent / 'config',  # project root config (tennis-booker/config)
+            Path('/Users/p/Documents/tennis-booker/config'),  # Absolute fallback to project root
         ]
         
         for path in search_paths:

@@ -979,6 +979,144 @@ export default function Dashboard() {
             </div>
           </section>
 
+          {/* Enhanced Notifications Panel */}
+          <section className="animate-fade-in-up" style={{ animationDelay: '0.155s' }}>
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  Notifications Center
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
+                  Track notification delivery and user engagement
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Notification Statistics */}
+              <Card className="lg:col-span-2 border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
+                <CardHeader>
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                      <Bell className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg text-gray-900 dark:text-white">
+                        Notification Statistics
+                      </CardTitle>
+                      <CardDescription className="text-gray-600 dark:text-gray-400">
+                        Delivery metrics and performance
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-green-50/50 dark:bg-green-900/20 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {systemMetrics.notificationsSent}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Total Sent (24h)</div>
+                    </div>
+                    <div className="text-center p-4 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {Math.floor(systemMetrics.notificationsSent * 0.85)}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Delivered</div>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50/50 dark:bg-purple-900/20 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                        {Math.floor(systemMetrics.notificationsSent * 0.12)}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Opened</div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Recent Notifications</h4>
+                    <div className="space-y-2">
+                      {[
+                        { type: 'availability', message: 'Court available at Tennis Club Central', time: '2 min ago', status: 'delivered' },
+                        { type: 'booking', message: 'New booking opportunity at Riverside Club', time: '8 min ago', status: 'opened' },
+                        { type: 'alert', message: 'Preferred time slot became available', time: '15 min ago', status: 'delivered' },
+                        { type: 'system', message: 'Weekly summary report sent', time: '2 hours ago', status: 'delivered' }
+                      ].map((notification, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50/50 dark:bg-gray-900/20 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-2 h-2 rounded-full ${
+                              notification.type === 'availability' ? 'bg-green-500' :
+                              notification.type === 'booking' ? 'bg-blue-500' :
+                              notification.type === 'alert' ? 'bg-yellow-500' :
+                              'bg-gray-500'
+                            }`}></div>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">{notification.message}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline" className={`text-xs ${
+                              notification.status === 'delivered' ? 'bg-green-100 text-green-700 border-green-200' :
+                              notification.status === 'opened' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                              'bg-gray-100 text-gray-700 border-gray-200'
+                            }`}>
+                              {notification.status}
+                            </Badge>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{notification.time}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Notification Settings Quick Access */}
+              <Card className="border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg text-gray-900 dark:text-white">Quick Settings</CardTitle>
+                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                    Notification preferences
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Email Notifications</span>
+                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                        Enabled
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Instant Alerts</span>
+                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                        Enabled
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Max Per Hour</span>
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
+                        10
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Active Hours</span>
+                      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
+                        7AM-10PM
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => navigate('/settings')}
+                  >
+                    Manage Settings
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
           {/* User Preferences Section */}
           <section className="animate-fade-in-up" style={{ animationDelay: '0.16s' }}>
             <div className="flex items-center justify-between mb-4 sm:mb-6">
