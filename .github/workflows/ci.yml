@@ -120,10 +120,34 @@ jobs:
         with:
           fetch-depth: 0  # Full history for secret scanning
       
-      - name: Run Secret Scan
+      - name: Check commit count
+        id: check_commits
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          echo "has_previous_commit=$([[ $COMMIT_COUNT -gt 1 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+      
+      - name: Run Secret Scan (Pull Request)
+        if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: main
+          base: ${{ github.event.repository.default_branch }}
           head: HEAD
+          extra_args: --debug --only-verified
+      
+      - name: Run Secret Scan (Push to Main - Diff)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check_commits.outputs.has_previous_commit == 'true'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: HEAD~1
+          head: HEAD
+          extra_args: --debug --only-verified
+          
+      - name: Run Secret Scan (Push to Main - Full Scan for Initial Commit)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check_commits.outputs.has_previous_commit == 'false'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
           extra_args: --debug --only-verified 
