@@ -9,13 +9,9 @@ packages:
   - unzip
   - htop
   - vim
-  - docker-ce
-  - docker-ce-cli
-  - containerd.io
-  - docker-compose-plugin
 
 runcmd:
-  # Install Docker
+  # Install Docker repository and packages
   - dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
   - dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
   - systemctl start docker
@@ -24,11 +20,11 @@ runcmd:
   
   # Create application directory
   - mkdir -p /opt/${project_name}
-  - chown opc:opc /opt/${project_name}
+  - chown -R opc:opc /opt/${project_name}
   
   # Create data directory for MongoDB
   - mkdir -p /opt/${project_name}/data/mongodb
-  - chown opc:opc /opt/${project_name}/data/mongodb
+  - chown -R opc:opc /opt/${project_name}/data
   
   # Install Docker Compose (standalone)
   - curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -50,7 +46,6 @@ runcmd:
 write_files:
   - path: /opt/${project_name}/setup-volume.sh
     permissions: '0755'
-    owner: opc:opc
     content: |
       #!/bin/bash
       # Script to format and mount the attached block volume
@@ -88,7 +83,6 @@ write_files:
 
   - path: /opt/${project_name}/README.md
     permissions: '0644'
-    owner: opc:opc
     content: |
       # Tennis Booker Server Setup
       

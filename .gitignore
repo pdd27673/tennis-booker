@@ -163,3 +163,6 @@ yarn-error.log*
 # Keep directories
 !.gitkeep
 apps/backend/bin
+SECRETS_BACKUP.txt
+
+./package-lock.json

@@ -88,17 +88,32 @@ jobs:
           cd apps/scraper
           python -m playwright install --with-deps chromium
       
-      - name: Create package
+      - name: Run tests
         run: |
           cd apps/scraper
-          pip install wheel
-          python -m pip install --upgrade build
-          python -m build
+          python -m pytest tests/ -v
+      
+      - name: Validate package structure
+        run: |
+          cd apps/scraper
+          python -m py_compile src/main.py
+          python -c "import sys; sys.path.insert(0, 'src'); from main import main; print('✅ Entry point accessible')"
+      
+      - name: Prepare source artifacts
+        run: |
+          cd apps/scraper
+          mkdir -p dist
+          # Copy source files for deployment
+          cp -r src dist/
+          cp requirements.txt dist/
+          cp README.md dist/
+          cp pyproject.toml dist/
+          echo "✅ Source files prepared for deployment"
       
       - name: Upload scraper artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: scraper-package
+          name: scraper-source
           path: apps/scraper/dist/
           retention-days: 7
   

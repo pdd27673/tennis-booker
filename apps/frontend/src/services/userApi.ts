@@ -2,6 +2,32 @@ import { AxiosError } from 'axios'
 import { apiClient } from './tokenRefreshService'
 import type { UserPreferences } from '@/stores/appStore'
 
+// Notification types
+export interface UserNotification {
+  id: string
+  userId: string
+  venueName: string
+  courtName: string
+  date: string
+  time: string
+  price: number
+  emailSent: boolean
+  emailStatus: string
+  slotKey: string
+  createdAt: string
+  type: string
+}
+
+export interface NotificationResponse {
+  notifications: UserNotification[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 // Default preferences that match backend structure
 const getDefaultPreferences = (): UserPreferences => ({
   times: [],
@@ -76,6 +102,20 @@ export const userApi = {
       console.error('Failed to reset preferences on backend:', error)
       // Return default preferences even if backend call fails
       return getDefaultPreferences()
+    }
+  },
+
+  // Get user notifications
+  async getUserNotifications(page: number = 0, limit: number = 50): Promise<NotificationResponse> {
+    try {
+      console.log(`📩 UserAPI: Fetching notifications page ${page}, limit ${limit}...`)
+      const response = await apiClient.get(`/api/users/notifications?page=${page}&limit=${limit}`)
+      console.log('✅ UserAPI: Successfully fetched notifications:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ UserAPI: Failed to fetch notifications:', error)
+      handleUserError(error as AxiosError)
+      throw error
     }
   },
 }

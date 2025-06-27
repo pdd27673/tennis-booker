@@ -1,0 +1,713 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CourtScout API",
+    "description": "Tennis court monitoring and notification API for London venues",
+    "version": "1.0.0",
+    "contact": {
+      "name": "CourtScout Support",
+      "url": "https://courtscout.com/contact"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api",
+      "description": "Development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication and authorization"
+    },
+    {
+      "name": "Courts",
+      "description": "Tennis court availability and booking information"
+    },
+    {
+      "name": "Venues",
+      "description": "Tennis venue management"
+    },
+    {
+      "name": "Users",
+      "description": "User profile and preferences management"
+    },
+    {
+      "name": "System",
+      "description": "System health and monitoring"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Health check endpoint",
+        "description": "Returns the health status of the API and connected services",
+        "responses": {
+          "200": {
+            "description": "System is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "1.0.0"
+                    },
+                    "services": {
+                      "type": "object",
+                      "properties": {
+                        "database": {
+                          "type": "boolean"
+                        },
+                        "vault": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User login",
+        "description": "Authenticate user with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "password123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User registration",
+        "description": "Create a new user account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["firstName", "lastName", "email", "password"],
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "example": "John"
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "example": "Doe"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john.doe@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "password123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "409": {
+            "description": "User already exists"
+          }
+        }
+      }
+    },
+    "/courts/slots": {
+      "get": {
+        "tags": ["Courts"],
+        "summary": "Get available court slots",
+        "description": "Retrieve available tennis court slots with optional filtering",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of slots to return",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "venue",
+            "in": "query",
+            "description": "Filter by venue name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Filter by date (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of available court slots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CourtSlot"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/courts/stats": {
+      "get": {
+        "tags": ["Courts"],
+        "summary": "Get dashboard statistics",
+        "description": "Retrieve court monitoring statistics for dashboard",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "activeCourts": {
+                      "type": "integer",
+                      "description": "Number of courts currently monitored"
+                    },
+                    "availableSlots": {
+                      "type": "integer",
+                      "description": "Number of available slots today"
+                    },
+                    "totalVenues": {
+                      "type": "integer",
+                      "description": "Total number of venues being monitored"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/venues": {
+      "get": {
+        "tags": ["Venues"],
+        "summary": "Get all venues",
+        "description": "Retrieve list of all tennis venues",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of venues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Venue"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/users/preferences": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user preferences",
+        "description": "Retrieve current user's notification and court preferences",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPreferences"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update user preferences",
+        "description": "Update current user's notification and court preferences",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPreferences"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferences updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPreferences"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/system/status": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Get system status",
+        "description": "Retrieve monitoring system status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "System status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["RUNNING", "PAUSED", "ERROR", "MAINTENANCE"]
+                    },
+                    "uptime": {
+                      "type": "string",
+                      "description": "System uptime"
+                    },
+                    "lastScrapeTime": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/system/logs": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Get scraping logs",
+        "description": "Retrieve recent scraping operation logs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of logs to return",
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scraping logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScrapingLog"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CourtSlot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "courtName": {
+            "type": "string",
+            "example": "Court 1"
+          },
+          "venue": {
+            "type": "string",
+            "example": "Victoria Park Tennis Centre"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "time",
+            "example": "18:00"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "time",
+            "example": "19:00"
+          },
+          "price": {
+            "type": "number",
+            "format": "float",
+            "example": 25.00
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "bookingUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Venue": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Victoria Park Tennis Centre"
+          },
+          "location": {
+            "type": "string",
+            "example": "London"
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["courtsides", "lta_clubspark"],
+            "example": "courtsides"
+          },
+          "courts": {
+            "type": "integer",
+            "example": 4
+          },
+          "bookingUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "UserPreferences": {
+        "type": "object",
+        "properties": {
+          "preferredVenues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["Victoria Park", "Stratford Park"]
+          },
+          "weekdayTimes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "format": "time",
+                  "example": "18:00"
+                },
+                "end": {
+                  "type": "string",
+                  "format": "time",
+                  "example": "20:00"
+                }
+              }
+            }
+          },
+          "weekendTimes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "format": "time",
+                  "example": "09:00"
+                },
+                "end": {
+                  "type": "string",
+                  "format": "time",
+                  "example": "11:00"
+                }
+              }
+            }
+          },
+          "maxPrice": {
+            "type": "number",
+            "format": "float",
+            "example": 100.00
+          },
+          "notificationSettings": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "boolean"
+              },
+              "emailAddress": {
+                "type": "string",
+                "format": "email"
+              },
+              "instantAlerts": {
+                "type": "boolean"
+              },
+              "maxAlertsPerHour": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "alertTimeWindowStart": {
+                "type": "string",
+                "format": "time",
+                "example": "07:00"
+              },
+              "alertTimeWindowEnd": {
+                "type": "string",
+                "format": "time",
+                "example": "22:00"
+              }
+            }
+          }
+        }
+      },
+      "ScrapingLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "venueName": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "enum": ["courtsides", "lta_clubspark"]
+          },
+          "scrapeTimestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "slotsFound": {
+            "type": "integer"
+          },
+          "scrapeDurationMs": {
+            "type": "integer"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

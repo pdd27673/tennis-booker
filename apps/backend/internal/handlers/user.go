@@ -5,15 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"tennis-booker/internal/auth"
 	"tennis-booker/internal/database"
 	"tennis-booker/internal/models"
+	"tennis-booker/internal/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // UserHandler handles user-related requests
@@ -44,6 +47,22 @@ type UserPreferencesResponse struct {
 	NotificationSettings models.NotificationSettings `json:"notificationSettings"`
 	CreatedAt            time.Time                   `json:"createdAt"`
 	UpdatedAt            time.Time                   `json:"updatedAt"`
+}
+
+// NotificationHistoryResponse represents a notification history entry for API responses
+type NotificationHistoryResponse struct {
+	ID           string    `json:"id"`
+	UserID       string    `json:"userId"`
+	VenueName    string    `json:"venueName"`
+	CourtName    string    `json:"courtName"`
+	Date         string    `json:"date"`
+	Time         string    `json:"time"`
+	Price        float64   `json:"price"`
+	EmailSent    bool      `json:"emailSent"`
+	EmailStatus  string    `json:"emailStatus"`
+	SlotKey      string    `json:"slotKey"`
+	CreatedAt    time.Time `json:"createdAt"`
+	Type         string    `json:"type"`
 }
 
 // UpdatePreferencesRequest represents a request to update user preferences
@@ -377,4 +396,99 @@ func (h *UserHandler) writeErrorResponse(w http.ResponseWriter, message string, 
 	}
 
 	json.NewEncoder(w).Encode(errorResp)
+}
+
+// GetNotifications handles GET /api/users/notifications
+func (h *UserHandler) GetNotifications(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context using the proper utility
+	userID, ok := utils.RequireAuth(w, r)
+	if !ok {
+		return // RequireAuth already wrote the error response
+	}
+
+	// Parse query parameters
+	limit := int64(50) // default limit
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 64); err == nil {
+			if parsedLimit > 0 && parsedLimit <= 100 {
+				limit = parsedLimit
+			}
+		}
+	}
+
+	page := int64(0) // default page
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		if parsedPage, err := strconv.ParseInt(pageStr, 10, 64); err == nil {
+			if parsedPage >= 0 {
+				page = parsedPage
+			}
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := h.db.Collection("alert_history")
+	
+	// Find notifications for this user
+	filter := bson.M{"user_id": userID}
+	opts := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}}). // Sort by newest first
+		SetLimit(limit).
+		SetSkip(page * limit)
+
+	cursor, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		http.Error(w, "Failed to fetch notifications", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var notifications []NotificationHistoryResponse
+	for cursor.Next(ctx) {
+		var alert models.AlertHistory
+		if err := cursor.Decode(&alert); err != nil {
+			continue // Skip invalid entries
+		}
+
+		notification := NotificationHistoryResponse{
+			ID:          alert.ID.Hex(),
+			UserID:      alert.UserID.Hex(),
+			VenueName:   alert.VenueName,
+			CourtName:   alert.CourtName,
+			Date:        alert.SlotDate,
+			Time:        alert.SlotStartTime,
+			Price:       alert.Price,
+			EmailSent:   alert.EmailStatus == "sent" || alert.EmailStatus == "delivered",
+			EmailStatus: alert.EmailStatus,
+			SlotKey:     alert.SlotKey,
+			CreatedAt:   alert.CreatedAt,
+			Type:        "availability", // Default type for court availability notifications
+		}
+		notifications = append(notifications, notification)
+	}
+
+	if err := cursor.Err(); err != nil {
+		http.Error(w, "Error reading notifications", http.StatusInternalServerError)
+		return
+	}
+
+	// Get total count for pagination
+	totalCount, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		totalCount = 0 // Continue without count if it fails
+	}
+
+	response := map[string]interface{}{
+		"notifications": notifications,
+		"pagination": map[string]interface{}{
+			"page":       page,
+			"limit":      limit,
+			"total":      totalCount,
+			"totalPages": (totalCount + limit - 1) / limit,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

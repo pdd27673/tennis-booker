@@ -60,7 +60,7 @@ services:
   backend:
     build:
       context: apps/backend
-      dockerfile: Dockerfile.server
+      dockerfile: Dockerfile
     container_name: tennis-backend
     restart: unless-stopped
     environment:
@@ -72,6 +72,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - PORT=8080
       - GIN_MODE=release
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN_NAME},https://www.${DOMAIN_NAME}}
+      - DOMAIN_NAME=${DOMAIN_NAME}
     depends_on:
       mongodb:
         condition: service_healthy

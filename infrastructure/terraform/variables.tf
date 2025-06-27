@@ -110,4 +110,17 @@ variable "block_volume_size_in_gbs" {
   description = "Size of the block volume in GBs (Always Free: up to 200GB total)"
   type        = number
   default     = 50
+}
+
+# Domain Configuration
+variable "domain_name" {
+  description = "Domain name for the application"
+  type        = string
+  default     = ""
+}
+
+variable "acme_email" {
+  description = "Email address for Let's Encrypt certificate notifications"
+  type        = string
+  default     = ""
 } 

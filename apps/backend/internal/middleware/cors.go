@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -21,6 +22,16 @@ func CORSMiddleware() func(http.Handler) http.Handler {
 				"http://127.0.0.1:8080",
 			}
 
+			// Add production frontend URL from environment
+			if frontendURL := os.Getenv("FRONTEND_URL"); frontendURL != "" {
+				allowedOrigins = append(allowedOrigins, frontendURL)
+			}
+
+			// Add Vercel preview deployment domains (pattern: https://*-username.vercel.app)
+			if strings.Contains(origin, ".vercel.app") {
+				allowedOrigins = append(allowedOrigins, origin)
+			}
+
 			// Check if origin is allowed
 			isAllowed := false
 			for _, allowedOrigin := range allowedOrigins {
@@ -30,7 +41,7 @@ func CORSMiddleware() func(http.Handler) http.Handler {
 				}
 			}
 
-			// For development, be more permissive
+			// For development, be more permissive with localhost
 			if !isAllowed && (strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1")) {
 				isAllowed = true
 			}

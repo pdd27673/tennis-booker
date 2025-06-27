@@ -7,14 +7,16 @@ terraform {
     }
   }
 
-  backend "oci" {
-    # Configuration will be provided via backend.conf file
-    # bucket = "terraform-state-bucket"
-    # namespace = "your-namespace"
-    # key = "tennis-booker/dev/terraform.tfstate"
-    # region = "us-ashburn-1"
-    # encrypt = true
-  }
+  # backend "oci" {
+  #   # Configuration will be provided via backend.conf file
+  #   # bucket = "terraform-state-bucket"
+  #   # namespace = "your-namespace"
+  #   # key = "tennis-booker/dev/terraform.tfstate"
+  #   # region = "us-ashburn-1"
+  #   # encrypt = true
+  # }
+  
+  # Using local backend for now
 }
 
 # Configure the OCI Provider

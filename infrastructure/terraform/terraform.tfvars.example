@@ -26,4 +26,8 @@ instance_memory_in_gbs  = 12 # Max 24GB total across all instances
 ssh_public_key          = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... your-public-key"
 
 # Storage Configuration
-block_volume_size_in_gbs = 50 # Max 200GB total across all volumes 
+block_volume_size_in_gbs = 50 # Max 200GB total across all volumes
+
+# Domain Configuration (for production deployment)
+domain_name = "yourdomain.com"  # Your domain for the application
+acme_email  = "your-email@domain.com"  # For Let's Encrypt certificates 

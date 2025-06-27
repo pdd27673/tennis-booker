@@ -1,6 +1,8 @@
 # Tennis Booker Backend
 
-A comprehensive Go backend service for the Tennis Booker application, featuring authentication, rate limiting, database management, and notification services.
+Go backend service for Tennis Booker with JWT authentication, rate limiting, and MongoDB integration.
+
+> **Note:** For general project setup and deployment instructions, see the [main README](../../README.md) and [deployment documentation](../../docs/DEPLOYMENT.md).
 
 ## 🏗️ Architecture Overview
 

@@ -21,7 +21,7 @@
   },
   "scraper": {
     "interval": 300,
-    "timeout": 30
+    "timeout": 5
   },
   "notification": {
     "emailRateLimit": 50,

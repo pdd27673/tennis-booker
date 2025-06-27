@@ -1,6 +1,11 @@
-# Tennis Booker
+# 🎾 Tennis Booker
 
-A full-stack tennis court booking and monitoring system with real-time availability tracking, user authentication, and system control features.
+A full-stack tennis court booking and monitoring system with real-time availability tracking, user authentication, and automated court scraping.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go](https://img.shields.io/badge/Go-1.19+-blue.svg)](https://golang.org)
+[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 
 ## 🏗️ Architecture Overview
 
@@ -109,9 +114,7 @@ cd apps/backend
 
 ### Default Login Credentials
 
-After seeding, you can login with:
-- **Email**: `demo@example.com`
-- **Password**: Use the register flow to create your account
+After running the setup, create your account using the registration flow at http://localhost:5173
 
 ## 🔧 Backend-Frontend Integration
 
@@ -296,29 +299,12 @@ tennis-booker/
 
 ## 🚀 Deployment
 
-### Frontend Deployment
+For detailed deployment instructions, see the [deployment documentation](docs/DEPLOYMENT.md).
 
-```bash
-cd apps/frontend
-npm run build
-# Deploy dist/ folder to your hosting provider
-```
-
-### Backend Deployment
-
-```bash
-cd apps/backend
-make build
-# Deploy the binary with appropriate environment variables
-```
-
-### Environment Variables for Production
-
-Ensure these are set in production:
-
-- `VITE_API_URL` - Production API URL
-- `VITE_MOCK_API_ENABLED=false` - Disable mock APIs
-- Backend JWT secrets and database connections
+**Quick summary:**
+- **Backend**: Oracle Cloud Infrastructure (OCI) with Docker Compose
+- **Frontend**: Vercel with global CDN
+- **Cost**: Free tier eligible (~$0/month for small usage)
 
 ## 🤝 Contributing
 

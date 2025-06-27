@@ -50,14 +50,20 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Sign In
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 px-4">
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
+        <CardHeader className="space-y-4 text-center">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="text-3xl">🎾</div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              CourtScout
+            </span>
+          </div>
+          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+            Welcome Back
           </CardTitle>
-          <CardDescription className="text-center">
-            Enter your credentials to access your account
+          <CardDescription className="text-gray-600 dark:text-gray-400">
+            Sign in to continue monitoring your tennis courts
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,7 +115,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
@@ -117,16 +123,26 @@ export default function Login() {
             </form>
           </Form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Don't have an account?{' '}
+          <div className="mt-6 space-y-4">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Don't have an account?{' '}
+                <Link
+                  to="/register"
+                  className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  Sign up for free
+                </Link>
+              </p>
+            </div>
+            <div className="text-center">
               <Link
-                to="/register"
-                className="font-medium text-primary hover:underline"
+                to="/"
+                className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
               >
-                Sign up
+                ← Back to Home
               </Link>
-            </p>
+            </div>
           </div>
 
 

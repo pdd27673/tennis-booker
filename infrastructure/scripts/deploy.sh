@@ -120,7 +120,7 @@ setup_duckdns() {
     log "Setting up DuckDNS..."
     
     # Update DuckDNS with current IP
-    ./infrastructure/scripts/update-duckdns.sh
+    echo "DuckDNS update script not available - configure manually if needed"
     
     # Install systemd service for automatic updates
     sudo cp infrastructure/systemd/duckdns-update.service /etc/systemd/system/
@@ -241,8 +241,8 @@ show_info() {
     echo "=== Useful Commands ==="
     echo "View logs: docker-compose -f docker-compose.prod.yml logs -f [service]"
     echo "Restart services: docker-compose -f docker-compose.prod.yml restart"
-    echo "Update services: ./infrastructure/scripts/update.sh"
-    echo "Backup data: ./infrastructure/scripts/backup.sh"
+    echo "Update services: docker-compose -f docker-compose.prod.yml pull && docker-compose -f docker-compose.prod.yml up -d"
+    echo "Backup data: Configure your own backup solution"
     echo
     echo "=== SSL Certificate ==="
     echo "Let's Encrypt certificates will be automatically generated on first access."

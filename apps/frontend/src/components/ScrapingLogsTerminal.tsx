@@ -13,7 +13,7 @@ const ScrapingLogsTerminal: React.FC<ScrapingLogsTerminalProps> = ({ className =
   const [filter, setFilter] = useState<'all' | 'success' | 'error'>('all')
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false)
   const terminalRef = useRef<HTMLDivElement>(null)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchLogs = async () => {
     try {

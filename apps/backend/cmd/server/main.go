@@ -134,6 +134,7 @@ func main() {
 	userRouter.Use(middleware.JWTMiddleware(jwtService))
 	userRouter.HandleFunc("/preferences", userHandler.GetPreferences).Methods("GET", "OPTIONS")
 	userRouter.HandleFunc("/preferences", userHandler.UpdatePreferences).Methods("PUT", "OPTIONS")
+	userRouter.HandleFunc("/notifications", userHandler.GetNotifications).Methods("GET", "OPTIONS")
 
 	// Court endpoints
 	courtRouter := router.PathPrefix("/api").Subrouter()

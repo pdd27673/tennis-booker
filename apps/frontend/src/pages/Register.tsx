@@ -53,14 +53,20 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Create Account
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 px-4">
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
+        <CardHeader className="space-y-4 text-center">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="text-3xl">🎾</div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              CourtScout
+            </span>
+          </div>
+          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+            Join CourtScout
           </CardTitle>
-          <CardDescription className="text-center">
-            Enter your information to create a new account
+          <CardDescription className="text-gray-600 dark:text-gray-400">
+            Start monitoring tennis courts for free
           </CardDescription>
         </CardHeader>
         <CardContent>

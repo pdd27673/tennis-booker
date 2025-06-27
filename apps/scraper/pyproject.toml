@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tennis-booker-scraper"
+version = "1.0.0"
+description = "Tennis court booking scraper service"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Tennis Booker Team", email = "team@tennisbooker.com"}
+]
+keywords = ["tennis", "booking", "scraper", "courts"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "playwright>=1.48.0",
+    "pymongo>=4.6.2",
+    "redis>=5.0.1",
+    "python-dotenv>=1.0.1",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.3",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.23.5",
+    "pytest-mock>=3.12.0",
+    "pytest-playwright>=0.4.0",
+]
+dev = [
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/tennis-booker"
+Documentation = "https://github.com/yourusername/tennis-booker/blob/main/apps/scraper/README.md"
+Repository = "https://github.com/yourusername/tennis-booker.git"
+Issues = "https://github.com/yourusername/tennis-booker/issues"
+
+[project.scripts]
+tennis-scraper = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true 

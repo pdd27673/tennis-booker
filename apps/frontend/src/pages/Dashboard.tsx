@@ -499,18 +499,27 @@ export default function Dashboard() {
                 <div className="text-3xl sm:text-4xl">🎾</div>
                 <div className="flex-1 min-w-0">
                   <TextGenerateEffect 
-                    words="Tennis Court Monitor"
-                    className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white truncate"
+                    words="CourtScout Dashboard"
+                    className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate"
                     duration={0.3}
                     filter={false}
                   />
                   <p className="text-gray-600 dark:text-gray-400 mt-1 animate-fade-in text-sm sm:text-base truncate">
-                    Welcome back, <span className="font-medium text-gray-900 dark:text-gray-100">{user?.name}</span>!
+                    Welcome back, <span className="font-medium text-gray-900 dark:text-gray-100">{user?.name}</span>! 
+                    <span className="ml-2 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full">Live</span>
                   </p>
                 </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/notifications')}
+                className="hover:scale-105 transition-transform duration-200 text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2"
+                size="sm"
+              >
+                Notifications
+              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/settings')}
@@ -645,18 +654,25 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Active Courts */}
+              {/* Courts Monitored */}
               <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Active Courts</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    Courts Monitored
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                    {isLoading ? '...' : dashboardStats.activeCourts}
+                    {isLoading ? '...' : dashboardStats.totalVenues || '50+'}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Courts currently in use
+                    Venues being tracked
                   </p>
+                  <div className="mt-2 flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-blue-600 dark:text-blue-400">Live monitoring</span>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -678,7 +694,10 @@ export default function Dashboard() {
               {/* Notifications Sent */}
               <Card className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Notifications</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Bell className="w-4 h-4" />
+                    Notifications Sent
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -687,6 +706,10 @@ export default function Dashboard() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Sent in last 24h
                   </p>
+                  <div className="mt-2 flex items-center gap-1">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-purple-600 dark:text-purple-400">Active</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
