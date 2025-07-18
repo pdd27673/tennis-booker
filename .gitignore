@@ -160,6 +160,9 @@ yarn-error.log*
 .taskmaster/tasks/*.md
 !.taskmaster/tasks/tasks.json
 
+# Operations Documentation
+.runbook.md
+
 # Keep directories
 !.gitkeep
 apps/backend/bin
