@@ -53,7 +53,7 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017
       - MONGO_DB_NAME=tennis_booking
-      - REDIS_HOST=redis
+      - REDIS_HOST=tennis-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - SCRAPER_INTERVAL_MINUTES=5

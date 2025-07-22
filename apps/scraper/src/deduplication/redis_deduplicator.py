@@ -8,6 +8,7 @@ with expiring keys to prevent reprocessing of recently seen slots.
 import redis
 import logging
 import hashlib
+import os
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 
@@ -21,8 +22,8 @@ class RedisDeduplicator:
     """
     
     def __init__(self, 
-                 redis_host: str = 'localhost', 
-                 redis_port: int = 6379, 
+                 redis_host: Optional[str] = None, 
+                 redis_port: Optional[int] = None, 
                  redis_password: Optional[str] = None, 
                  redis_db: int = 0,
                  expiry_hours: int = 48):
@@ -30,12 +31,21 @@ class RedisDeduplicator:
         Initialize the Redis deduplicator.
         
         Args:
-            redis_host: Redis server hostname
-            redis_port: Redis server port
-            redis_password: Redis password (optional)
+            redis_host: Redis server hostname (uses REDIS_HOST env var or 'tennis-redis' if None)
+            redis_port: Redis server port (uses REDIS_PORT env var or 6379 if None)
+            redis_password: Redis password (uses REDIS_PASSWORD env var if None)
             redis_db: Redis database number
             expiry_hours: Hours to keep deduplication keys (default: 48)
         """
+        # Use environment variables with fallback to Docker service names
+        if redis_host is None:
+            redis_host = os.getenv('REDIS_HOST', 'tennis-redis')
+        if redis_port is None:
+            redis_port = int(os.getenv('REDIS_PORT', '6379'))
+        if redis_password is None:
+            redis_password = os.getenv('REDIS_PASSWORD')
+            
+        # Initialize with resolved values
         self.redis_host = redis_host
         self.redis_port = redis_port
         self.redis_password = redis_password

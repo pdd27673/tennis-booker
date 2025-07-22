@@ -1,13 +1,23 @@
 import redis
 import json
 import logging
+import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 
 class RedisPublisher:
     """Redis publisher for sending slot notifications to the notification service"""
     
-    def __init__(self, redis_host='localhost', redis_port=6379, redis_password=None, redis_db=0):
+    def __init__(self, redis_host=None, redis_port=None, redis_password=None, redis_db=0):
+        # Use environment variables with fallback to Docker service names
+        if redis_host is None:
+            redis_host = os.getenv('REDIS_HOST', 'tennis-redis')
+        if redis_port is None:
+            redis_port = int(os.getenv('REDIS_PORT', '6379'))
+        if redis_password is None:
+            redis_password = os.getenv('REDIS_PASSWORD')
+            
+        # Initialize with resolved values
         self.redis_host = redis_host
         self.redis_port = redis_port
         self.redis_password = redis_password

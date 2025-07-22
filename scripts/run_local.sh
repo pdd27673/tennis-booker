@@ -365,7 +365,8 @@ start_scraper() {
     mkdir -p "$PROJECT_ROOT/logs"
     
     # Set environment variables for scraper
-    export MONGO_URI="${MONGO_URI}"
+    export MONGO_URI="mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@localhost:27017/${DB_NAME}?authSource=admin"
+    export MONGO_DB_NAME="${DB_NAME}"
     export REDIS_HOST="localhost"
     export REDIS_PORT="6379"
     export REDIS_PASSWORD="${REDIS_PASSWORD}"
