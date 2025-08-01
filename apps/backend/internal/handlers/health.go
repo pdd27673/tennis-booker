@@ -32,7 +32,6 @@ type HealthResponse struct {
 	Version   string    `json:"version"`
 	Services  struct {
 		Database bool `json:"database"`
-		Vault    bool `json:"vault"`
 	} `json:"services"`
 }
 
@@ -56,15 +55,13 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 		Version:   getVersion(), // Get from build info or environment
 		Services: struct {
 			Database bool `json:"database"`
-			Vault    bool `json:"vault"`
 		}{
 			Database: h.checkDatabase(),
-			Vault:    h.checkVault(),
 		},
 	}
 
 	// If any service is down, mark as unhealthy
-	if !response.Services.Database || !response.Services.Vault {
+	if !response.Services.Database {
 		response.Status = "unhealthy"
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
@@ -90,18 +87,6 @@ func (h *HealthHandler) SystemHealth(w http.ResponseWriter, r *http.Request) {
 		}(),
 	}
 
-	// Check Vault
-	vaultStatus := h.checkVault()
-	services["vault"] = map[string]interface{}{
-		"status": vaultStatus,
-		"type":   "hashicorp-vault",
-		"message": func() string {
-			if vaultStatus {
-				return "Connected and accessible"
-			}
-			return "Connection failed"
-		}(),
-	}
 
 	// Calculate uptime
 	uptime := time.Since(startTime)
@@ -148,16 +133,6 @@ func (h *HealthHandler) checkDatabase() bool {
 	return h.db.Ping(ctx) == nil
 }
 
-// checkVault verifies Vault connectivity
-func (h *HealthHandler) checkVault() bool {
-	if h.secretsManager == nil {
-		return false
-	}
-
-	// Try to get a secret to verify connectivity
-	_, err := h.secretsManager.GetSecret("secret/data/tennisapp/prod/jwt", "secret")
-	return err == nil
-}
 
 // Helper functions for version and environment
 func getVersion() string {

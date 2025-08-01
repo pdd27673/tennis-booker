@@ -20,7 +20,7 @@ func main() {
 	verify := flag.Bool("verify", false, "Only verify indexes without creating them")
 	verbose := flag.Bool("verbose", false, "Show detailed index information")
 	envFile := flag.String("env", ".env", "Path to .env file")
-	useVault := flag.Bool("vault", true, "Use Vault for database credentials (default: true)")
+	useSecrets := flag.Bool("secrets", true, "Use secrets manager for database credentials (default: true)")
 	flag.Parse()
 
 	// Load environment variables
@@ -31,9 +31,9 @@ func main() {
 
 	var db *mongo.Database
 
-	if *useVault {
-		// Try to use Vault for database connection
-		log.Println("Attempting to connect to database using Vault credentials...")
+	if *useSecrets {
+		// Try to use secrets manager for database connection
+		log.Println("Attempting to connect to database using secrets manager...")
 
 		connectionManager, err := database.NewConnectionManagerFromEnv()
 		if err != nil {
@@ -48,7 +48,7 @@ func main() {
 				log.Fatalf("Failed to connect to MongoDB: %v", err)
 			}
 			db = database
-			log.Println("✅ Connected to MongoDB using Vault credentials")
+			log.Println("✅ Connected to MongoDB using environment variables")
 		}
 	} else {
 		// Use environment variables directly

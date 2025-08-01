@@ -21,7 +21,7 @@ type DatabaseConfig struct {
 	Port     string
 }
 
-// ConnectionManager manages database connections with Vault integration
+// ConnectionManager manages database connections using environment variables
 type ConnectionManager struct {
 	secretsManager *secrets.SecretsManager
 	config         *DatabaseConfig
@@ -34,7 +34,7 @@ func NewConnectionManager(secretsManager *secrets.SecretsManager) *ConnectionMan
 	}
 }
 
-// NewConnectionManagerFromEnv creates a connection manager using environment variables for Vault
+// NewConnectionManagerFromEnv creates a connection manager using environment variables
 func NewConnectionManagerFromEnv() (*ConnectionManager, error) {
 	secretsManager, err := secrets.NewSecretsManagerFromEnv()
 	if err != nil {
@@ -44,11 +44,11 @@ func NewConnectionManagerFromEnv() (*ConnectionManager, error) {
 	return NewConnectionManager(secretsManager), nil
 }
 
-// LoadConfig loads database configuration from Vault
+// LoadConfig loads database configuration from environment variables
 func (cm *ConnectionManager) LoadConfig() error {
 	username, password, host, database, err := cm.secretsManager.GetDBCredentials()
 	if err != nil {
-		return fmt.Errorf("failed to load database credentials from vault: %w", err)
+		return fmt.Errorf("failed to load database credentials: %w", err)
 	}
 
 	// Set default port if not specified in host
@@ -76,7 +76,12 @@ func (cm *ConnectionManager) GetConnectionURI() (string, error) {
 		}
 	}
 
-	// Build MongoDB URI
+	// If host contains a full URI (from MONGO_URI), return it directly
+	if cm.config.Host != "" && (len(cm.config.Host) > 10 && cm.config.Host[:10] == "mongodb://") {
+		return cm.config.Host, nil
+	}
+
+	// Build MongoDB URI from components
 	// Format: mongodb://username:password@host:port/database
 	if cm.config.Username != "" && cm.config.Password != "" {
 		return fmt.Sprintf("mongodb://%s:%s@%s:%s",
@@ -106,9 +111,9 @@ func (cm *ConnectionManager) GetDatabaseName() (string, error) {
 	return cm.config.Database, nil
 }
 
-// Connect establishes a connection to MongoDB using Vault credentials
+// Connect establishes a connection to MongoDB using environment variables
 func (cm *ConnectionManager) Connect() (*mongo.Database, error) {
-	// Load configuration from Vault
+	// Load configuration from environment variables
 	if err := cm.LoadConfig(); err != nil {
 		return nil, fmt.Errorf("failed to load database configuration: %w", err)
 	}
@@ -132,19 +137,19 @@ func (cm *ConnectionManager) Connect() (*mongo.Database, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	log.Println("✅ Successfully connected to MongoDB using Vault credentials")
+	log.Println("✅ Successfully connected to MongoDB using environment variables")
 	return db, nil
 }
 
-// ConnectWithFallback attempts to connect using Vault credentials, with fallback to environment variables
+// ConnectWithFallback attempts to connect using environment variables, with fallback to direct environment access
 func (cm *ConnectionManager) ConnectWithFallback() (*mongo.Database, error) {
-	// Try Vault first
+	// Try main connection first
 	db, err := cm.Connect()
 	if err != nil {
-		log.Printf("⚠️ Failed to connect using Vault credentials: %v", err)
-		log.Println("🔄 Attempting fallback to environment variables...")
+		log.Printf("⚠️ Failed to connect using managed credentials: %v", err)
+		log.Println("🔄 Attempting fallback to direct environment variables...")
 
-		// Fallback to environment variables
+		// Fallback to direct environment variables
 		return cm.connectFromEnv()
 	}
 

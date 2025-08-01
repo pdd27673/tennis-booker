@@ -2,215 +2,177 @@ package secrets
 
 import (
 	"fmt"
+	"os"
 	"sync"
-
-	"tennis-booker/internal/auth"
 )
 
-// SecretsManager encapsulates the Vault client and provides methods to fetch secrets
+// SecretsManager provides methods to fetch secrets from environment variables
 type SecretsManager struct {
-	client *auth.VaultClient
-	cache  map[string]map[string]interface{}
-	mutex  sync.RWMutex
+	cache map[string]string
+	mutex sync.RWMutex
 }
 
-// NewSecretsManager creates a new SecretsManager with the provided Vault client
-func NewSecretsManager(client *auth.VaultClient) *SecretsManager {
+// NewSecretsManager creates a new SecretsManager
+func NewSecretsManager() *SecretsManager {
 	return &SecretsManager{
-		client: client,
-		cache:  make(map[string]map[string]interface{}),
+		cache: make(map[string]string),
 	}
 }
 
 // NewSecretsManagerFromEnv creates a new SecretsManager using environment variables
 func NewSecretsManagerFromEnv() (*SecretsManager, error) {
-	client, err := auth.NewVaultClientFromEnv()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create vault client: %w", err)
-	}
-
-	return NewSecretsManager(client), nil
+	return NewSecretsManager(), nil
 }
 
-// GetSecret retrieves a specific secret value by path and key
-func (sm *SecretsManager) GetSecret(path string, key string) (string, error) {
+// GetSecret retrieves a secret value from environment variables
+func (sm *SecretsManager) GetSecret(envKey string) (string, error) {
 	// Check cache first
 	sm.mutex.RLock()
-	if secretData, exists := sm.cache[path]; exists {
-		if value, keyExists := secretData[key]; keyExists {
-			sm.mutex.RUnlock()
-			if strValue, ok := value.(string); ok {
-				return strValue, nil
-			}
-			return fmt.Sprintf("%v", value), nil
-		}
-		// Key not found in cached data
+	if value, exists := sm.cache[envKey]; exists {
 		sm.mutex.RUnlock()
-		return "", fmt.Errorf("key %s not found in secret at path %s", key, path)
+		return value, nil
 	}
 	sm.mutex.RUnlock()
 
-	// Check if client is available
-	if sm.client == nil {
-		return "", fmt.Errorf("vault client not available")
+	// Get from environment
+	value := os.Getenv(envKey)
+	if value == "" {
+		return "", fmt.Errorf("environment variable %s not found or empty", envKey)
 	}
 
-	// Fetch from Vault
-	secretData, err := sm.client.GetSecret(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch secret from path %s: %w", path, err)
-	}
-
-	// Cache the entire secret data
+	// Cache the value
 	sm.mutex.Lock()
-	sm.cache[path] = secretData
+	sm.cache[envKey] = value
 	sm.mutex.Unlock()
 
-	// Extract the specific key
-	if value, exists := secretData[key]; exists {
-		if strValue, ok := value.(string); ok {
-			return strValue, nil
-		}
-		return fmt.Sprintf("%v", value), nil
-	}
-
-	return "", fmt.Errorf("key %s not found in secret at path %s", key, path)
+	return value, nil
 }
 
-// GetSecretData retrieves all secret data from a path
-func (sm *SecretsManager) GetSecretData(path string) (map[string]interface{}, error) {
-	// Check cache first
-	sm.mutex.RLock()
-	if secretData, exists := sm.cache[path]; exists {
-		sm.mutex.RUnlock()
-		return secretData, nil
-	}
-	sm.mutex.RUnlock()
-
-	// Check if client is available
-	if sm.client == nil {
-		return nil, fmt.Errorf("vault client not available")
-	}
-
-	// Fetch from Vault
-	secretData, err := sm.client.GetSecret(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch secret from path %s: %w", path, err)
-	}
-
-	// Cache the secret data
+// RefreshSecret clears the cache for a specific environment variable
+func (sm *SecretsManager) RefreshSecret(envKey string) {
 	sm.mutex.Lock()
-	sm.cache[path] = secretData
+	delete(sm.cache, envKey)
 	sm.mutex.Unlock()
-
-	return secretData, nil
-}
-
-// RefreshSecret clears the cache for a specific path and forces a reload
-func (sm *SecretsManager) RefreshSecret(path string) error {
-	sm.mutex.Lock()
-	delete(sm.cache, path)
-	sm.mutex.Unlock()
-
-	// Force reload by fetching the secret
-	_, err := sm.GetSecretData(path)
-	return err
 }
 
 // RefreshAllSecrets clears the entire cache
 func (sm *SecretsManager) RefreshAllSecrets() {
 	sm.mutex.Lock()
-	sm.cache = make(map[string]map[string]interface{})
+	sm.cache = make(map[string]string)
 	sm.mutex.Unlock()
 }
 
-// HealthCheck verifies the Vault connection
+// HealthCheck always returns nil since environment variables don't need health checks
 func (sm *SecretsManager) HealthCheck() error {
-	return sm.client.HealthCheck()
+	return nil
 }
 
-// Close closes the underlying Vault client
+// Close is a no-op for environment variables
 func (sm *SecretsManager) Close() error {
-	return sm.client.Close()
+	return nil
 }
 
-// GetClient returns the underlying Vault client
-func (sm *SecretsManager) GetClient() *auth.VaultClient {
-	return sm.client
-}
-
-// Predefined secret paths for the tennis app
+// Environment variable names for common secrets
 const (
-	// Database secrets
-	DBSecretPath = "secret/data/tennisapp/prod/db"
+	// Database environment variables
+	MongoURIEnv      = "MONGO_URI"
+	MongoUsernameEnv = "MONGO_USERNAME"
+	MongoPasswordEnv = "MONGO_PASSWORD"
+	MongoHostEnv     = "MONGO_HOST"
+	MongoDatabaseEnv = "MONGO_DATABASE"
 
-	// JWT secrets
-	JWTSecretPath = "secret/data/tennisapp/prod/jwt"
+	// JWT environment variables
+	JWTSecretEnv = "JWT_SECRET"
 
-	// Email secrets
-	EmailSecretPath = "secret/data/tennisapp/prod/email"
+	// Email environment variables
+	EmailAddressEnv  = "EMAIL_ADDRESS"
+	EmailPasswordEnv = "EMAIL_PASSWORD"
+	SMTPHostEnv      = "SMTP_HOST"
+	SMTPPortEnv      = "SMTP_PORT"
 
-	// Redis secrets
-	RedisSecretPath = "secret/data/tennisapp/prod/redis"
-
-	// API secrets
-	APISecretPath = "secret/data/tennisapp/prod/api"
+	// Redis environment variables
+	RedisAddrEnv     = "REDIS_ADDR"
+	RedisPasswordEnv = "REDIS_PASSWORD"
 
 	// Platform credentials
-	LTACredentialsPath        = "secret/data/tennisapp/prod/platforms/lta"
-	CourtsidesCredentialsPath = "secret/data/tennisapp/prod/platforms/courtsides"
+	LTAUsernameEnv        = "LTA_USERNAME"
+	LTAPasswordEnv        = "LTA_PASSWORD"
+	CourtsideUsernameEnv  = "COURTSIDE_USERNAME"
+	CourtsidePasswordEnv  = "COURTSIDE_PASSWORD"
 
 	// Notification services
-	TwilioCredentialsPath   = "secret/data/tennisapp/prod/notifications/twilio"
-	SendGridCredentialsPath = "secret/data/tennisapp/prod/notifications/sendgrid"
+	TwilioSIDEnv        = "TWILIO_SID"
+	TwilioTokenEnv      = "TWILIO_TOKEN"
+	SendGridAPIKeyEnv   = "SENDGRID_API_KEY"
 )
 
 // Convenience methods for common secrets
 
-// GetDBCredentials retrieves database connection credentials
+// GetDBCredentials retrieves database connection credentials from environment variables
 func (sm *SecretsManager) GetDBCredentials() (username, password, host, database string, err error) {
-	secretData, err := sm.GetSecretData(DBSecretPath)
-	if err != nil {
-		return "", "", "", "", err
+	// Try to get individual components first
+	username, _ = sm.GetSecret(MongoUsernameEnv)
+	password, _ = sm.GetSecret(MongoPasswordEnv)
+	host, _ = sm.GetSecret(MongoHostEnv)
+	database, _ = sm.GetSecret(MongoDatabaseEnv)
+
+	// If we have all components, return them
+	if username != "" && password != "" && host != "" && database != "" {
+		return username, password, host, database, nil
 	}
 
-	username, _ = secretData["username"].(string)
-	password, _ = secretData["password"].(string)
-	host, _ = secretData["host"].(string)
-	database, _ = secretData["database"].(string)
+	// Otherwise, we expect MONGO_URI to be set
+	mongoURI, err := sm.GetSecret(MongoURIEnv)
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("neither individual MongoDB credentials nor MONGO_URI found: %w", err)
+	}
 
-	return username, password, host, database, nil
+	// For MONGO_URI, we'll return it as the host and let the database layer handle parsing
+	return "", "", mongoURI, "", nil
 }
 
 // GetJWTSecret retrieves the JWT signing secret
 func (sm *SecretsManager) GetJWTSecret() (string, error) {
-	return sm.GetSecret(JWTSecretPath, "secret")
+	return sm.GetSecret(JWTSecretEnv)
 }
 
 // GetEmailCredentials retrieves email service credentials
 func (sm *SecretsManager) GetEmailCredentials() (email, password, smtpHost, smtpPort string, err error) {
-	secretData, err := sm.GetSecretData(EmailSecretPath)
+	email, err = sm.GetSecret(EmailAddressEnv)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	email, _ = secretData["email"].(string)
-	password, _ = secretData["password"].(string)
-	smtpHost, _ = secretData["smtp_host"].(string)
-	smtpPort, _ = secretData["smtp_port"].(string)
+	password, err = sm.GetSecret(EmailPasswordEnv)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	smtpHost, err = sm.GetSecret(SMTPHostEnv)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	smtpPort, err = sm.GetSecret(SMTPPortEnv)
+	if err != nil {
+		return "", "", "", "", err
+	}
 
 	return email, password, smtpHost, smtpPort, nil
 }
 
 // GetRedisCredentials retrieves Redis connection credentials
-func (sm *SecretsManager) GetRedisCredentials() (host, password string, err error) {
-	secretData, err := sm.GetSecretData(RedisSecretPath)
+func (sm *SecretsManager) GetRedisCredentials() (addr, password string, err error) {
+	addr, err = sm.GetSecret(RedisAddrEnv)
 	if err != nil {
 		return "", "", err
 	}
 
-	host, _ = secretData["host"].(string)
-	password, _ = secretData["password"].(string)
+	password, err = sm.GetSecret(RedisPasswordEnv)
+	if err != nil {
+		// Redis password is optional
+		password = ""
+	}
 
-	return host, password, nil
+	return addr, password, nil
 }

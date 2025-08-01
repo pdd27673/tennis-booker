@@ -80,14 +80,14 @@ func main() {
 		secretsManager = sm
 		defer secretsManager.Close()
 
-		// Use connection manager for Vault-based connection
+		// Use connection manager for database connection
 		connectionManager := database.NewConnectionManager(secretsManager)
 		mongoDbInstance, err := connectionManager.ConnectWithFallback()
 		if err != nil {
 			logger.Fatal("Failed to connect to database", map[string]interface{}{"error": err.Error()})
 		}
 		mongoDb = database.NewMongoDB(mongoDbInstance)
-		logger.ConnectionInfo("Connected to database using Vault credentials", "mongodb", cfg.MongoDB.Host)
+		logger.ConnectionInfo("Connected to database using environment variables", "mongodb", cfg.MongoDB.Host)
 	}
 
 	// Initialize JWT service

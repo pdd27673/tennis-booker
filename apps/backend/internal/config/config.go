@@ -19,7 +19,6 @@ type Config struct {
 	Email   EmailConfig
 	CORS    CORSConfig
 	Scraper ScraperConfig
-	Vault   VaultConfig
 }
 
 // ServerConfig holds server-specific configuration
@@ -78,11 +77,6 @@ type ScraperConfig struct {
 	Interval int // in minutes
 }
 
-// VaultConfig holds Vault configuration
-type VaultConfig struct {
-	Address string
-	Token   string
-}
 
 // Global configuration instance
 var AppConfig *Config
@@ -147,10 +141,6 @@ func Load() (*Config, error) {
 		Scraper: ScraperConfig{
 			Enabled:  getEnvAsBool("SCRAPER_ENABLED", true),
 			Interval: getEnvAsInt("SCRAPER_INTERVAL", 30), // 30 minutes
-		},
-		Vault: VaultConfig{
-			Address: getEnv("VAULT_ADDR", "http://localhost:8200"),
-			Token:   getEnv("VAULT_TOKEN", ""),
 		},
 	}, nil
 }
@@ -308,14 +298,6 @@ func validateConfig(config *Config) error {
 
 	if config.Scraper.Interval <= 0 {
 		return fmt.Errorf("scraper.interval must be positive")
-	}
-
-	if config.Vault.Address == "" {
-		return fmt.Errorf("vault.address is required")
-	}
-
-	if config.Vault.Token == "" {
-		return fmt.Errorf("vault.token is required")
 	}
 
 	return nil

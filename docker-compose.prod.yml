@@ -68,8 +68,7 @@ services:
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - DB_NAME=tennis_booking
-      - VAULT_ADDR=http://vault:8200
-      - JWT_SECRET=${JWT_SECRET}
+            - JWT_SECRET=${JWT_SECRET}
       - PORT=8080
       - GIN_MODE=release
       - CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN_NAME},https://www.${DOMAIN_NAME}}
@@ -78,8 +77,6 @@ services:
       mongodb:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
     networks:
       - tennis-network
@@ -130,28 +127,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # Vault service for secrets management
-  vault:
-    image: hashicorp/vault:1.16
-    container_name: tennis-vault
-    restart: unless-stopped
-    volumes:
-      - vault_data:/vault/data
-      - ./infrastructure/vault/config:/vault/config:ro
-      - vault_logs:/vault/logs
-    cap_add:
-      - IPC_LOCK
-    environment:
-      - VAULT_ADDR=http://0.0.0.0:8200
-      - VAULT_LOCAL_CONFIG={"storage":{"file":{"path":"/vault/data"}},"listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":true}},"ui":true,"disable_mlock":true}
-    networks:
-      - tennis-network
-    command: server
-    healthcheck:
-      test: ["CMD", "vault", "status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # Application services
   notification-service:
@@ -168,13 +143,10 @@ services:
       - GMAIL_PASSWORD=${GMAIL_PASSWORD}
       - FROM_EMAIL=${FROM_EMAIL}
       - DB_NAME=tennis_booking
-      - VAULT_ADDR=http://vault:8200
-    depends_on:
+          depends_on:
       mongodb:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      vault:
         condition: service_healthy
     networks:
       - tennis-network
@@ -194,12 +166,9 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
-      - VAULT_ADDR=http://vault:8200
-      - SCRAPER_INTERVAL=${SCRAPER_INTERVAL:-300}  # 5 minutes default
+            - SCRAPER_INTERVAL=${SCRAPER_INTERVAL:-300}  # 5 minutes default
     depends_on:
       mongodb:
-        condition: service_healthy
-      vault:
         condition: service_healthy
     networks:
       - tennis-network
@@ -222,11 +191,8 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
-      - VAULT_ADDR=http://vault:8200
-    depends_on:
+          depends_on:
       mongodb:
-        condition: service_healthy
-      vault:
         condition: service_healthy
     networks:
       - tennis-network
@@ -242,12 +208,9 @@ services:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
               - USER_EMAIL=${USER_EMAIL:-mvgnum@gmail.com}
-      - VAULT_ADDR=http://vault:8200
-    depends_on:
+          depends_on:
       seed-db:
         condition: service_completed_successfully
-      vault:
-        condition: service_healthy
     networks:
       - tennis-network
     command: ["./seed-user"]
@@ -259,10 +222,6 @@ volumes:
   mongodb_config:
     driver: local
   redis_data:
-    driver: local
-  vault_data:
-    driver: local
-  vault_logs:
     driver: local
   traefik_letsencrypt:
     driver: local
