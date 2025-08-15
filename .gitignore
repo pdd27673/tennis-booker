@@ -169,3 +169,8 @@ apps/backend/bin
 SECRETS_BACKUP.txt
 
 ./package-lock.json
+.taskmaster/config.json
+.taskmaster/state.json
+.taskmaster/reports/task-complexity-report.json
+.taskmaster/tasks/tasks.json
+.taskmaster/templates/example_prd.txt
