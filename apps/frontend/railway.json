@@ -3,7 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
-    "root": "apps/frontend"
+    "root": "/apps/frontend"
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",

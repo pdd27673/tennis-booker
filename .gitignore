@@ -174,3 +174,4 @@ SECRETS_BACKUP.txt
 .taskmaster/reports/task-complexity-report.json
 .taskmaster/tasks/tasks.json
 .taskmaster/templates/example_prd.txt
+./production-prd.md
