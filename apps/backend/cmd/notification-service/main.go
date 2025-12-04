@@ -69,6 +69,7 @@ type NotificationService struct {
 	deduplicationSvc *models.DeduplicationService
 	logger           *log.Logger
 	users            []User
+	usersMutex       sync.RWMutex          // Protects users slice during reload
 	slotBatch        map[string][]SlotData // User email -> list of slots
 	batchMutex       sync.RWMutex
 	batchTimer       *time.Timer
@@ -199,7 +200,11 @@ func (s *NotificationService) processSlotMessage(slotMessage string) {
 	s.logger.Printf("🎾 Processing slot: %s at %s (%s-%s)", slot.CourtName, slot.VenueName, slot.StartTime, slot.EndTime)
 
 	// Check for users who might be interested in this slot
-	for _, user := range s.users {
+	s.usersMutex.RLock()
+	users := s.users
+	s.usersMutex.RUnlock()
+
+	for _, user := range users {
 		if s.shouldNotifyUser(user, slot) {
 			// Use the consolidated deduplication service
 			event := models.CourtAvailabilityEvent{
@@ -406,6 +411,9 @@ func main() {
 		logger.Fatalf("Failed to load users: %v", err)
 	}
 
+	// Start periodic preference reload
+	service.startPeriodicPreferenceReload()
+
 	// Log service status
 	service.logServiceStatus()
 
@@ -470,6 +478,9 @@ func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 		logger.Fatalf("Failed to load users: %v", err)
 	}
 
+	// Start periodic preference reload
+	service.startPeriodicPreferenceReload()
+
 	// Log service status
 	service.logServiceStatus()
 
@@ -489,6 +500,27 @@ func initializeServiceWithFallback(db *mongo.Database, logger *log.Logger) {
 	// Cleanup
 	redisClient.Close()
 	logger.Println("✅ Notification service stopped gracefully")
+}
+
+// startPeriodicPreferenceReload starts a goroutine that reloads user preferences every 5 minutes
+func (s *NotificationService) startPeriodicPreferenceReload() {
+	ticker := time.NewTicker(5 * time.Minute)
+	s.logger.Println("🔄 Starting periodic preference reload (every 5 minutes)...")
+
+	go func() {
+		for range ticker.C {
+			s.logger.Println("🔄 Reloading user preferences...")
+			if err := s.loadUsers(); err != nil {
+				s.logger.Printf("❌ Failed to reload user preferences: %v", err)
+				// Don't exit - keep trying on next tick
+			} else {
+				s.usersMutex.RLock()
+				userCount := len(s.users)
+				s.usersMutex.RUnlock()
+				s.logger.Printf("✅ Successfully reloaded preferences for %d users", userCount)
+			}
+		}
+	}()
 }
 
 // loadUsers loads user preferences from MongoDB
@@ -537,7 +569,7 @@ func (s *NotificationService) loadUsers() error {
 	}
 
 	// Convert to User structs and get user details
-	s.users = []User{}
+	newUsers := []User{}
 	for _, pref := range userPrefs {
 		// Get user details from users collection
 		var userDoc struct {
@@ -600,10 +632,15 @@ func (s *NotificationService) loadUsers() error {
 			user.Email = pref.NotificationSettings.EmailAddress
 		}
 
-		s.users = append(s.users, user)
+		newUsers = append(newUsers, user)
 	}
 
-	s.logger.Printf("✅ Loaded %d users with notifications enabled", len(s.users))
+	// Atomically replace the users slice
+	s.usersMutex.Lock()
+	s.users = newUsers
+	s.usersMutex.Unlock()
+
+	s.logger.Printf("✅ Loaded %d users with notifications enabled", len(newUsers))
 	return nil
 }
 
@@ -668,6 +705,7 @@ func (s *NotificationService) flushBatchedNotifications() {
 	for userEmail, slots := range currentBatch {
 		if len(slots) > 0 {
 			// Find user by email
+			s.usersMutex.RLock()
 			var user User
 			for _, u := range s.users {
 				if u.Email == userEmail {
@@ -675,6 +713,7 @@ func (s *NotificationService) flushBatchedNotifications() {
 					break
 				}
 			}
+			s.usersMutex.RUnlock()
 
 			// Send consolidated notification
 			if err := s.sendBatchedNotification(user, slots, gmailService); err != nil {
@@ -840,11 +879,15 @@ func (s *NotificationService) SendTestNotification(email string, gmailService *G
 
 // logServiceStatus logs the current status of services
 func (s *NotificationService) logServiceStatus() {
+	s.usersMutex.RLock()
+	defer s.usersMutex.RUnlock()
+
 	s.logger.Println("📊 Service Status:")
 	s.logger.Println("  ✅ Email Service: ENABLED (Gmail SMTP Real)")
 	s.logger.Println("  ✅ Redis Listener: ENABLED")
 	s.logger.Println("  ✅ MongoDB Connection: ENABLED")
 	s.logger.Println("  ✅ Duplicate Prevention: ENABLED")
+	s.logger.Println("  ✅ Periodic Preference Reload: ENABLED (every 5 minutes)")
 	s.logger.Printf("  ✅ Users Loaded: %d", len(s.users))
 
 	if len(s.users) > 0 {
