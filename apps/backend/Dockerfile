@@ -21,7 +21,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o seed-db ./cmd/seed-db
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o seed-user ./cmd/seed-user
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o db-tools ./cmd/db-tools
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o test-auth-server ./cmd/test-auth-server
 
 # Final stage
 FROM alpine:latest
@@ -38,7 +37,6 @@ COPY --from=builder /app/server .
 COPY --from=builder /app/seed-db .
 COPY --from=builder /app/seed-user .
 COPY --from=builder /app/db-tools .
-COPY --from=builder /app/test-auth-server .
 
 # Create directories for logs and metrics
 RUN mkdir -p /var/log /var/metrics
