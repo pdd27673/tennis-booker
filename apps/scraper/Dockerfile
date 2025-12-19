@@ -14,6 +14,9 @@ COPY pyproject.toml .
 COPY MANIFEST.in .
 COPY src/ ./src/
 
+# Copy config files from project root (two levels up from apps/scraper)
+COPY ../../config/ ./config/
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .
 

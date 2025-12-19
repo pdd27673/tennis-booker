@@ -175,3 +175,5 @@ SECRETS_BACKUP.txt
 .taskmaster/tasks/tasks.json
 .taskmaster/templates/example_prd.txt
 ./production-prd.md
+SESSION_SUMMARY_2025-12-19.md
+V2_IMPLEMENTATION_PLAN.md
