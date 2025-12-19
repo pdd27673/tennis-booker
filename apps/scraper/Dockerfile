@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python package files
-COPY apps/scraper/pyproject.toml .
-COPY apps/scraper/MANIFEST.in .
-COPY apps/scraper/src/ ./src/
+COPY pyproject.toml .
+COPY MANIFEST.in .
+COPY src/ ./src/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -e .
