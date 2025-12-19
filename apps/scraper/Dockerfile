@@ -22,9 +22,6 @@ RUN playwright install --with-deps chromium
 
 # Source code already copied above
 
-# Copy config files from project root
-COPY config/ ./config/
-
 # Create logs directory
 RUN mkdir -p logs
 

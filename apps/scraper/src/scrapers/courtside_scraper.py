@@ -17,10 +17,17 @@ class CourtsideScraper(BaseScraper):
     
     def __init__(self, venue_config: Dict[str, Any]):
         super().__init__(venue_config)
-        self.selectors = self.scraper_config.get('selector_mappings', {})
+        # Default selectors if not in database
+        default_selectors = {
+            'court_widget': '.court-widget',
+            'closed_message': '.closed-today',
+            'bookable_input': 'input.bookable'
+        }
+        self.selectors = self.scraper_config.get('selector_mappings', default_selectors)
         self.navigation_steps = self.scraper_config.get('navigation_steps', [])
         self.timeout = self.scraper_config.get('timeout_seconds', 30) * 1000
-        self.wait_after_load = self.scraper_config.get('wait_after_load_ms', 2000)
+        # Increase default wait time to allow JavaScript to fully render
+        self.wait_after_load = self.scraper_config.get('wait_after_load_ms', 3000)
         
     async def scrape_availability(self, target_dates: List[str]) -> ScrapingResult:
         """Scrape court availability for Courtside platform"""
@@ -35,14 +42,34 @@ class CourtsideScraper(BaseScraper):
                 )
                 
                 try:
-                    page = await browser.new_page()
-                    await page.set_viewport_size({"width": 1280, "height": 720})
-                    
-                    # Set user agent if specified
-                    user_agent = self.scraper_config.get('user_agent')
-                    if user_agent:
-                        await page.set_extra_http_headers({'User-Agent': user_agent})
-                    
+                    # Create context with proper session handling
+                    context = await browser.new_context(
+                        viewport={"width": 1280, "height": 720},
+                        user_agent=self.scraper_config.get('user_agent',
+                            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
+                        ),
+                        locale='en-GB',
+                        timezone_id='Europe/London',
+                        accept_downloads=False,
+                        ignore_https_errors=False,
+                    )
+                    page = await context.new_page()
+
+                    # Visit base venue page first to establish session (CRITICAL FIX for 404 errors)
+                    base_url = self.url.split('#')[0].split('?')[0]
+                    # Remove any date from the URL to get base venue page
+                    if '/2' in base_url:  # Check for date pattern /YYYY
+                        base_url = base_url.rsplit('/', 1)[0]
+
+                    self.logger.info(f"Establishing session at {base_url}")
+                    try:
+                        await page.goto(base_url, timeout=self.timeout)
+                        await page.wait_for_timeout(2000)
+                        cookies = await context.cookies()
+                        self.logger.info(f"Session established with {len(cookies)} cookies")
+                    except Exception as e:
+                        self.logger.warning(f"Could not establish session: {e}")
+
                     for date in target_dates:
                         try:
                             date_slots = await self._scrape_date(page, date)
@@ -57,6 +84,7 @@ class CourtsideScraper(BaseScraper):
                             errors.append(error_msg)
                             
                 finally:
+                    await context.close()
                     await browser.close()
                     
         except Exception as e:
@@ -74,28 +102,38 @@ class CourtsideScraper(BaseScraper):
     async def _scrape_date(self, page: Page, date: str) -> List[ScrapedSlot]:
         """Scrape availability for a specific date"""
         slots = []
-        
+
         # Navigate to the venue booking page
         date_url = self._build_date_url(date)
         self.logger.info(f"Navigating to {date_url}")
-        
-        await page.goto(date_url, timeout=self.timeout)
+
+        # Wait for page to load and network to be idle
+        await page.goto(date_url, timeout=self.timeout, wait_until='networkidle')
+        # Give extra time for JavaScript to render
         await page.wait_for_timeout(self.wait_after_load)
         
         # Check if courts are closed
         closed_selector = self.selectors.get('closed_message', '.closed-today')
         closed_elements = await page.query_selector_all(closed_selector)
-        
+
         if closed_elements:
             self.logger.info(f"Courts closed on {date}")
             return slots
-            
-        # Wait for court widget to load
+
+        # Wait for court widget to load - increase timeout and add better logging
         court_widget_selector = self.selectors.get('court_widget', '.court-widget')
         try:
-            await page.wait_for_selector(court_widget_selector, timeout=10000)
-        except Exception:
-            self.logger.warning(f"Court widget not found for {date}")
+            await page.wait_for_selector(court_widget_selector, timeout=15000)
+            self.logger.info(f"Court widget loaded successfully for {date}")
+        except Exception as e:
+            self.logger.error(f"Court widget not found for {date} after 15s - {str(e)}")
+            # Save screenshot for debugging
+            try:
+                screenshot_path = f"/tmp/courtside_fail_{self.venue_name}_{date}.png"
+                await page.screenshot(path=screenshot_path)
+                self.logger.info(f"Debug screenshot saved: {screenshot_path}")
+            except Exception as screenshot_error:
+                self.logger.warning(f"Could not save screenshot: {screenshot_error}")
             return slots
             
         # Extract available time slots - NEW LOGIC based on Firecrawl analysis

@@ -68,7 +68,7 @@ services:
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - DB_NAME=tennis_booking
-            - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
       - PORT=8080
       - GIN_MODE=release
       - CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN_NAME},https://www.${DOMAIN_NAME}}
@@ -143,7 +143,7 @@ services:
       - GMAIL_PASSWORD=${GMAIL_PASSWORD}
       - FROM_EMAIL=${FROM_EMAIL}
       - DB_NAME=tennis_booking
-          depends_on:
+    depends_on:
       mongodb:
         condition: service_healthy
       redis:
@@ -166,7 +166,7 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
-            - SCRAPER_INTERVAL=${SCRAPER_INTERVAL:-300}  # 5 minutes default
+      - SCRAPER_INTERVAL=${SCRAPER_INTERVAL:-300}  # 5 minutes default
     depends_on:
       mongodb:
         condition: service_healthy
@@ -191,7 +191,7 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
-          depends_on:
+    depends_on:
       mongodb:
         condition: service_healthy
     networks:
@@ -207,8 +207,8 @@ services:
     environment:
       - MONGO_URI=mongodb://admin:${MONGO_ROOT_PASSWORD}@mongodb:27017/tennis_booking?authSource=admin
       - DB_NAME=tennis_booking
-              - USER_EMAIL=${USER_EMAIL:-mvgnum@gmail.com}
-          depends_on:
+      - USER_EMAIL=${USER_EMAIL:-mvgnum@gmail.com}
+    depends_on:
       seed-db:
         condition: service_completed_successfully
     networks:

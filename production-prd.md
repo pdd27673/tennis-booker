@@ -31,6 +31,7 @@ Tennis Booker is a **real-time court availability monitoring and booking platfor
 
 ### Technical Requirements
 
+
 #### Frontend Requirements
 
 **Technology Stack**:

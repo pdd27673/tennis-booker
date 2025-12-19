@@ -158,7 +158,7 @@ yarn-error.log*
 
 # TaskMaster
 .taskmaster/tasks/*.md
-!.taskmaster/tasks/tasks.json
+.taskmaster/
 
 # Operations Documentation
 .runbook.md
